@@ -10,12 +10,6 @@ inductive SkExpr where
 --
 -- Thus, we cannot express them in Lean.
 -- The question is, what subset of the SK combinators can we prove properties of?
-def eval : SkExpr → SkExpr
-  | SkExpr.Call SkExpr.S (x::y::z::_) =>
-    eval $ SkExpr.Call (eval (SkExpr.Call x [z])) [eval $ SkExpr.Call y [z]]
-  | SkExpr.Call SkExpr.K args => sorry
-  | x => x
-
 -- Note that the K combinator is guaranteed to terminate
 def eval' : SkExpr → SkExpr
   | SkExpr.Call SkExpr.K (x::_::_) => x
@@ -64,7 +58,6 @@ def eval' : SkExpr → SkExpr
 --
 -- This solve our turtles all the way down situation.
 
-
 inductive Expr where
   | s       : ℕ      → Expr
   | k       : ℕ      → Expr
@@ -72,8 +65,6 @@ inductive Expr where
   | const   : String → Expr
   | call    : Expr   → Expr → Expr
 deriving BEq
-
-open Expr
 
 -- Flatten the type signature of the expr first
 -- Intuitively our type system should prevent nontermination
@@ -227,40 +218,115 @@ open Expr
 -- Can think of n₁ as the type of the value
 -- Therefore, x is of the type type n₁
 -- so it lives in type universe TYpe n₁ + 1
--- K (Type 1) (Type 1) : K (Type 2) (Type 2)
+-- K (Type 1) (Type 1) : K (Type 2) (Type 2) := 
 -- Let's define this:
 -- K (Type 1) (Type 1) (x : Type 2) (y : Type 2) : Type 2
+-- K (String) (Nat) "bruh" 0 : String := "bruh"
 -- This is fucking sick
+--
+-- If we can represent pairs in the SK combinators,
+-- Then we can represent types
+-- K := fun x => fun y => (x, fun a => fun b => aa)
+--
+-- "looking up" types according
+-- to parameters is incredibly difficult,
+-- as we have no nmaed parameters!
+-- however, we have the S combinator
+--
+-- HOWEVER, we again run into the issue
+-- of cyclicality
+--
+-- I am deep in the fucking meat grinder
+--
+-- If we can take the type
+-- and copy it in some position
+-- embedded in the actual code
+-- then we can infer the actual type?
+--
+-- Say we have some K_t : Type → Type → Type
+-- Now we can define a more general K
+-- For example: K := K_t
 
-#check Type 1
+-- I like our inductive definition the most
 
-inductive K with
-  | 
+-- Intuitively, we can translate every lambda calculus program to an SK combinator program.
+-- And we can create the calculus of constructions in lambda calculus programs
+-- But can we create the calculus of constructions in SK combinator programs?
 
-def normalize_e : Expr → Option Expr
-  -- This is kinda nice
-  | k n => pure $ k (n + 1)
-  | s n => pure $ s (n + 1)
-  | call (k n) x =>
-    (normalize_e x).map (call (k $ n + 1) .)
-  | call (s n) x =>
-    sorry
+-- How is it even possible to encode a type depending on a term if we do not have bindings for parameters
+-- Parameters are nameless
+
+-- Let's go back to our s₀ k₀ construction
+-- let's even assume that S and K themselves are polymorphic
+
+-- What are we formally trying to prove?
+-- We are trying to prove that the calculus of constructions is expressible in the SK combinators
+
+-- There is a decomposition of all parameter-named functions into anonymously named functions
+def s (α β γ : Type) : (α → β → γ) → (α → β) → α → γ
+  | x, y, z => x z (y z)
+
+def k (α β : Type) : α → β → α
+  | x, _ => x
+
+
+inductive LExpr where
+  -- Bind var de brujin index, ty, body
+  | abstraction : ℕ → LExpr → LExpr → LExpr
+  | fall        : ℕ → LExpr → LExpr → LExpr
+  -- T and P, CoC
+  | ty          : ℕ → LExpr
+  | prp         : LExpr
+  -- Bound variable
+  | bvar        : ℕ      → LExpr
+  | app         : LExpr  → LExpr → LExpr
+deriving BEq
+
+open LExpr
+
+-- inference rules:
+-- 1. prop is of type type
+-- 2. if A is of type K, and x is of type A, then x is of type A
+  -- This seems trivial?
+-- 3. if A is of type K, and x is of type A, and B has type L
+-- then (∀x:A.B) is of type L
+-- this is like return type matching the type of the whole expr can be inferred to be L
+-- 4. M:(λx:A.B)
+
+-- Note that reduction happens in inference, too
+-- as per 6. https://en.wikipedia.org/wiki/Calculus_of_constructions
+
+def eval_infer (e : LExpr) : StateT (List $ (ℕ × (LExpr × LExpr))) Option (LExpr × LExpr) :=
+  match e with
+  | p@prp => pure $ (p, ty 0)
+  | t@(ty n) => pure $ (t, (ty $ n + 1))
+  | f@(fall idx e_ty e_body)  => do
+    -- Set type and normal form of bound vars with idx
+    -- to the inferred type of e_ty
+    StateT.modifyGet (⟨(), (idx, ← eval_infer e_ty) :: .⟩)
+
+    -- Use new inference rules to infer body type
+    -- This is the type of the entire expression
+    pure (f, (← eval_infer e_body).snd)
+  | a@(abstraction idx e_ty e_body) => do
+    -- Pretty similar thing to forall
+    let norm_e_ty ← eval_infer e_ty
+    StateT.modifyGet (⟨(), (idx, norm_e_ty) :: .⟩)
+
+    pure $ (a, fall idx norm_e_ty.snd (← eval_infer e_body).snd)
+  | app (fall idx bind_ty body) rhs => do
+    let (norm_rhs, ty_rhs) ← eval_infer rhs
+
+    -- These are technically also the same if they are beta
+    -- normally equivalent
+    if ty_rhs != (← eval_infer (bind_ty)).snd then
+      none
+
+    StateT.modifyGet (⟨(), (idx, (norm_rhs, ty_rhs)) :: .⟩)
+
+    eval_infer body
+  | bvar idx => do
+    match (← StateT.get) |> List.filter λ(idx₂, _) => idx == idx₂ with
+    | (_, (v, ty_var))::_ => pure (v, ty_var)
+    | List.nil => none
   | _ => none
-
--- Functions by themselves are kind of inert
--- s₀ and k₀ do not really need to be typechecked
--- however, S does, sicne S involves a function application
--- However, this is slightly redundant, since S itself involves function application
--- and we know the type of the interior elements
--- so we don't really have to typecheck it
--- we just defer the typechecking to the function application
-def typecheck : Expr → Option Expr
-  | s₀ => pure s₀
-  | k₀ => pure k₀
-  -- S alone is inert
-  -- But it still needs to be type checked
-  -- Since the type of S must be what we expect
-  -- i.e., 
-  | s ty  =>
-    match ty with
-    | 
