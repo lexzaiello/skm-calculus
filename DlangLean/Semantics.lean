@@ -35,25 +35,22 @@ def substitute (idx : ℕ) (with_expr : LExpr) : LExpr → LExpr
   | app lhs rhs =>
     app (substitute idx with_expr lhs) (substitute idx with_expr rhs)
 
--- Evaluate in some number of terms
-def eval (e : LExpr) (n_max_steps : ℕ) : Option LExpr := match n_max_steps with
-  | Nat.zero => none
-  | Nat.succ pred =>
-    match e with
-      | app lhs rhs =>
-        match lhs with
-        | abstraction idx _ body => substitute idx rhs body
-        | x => (app . rhs) <$> eval x pred
-      | x => pure x
+def eval (e : LExpr) : Option LExpr :=
+  match e with
+    | app lhs rhs =>
+      match eval lhs with
+        | abstraction idx _ body => pure $ substitute idx rhs body
+        | _ => none
+    | x => pure x
 
 structure Context where
   types : List $ ℕ × LExpr
 
-def infer (e : LExpr) : StateT Context Option LExpr :=
+def infer (e : LExpr) : StateT Context Option LExpr := do
   match e with
     | prp => pure $ ty 0
     | (ty n) => pure $ ty $ n + 1
-    | (fall idx e_ty e_body)  => do
+    | (fall idx e_ty e_body)  =>
       -- Set type and normal form of bound vars with idx
       -- to the inferred type of e_ty
       let e_ty' ← infer e_ty
@@ -63,28 +60,31 @@ def infer (e : LExpr) : StateT Context Option LExpr :=
       -- Use new inference rules to infer body type
       -- This is the type of the entire expression
       infer e_body
-    | (abstraction idx e_ty e_body) => do
+    | (abstraction idx e_ty e_body) =>
       -- Pretty similar thing to forall
       let norm_e_ty ← infer e_ty
       StateT.modifyGet λctx => ⟨(), { ctx with types := (idx, norm_e_ty) :: ctx.types }⟩
 
       pure $ fall idx norm_e_ty (← infer e_body)
-    | app lhs rhs => do
+    | app lhs rhs =>
       match ← infer lhs with
       | (fall idx bind_ty body) =>
         let ty_rhs ← infer rhs
 
-        -- These are technically also the same if they are beta
-        -- normally equivalent
         if ty_rhs != bind_ty then
-          none
+          -- These are technically also the same if they are beta
+          -- normally equivalent
+          let ty_rhsβ := eval ty_rhs
+          let bind_tyβ := eval bind_ty
+
+          if ty_rhsβ != bind_tyβ then
+            none
 
         pure $ substitute idx body rhs
       | _ => none
-    | bvar idx => do
+    | bvar idx =>
       let { types } ← StateT.get
-      match types |> List.filter λ(idx₂, _) => idx == idx₂ with
+      match types |> List.filter λx => idx == Prod.fst x with
       | (_, ty_var)::_ => pure ty_var
       | List.nil => none
-
 
