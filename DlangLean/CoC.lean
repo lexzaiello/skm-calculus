@@ -1,4 +1,6 @@
 import Mathlib.Data.Nat.Notation
+import Mathlib.Combinatorics.SimpleGraph.Basic
+import Std.Data.HashMap.Basic
 
 inductive LExpr where
   -- ty, body
@@ -8,28 +10,55 @@ inductive LExpr where
   | ty          : ℕ → LExpr
   | prp         : LExpr
   -- De Bruijn Index
-  -- Start at 1
+  -- Start at 0
   | var         : ℕ      → LExpr
   | app         : LExpr  → LExpr → LExpr
 deriving BEq
 
 open LExpr
 
--- Variables bound to the lambda
-def substitute (n_binders : ℕ) (with_expr : LExpr) : LExpr → LExpr
-  | abstraction bind_ty body => abstraction (substitute n_binders.succ with_expr bind_ty) (substitute n_binders.succ with_expr body)
-  | fall bind_ty body => fall (substitute n_binders.succ with_expr bind_ty) (substitute n_binders.succ with_expr body)
+def map_indices_free (n_binders : ℕ) (f : ℕ → ℕ) : LExpr → LExpr
+  | abstraction e_ty body => abstraction (map_indices_free n_binders.succ f e_ty) (map_indices_free n_binders.succ f body)
+  | fall e_ty body => fall (map_indices_free n_binders.succ f e_ty) (map_indices_free n_binders.succ f body)
+  | t@(ty _) => t
+  | p@prp => p
+  -- if free, don't touch this
+  | v@(var n) => if n ≥ n_binders then var (f n) else v
+  | app lhs rhs => app (map_indices_free n_binders f lhs) (map_indices_free n_binders f rhs)
+
+-- Note: cleaned this up a little with GPT-4o.
+-- A couple bugs with debrujin indexing noticed. Fixed those.
+-- Namely
+--
+-- When substituting an abstraction inside an abstraction, its free debrujin indices
+-- should be incremented
+def substitute (with_expr : LExpr) : LExpr → LExpr
+  | (abstraction bind_ty body) =>
+    let with_expr' := map_indices_free 0 (Nat.succ .) with_expr
+
+    abstraction (substitute with_expr' bind_ty) (substitute with_expr' body)
+  | fall bind_ty body =>
+    let with_expr' := map_indices_free 0 (Nat.succ .) with_expr
+
+    fall (substitute with_expr' bind_ty) (substitute with_expr' body)
   | t@(ty _) => t
   | prp => prp
-  | var n => if n_binders == n then with_expr else var (n - 1)
+  | var 0 => with_expr
+  | var n => var $ n - 1
   | app lhs rhs =>
-    app (substitute n_binders with_expr lhs) (substitute n_binders with_expr rhs)
+    app (substitute with_expr lhs) (substitute with_expr rhs)
 
+-- This terminates, as all expressions within the expression
+-- should be well-typed. That is, types will be normalized
+-- Therefore, we know that our expression terminates
+-- we can prove that it terminates since no recursion is really allowed
+-- without inductive types
 def eval (e : LExpr) : Option LExpr :=
   match e with
-    | app lhs rhs =>
+    | LExpr.app lhs rhs =>
       match eval lhs with
-        | abstraction _ body => pure $ substitute 1 rhs body
+        | LExpr.abstraction _ body
+        | LExpr.fall        _ body => eval $ substitute rhs body
         | _ => none
     | x => pure x
 
@@ -42,7 +71,7 @@ def infer (e : LExpr) : StateT (List LExpr) Option LExpr :=
       -- to the inferred type of e_ty
       let e_ty' ← infer e_ty
 
-      StateT.modifyGet (⟨(), e_ty' :: .⟩)
+      modify (e_ty' :: .)
 
       -- Use new inference rules to infer body type
       -- This is the type of the entire expression
@@ -50,7 +79,7 @@ def infer (e : LExpr) : StateT (List LExpr) Option LExpr :=
     | abstraction e_ty e_body =>
       -- Pretty similar thing to forall
       let norm_e_ty ← infer e_ty
-      StateT.modifyGet (⟨(), norm_e_ty :: .⟩)
+      modify (norm_e_ty :: .)
 
       pure $ fall norm_e_ty (← infer e_body)
     | app lhs rhs =>
@@ -67,10 +96,10 @@ def infer (e : LExpr) : StateT (List LExpr) Option LExpr :=
             if ty_rhsβ != bind_tyβ then
               none
 
-          pure $ substitute 1 body rhs
+          pure $ substitute body rhs
         | _ => none
     | var idx =>
       let types ← StateT.get
       types[idx]?
 
-def type_of (e : LExpr) : Option LExpr := Prod.fst <$> (infer e).run List.nil
+def type_of (e : LExpr) : List LExpr → Option LExpr := (Prod.fst <$> (infer e).run .)
