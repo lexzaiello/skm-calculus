@@ -15,6 +15,16 @@ inductive LExpr where
   | app         : LExpr  → LExpr → LExpr
 deriving BEq
 
+inductive PathDirection (α : Type) where
+  -- For apps
+  | left       : List (PathDirection α) → PathDirection α
+  | right      : List (PathDirection α) → PathDirection α
+  -- For ∀, λ
+  | in_bind_ty : List (PathDirection α) → PathDirection α
+  | in_body    : List (PathDirection α) → PathDirection α
+  -- ty, prp
+  | leaf       : α                      → PathDirection α
+
 open LExpr
 
 def map_indices_free (n_binders : ℕ) (f : ℕ → ℕ) : LExpr → LExpr
@@ -48,18 +58,20 @@ def substitute (with_expr : LExpr) : LExpr → LExpr
   | app lhs rhs =>
     app (substitute with_expr lhs) (substitute with_expr rhs)
 
--- This terminates, as all expressions within the expression
--- should be well-typed. That is, types will be normalized
--- Therefore, we know that our expression terminates
--- we can prove that it terminates since no recursion is really allowed
--- without inductive types
 def eval (e : LExpr) : Option LExpr :=
   match e with
     | LExpr.app lhs rhs =>
-      match eval lhs with
+      match lhs with
         | LExpr.abstraction _ body
-        | LExpr.fall        _ body => eval $ substitute rhs body
-        | _ => none
+        | LExpr.fall        _ body =>
+
+          eval $ substitute rhs body
+        | x => do
+          let x' := ← eval x
+          if x' == x then
+            none
+          else
+            eval $ app x' rhs
     | x => pure x
 
 def infer (e : LExpr) : StateT (List LExpr) Option LExpr :=
