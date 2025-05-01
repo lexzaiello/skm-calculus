@@ -14,17 +14,6 @@ inductive LExpr where
   | var         : ℕ      → LExpr
   | app         : LExpr  → LExpr → LExpr
 deriving BEq
-
-inductive PathDirection (α : Type) where
-  -- For apps
-  | left       : List (PathDirection α) → PathDirection α
-  | right      : List (PathDirection α) → PathDirection α
-  -- For ∀, λ
-  | in_bind_ty : List (PathDirection α) → PathDirection α
-  | in_body    : List (PathDirection α) → PathDirection α
-  -- ty, prp
-  | leaf       : α                      → PathDirection α
-
 open LExpr
 
 def map_indices_free (n_binders : ℕ) (f : ℕ → ℕ) : LExpr → LExpr
@@ -32,7 +21,7 @@ def map_indices_free (n_binders : ℕ) (f : ℕ → ℕ) : LExpr → LExpr
   | fall e_ty body => fall (map_indices_free n_binders.succ f e_ty) (map_indices_free n_binders.succ f body)
   | t@(ty _) => t
   | p@prp => p
-  -- if free, don't touch this
+  -- if bound, don't touch this
   | v@(var n) => if n ≥ n_binders then var (f n) else v
   | app lhs rhs => app (map_indices_free n_binders f lhs) (map_indices_free n_binders f rhs)
 
@@ -58,40 +47,88 @@ def substitute (with_expr : LExpr) : LExpr → LExpr
   | app lhs rhs =>
     app (substitute with_expr lhs) (substitute with_expr rhs)
 
-def eval (e : LExpr) : Option LExpr :=
+inductive PathDirection where
+  | left       : PathDirection
+  | right      : PathDirection
+  | stop       : PathDirection
+
+inductive Context (α : Type) where
+  | leaf      : α             → Context α
+  | branching : List (Option $ Context α) → Context α
+
+def direction_ordinal : PathDirection → Nat
+  | PathDirection.stop  => 0
+  | PathDirection.left  => 1
+  | PathDirection.right => 2
+
+abbrev TypeContext := Context LExpr
+
+open PathDirection
+open Context
+
+def eval_path_step {α : Type} (dir : PathDirection) : StateT (Option $ Context α) Option α := do
+  let ctx ← (← get)
+
+  match dir, ctx with
+    | stop, leaf x =>
+      set $ @none (Context α)
+
+      pure x
+    | x, branching paths =>
+      match paths[direction_ordinal x]?.join with
+        | some ctx' =>
+          set (some ctx')
+
+          none
+        | none =>
+          set $ @none (Context α)
+
+          none
+    | _, _ =>
+      set $ @none (Context α)
+
+      none
+
+-- The size of the type tree will strictly decrease
+-- it literally cannot get bigger
+-- This is how we do structural recursion
+def eval (e : LExpr) : StateT (Option $ Context LExpr) Option LExpr :=
   match e with
-    | LExpr.app lhs rhs =>
-      match lhs with
-        | LExpr.abstraction _ body
-        | LExpr.fall        _ body =>
+  | app lhs rhs => do
+    -- Get ty of lhs
+    -- Lhs must normalize to a forall in order to be evaluable
+    let _      ← eval_path_step left
 
-          eval $ substitute rhs body
-        | x => do
-          let x' := ← eval x
-          if x' == x then
-            none
-          else
-            eval $ app x' rhs
-    | x => pure x
+    -- Advance state to next recursor,
+    -- and get type of that, but do not advance to type of that in context
 
-def infer (e : LExpr) : StateT (List LExpr) Option LExpr :=
+    let ty_lhs ← Prod.fst <$> (eval_path_step stop).run (← get)
+
+    match ty_lhs with
+      | fall _ body =>
+        eval $ substitute body rhs
+      | _ => none
+  | x => some x
+
+
+def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
   do match e with
-    | prp => pure $ ty 0
-    | ty n => pure $ ty $ n + 1
+    | prp => pure $ pure $ leaf (ty 0)
+    | ty n => pure $ pure $ leaf (ty $ n + 1)
     | fall e_ty e_body  =>
       -- Set type and normal form of bound vars with idx
       -- to the inferred type of e_ty
-      let e_ty' ← infer e_ty
+      let e_ty' ← infer dir_types e_ty
 
-      modify (e_ty' :: .)
+      let directions := [in_bind_ty e_ty']
+      let directions' := in_body (← infer (directions :: dir_types) e_body) :: directions
 
       -- Use new inference rules to infer body type
       -- This is the type of the entire expression
-      infer e_body
+      pure directions'
     | abstraction e_ty e_body =>
       -- Pretty similar thing to forall
-      let norm_e_ty ← infer e_ty
-      modify (norm_e_ty :: .)
+      let norm_e_ty ← infer dir_types e_ty
 
       pure $ fall norm_e_ty (← infer e_body)
     | app lhs rhs =>
