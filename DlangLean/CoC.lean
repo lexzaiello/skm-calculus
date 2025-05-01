@@ -1,5 +1,6 @@
 import Mathlib.Data.Nat.Notation
 import Mathlib.Combinatorics.SimpleGraph.Basic
+import Mathlib.Tactic
 import Std.Data.HashMap.Basic
 
 inductive LExpr where
@@ -54,62 +55,75 @@ inductive PathDirection where
 
 inductive Context (α : Type) where
   | leaf      : α             → Context α
-  | branching : List (Option $ Context α) → Context α
-
-def direction_ordinal : PathDirection → Nat
-  | PathDirection.stop  => 0
-  | PathDirection.left  => 1
-  | PathDirection.right => 2
+  | branching : (Option $ Context α) → (Option $ Context α) → Context α
 
 abbrev TypeContext := Context LExpr
 
 open PathDirection
 open Context
 
-def eval_path_step {α : Type} (dir : PathDirection) : StateT (Option $ Context α) Option α := do
-  let ctx ← (← get)
-
+def eval_path_step {α : Type} (dir : PathDirection) (ctx : Context α) : Option (Context α) × Option α :=
   match dir, ctx with
     | stop, leaf x =>
-      set $ @none (Context α)
-
-      pure x
-    | x, branching paths =>
-      match paths[direction_ordinal x]?.join with
-        | some ctx' =>
-          set (some ctx')
-
-          none
-        | none =>
-          set $ @none (Context α)
-
-          none
+      ⟨none, pure x⟩
+    | left, branching left_ctx _ =>
+      ⟨left_ctx, none⟩
+    | right, branching _ right_ctx =>
+      ⟨right_ctx, none⟩
     | _, _ =>
-      set $ @none (Context α)
-
-      none
+      ⟨none, none⟩
 
 -- The size of the type tree will strictly decrease
 -- it literally cannot get bigger
 -- This is how we do structural recursion
-def eval (e : LExpr) : StateT (Option $ Context LExpr) Option LExpr :=
-  match e with
-  | app lhs rhs => do
-    -- Get ty of lhs
-    -- Lhs must normalize to a forall in order to be evaluable
-    let _      ← eval_path_step left
+def eval (e : LExpr) (maybe_ctx : Option (Context LExpr)) : Option LExpr :=
+  match h₀ : maybe_ctx with
+  | some ctx =>
+    match e with
+    | app lhs rhs =>
+      match h₁ : eval_path_step left ctx with
+      | (some ctx', none) =>
+        match h₂ : eval_path_step stop ctx' with
+        | (fst, some (fall _ body)) =>
+          have h : sizeOf ctx' < sizeOf ctx := by
+            have h_a : sizeOf ctx' < sizeOf (some ctx') := by
+              simp
+            have h_b : sizeOf ctx < sizeOf (some ctx) := by
+              simp
+            have h_c : some ctx' = (eval_path_step left ctx).fst := by
+              simp_all
+            have h_d : sizeOf (some ctx') < sizeOf (some ctx) := by
+              rw [h_c]
+              unfold eval_path_step
+              match h : left, ctx with
+                | stop, x =>
+                  simp [sizeOf]
+                  match h₂ : x with
+                    | leaf _ =>
+                      simp_all
+                    | branching _ _ =>
+                      simp_all
+                | right, x =>
+                  match h₂ : x with
+                    | leaf _ =>
+                      simp_all
+                    | branching _ _ =>
+                      simp_all
+                | left, x =>
+                  match h₂ : x with
+                    | leaf a =>
+                      simp
+                    | branching a₁ a₂ =>
+                      simp
+                      linarith
+            exact Nat.lt_of_add_lt_add_left h_d
 
-    -- Advance state to next recursor,
-    -- and get type of that, but do not advance to type of that in context
-
-    let ty_lhs ← Prod.fst <$> (eval_path_step stop).run (← get)
-
-    match ty_lhs with
-      | fall _ body =>
-        eval $ substitute body rhs
+          eval (substitute body rhs) (some ctx')
+        | _ => none
       | _ => none
-  | x => some x
-
+    | x => some x
+  | none => none
+termination_by maybe_ctx
 
 def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
   do match e with
