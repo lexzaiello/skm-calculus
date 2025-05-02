@@ -15,7 +15,16 @@ inductive LExpr where
   | var         : ℕ      → LExpr
   | app         : LExpr  → LExpr → LExpr
 deriving BEq
+
 open LExpr
+
+def final : LExpr → Bool
+  | abstraction _ _
+  | fall _ _
+  | ty _
+  | prp
+  | var _ => true
+  | app _ _ => false
 
 def map_indices_free (n_binders : ℕ) (f : ℕ → ℕ) : LExpr → LExpr
   | abstraction e_ty body => abstraction (map_indices_free n_binders.succ f e_ty) (map_indices_free n_binders.succ f body)
@@ -48,84 +57,81 @@ def substitute (with_expr : LExpr) : LExpr → LExpr
   | app lhs rhs =>
     app (substitute with_expr lhs) (substitute with_expr rhs)
 
-inductive PathDirection where
-  | left       : PathDirection
-  | right      : PathDirection
-  | stop       : PathDirection
-
-inductive Context (α : Type) where
-  | leaf      : α             → Context α
-  | branching : (Option $ Context α) → (Option $ Context α) → Context α
-
-abbrev TypeContext := Context LExpr
-
-open PathDirection
-open Context
-
-def eval_path_step {α : Type} (dir : PathDirection) (ctx : Context α) : Option (Context α) × Option α :=
-  match dir, ctx with
-    | stop, leaf x =>
-      ⟨none, pure x⟩
-    | left, branching left_ctx _ =>
-      ⟨left_ctx, none⟩
-    | right, branching _ right_ctx =>
-      ⟨right_ctx, none⟩
-    | _, _ =>
-      ⟨none, none⟩
-
 -- The size of the type tree will strictly decrease
 -- it literally cannot get bigger
 -- This is how we do structural recursion
-def eval (e : LExpr) (maybe_ctx : Option (Context LExpr)) : Option LExpr :=
-  match h₀ : maybe_ctx with
-  | some ctx =>
-    match e with
+def eval_once : LExpr → LExpr
+  | app (abstraction _ body) rhs =>
+    substitute rhs body
+  | app lhs rhs =>
+    app (eval_once lhs) rhs
+  | x => x
+
+structure TypeContext where
+  f_ty : LExpr → Option LExpr
+
+  -- If an application is well-typed, then its lhs is type forall
+  well_typed_app := ∀ lhs rhs, (f_ty $ app lhs rhs).isSome →
+    match f_ty lhs with
+      | some (fall _ _) => true
+      | _ => false
+
+  all_types_final := ∀ e, (f_ty e).isSome → (f_ty e).map final = some true
+
+theorem well_typed_final (ctx : TypeContext) (e : LExpr) : (ctx.f_ty e).isSome → final e
+  | h_well_typed => by
+    match h : e with
+      | var _
+      | fall _ _
+      | abstraction _ _
+      | ty _
+      | prp =>
+        unfold final
+        simp_all
+      | app lhs rhs =>
+        have h_abstr : match ctx.f_ty lhs with
+             | some (fall _ _) => true
+             | _ => false
+          := sorry
+        sorry
+
+def eval (e : LExpr) (f_ty : TypeContext) (h_all_types_final : all_types_final f_ty) : ∃ e' : LExpr, final e' := by
+  match h₁ : e with
     | app lhs rhs =>
-      match h₁ : eval_path_step left ctx with
-      | (some ctx', none) =>
-        match h₂ : eval_path_step stop ctx' with
-        | (fst, some (fall _ body)) =>
-          have h : sizeOf ctx' < sizeOf ctx := by
-            have h_a : sizeOf ctx' < sizeOf (some ctx') := by
-              simp
-            have h_b : sizeOf ctx < sizeOf (some ctx) := by
-              simp
-            have h_c : some ctx' = (eval_path_step left ctx).fst := by
-              simp_all
-            have h_d : sizeOf (some ctx') < sizeOf (some ctx) := by
-              rw [h_c]
-              unfold eval_path_step
-              match h : left, ctx with
-                | stop, x =>
-                  simp [sizeOf]
-                  match h₂ : x with
-                    | leaf _ =>
-                      simp_all
-                    | branching _ _ =>
-                      simp_all
-                | right, x =>
-                  match h₂ : x with
-                    | leaf _ =>
-                      simp_all
-                    | branching _ _ =>
-                      simp_all
-                | left, x =>
-                  match h₂ : x with
-                    | leaf a =>
-                      simp
-                    | branching a₁ a₂ =>
-                      simp
-                      linarith
-            exact Nat.lt_of_add_lt_add_left h_d
+      let ⟨lhs', h_lhs'_final⟩ := eval lhs f_ty (by simp_all)
+      match h₂ : lhs' with
+        | abstraction bind_ty body =>
+          use substitute body rhs
+          
+          sorry
+        | fall _ _ => sorry
+        | app lhs rhs =>
+          contradiction
+        | var _ => sorry
+        | ty _ => sorry
+        | prp => sorry
+    | a@(abstraction bind_ty body) =>
+      use abstraction bind_ty body
+      unfold final
+      simp
+    | fall bind_ty body =>
+      use fall bind_ty body
+      unfold final
+      simp
+    | var n =>
+      use var n
+      unfold final
+      simp
+    | ty n =>
+      use ty n
+      unfold final
+      simp
+    | prp =>
+      use prp
+      unfold final
+      simp
 
-          eval (substitute body rhs) (some ctx')
-        | _ => none
-      | _ => none
-    | x => some x
-  | none => none
-termination_by maybe_ctx
-
-def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
+/--def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
   do match e with
     | prp => pure $ pure $ leaf (ty 0)
     | ty n => pure $ pure $ leaf (ty $ n + 1)
@@ -166,3 +172,6 @@ def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (
       types[idx]?
 
 def type_of (e : LExpr) : List LExpr → Option LExpr := (Prod.fst <$> (infer e).run .)
+--/
+
+def bruh := ()
