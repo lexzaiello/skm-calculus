@@ -63,10 +63,17 @@ def trivially_strongly_normalizing (e : LExpr) := match e with
     | app _ _ => false
     | _ => true
 
+inductive beta_normal : LExpr → LExpr → Prop
+  | trivial e     : beta_normal e e
+  | hard (e₁ e₂ e₃ : LExpr) : eval_once e₁ = e₂ → beta_normal e₂ e₃ → beta_normal e₁ e₃
+
+theorem beta_normal_eval_once : ∀ e : LExpr, beta_normal e (eval_once e)
+  | e => beta_normal.hard e (eval_once e) (eval_once e) rfl (beta_normal.trivial (eval_once e))
+
+theorem beta_normal_id : ∀ e, beta_normal e e := beta_normal.trivial
+
 structure TypeContext where
   f_ty : LExpr → Option LExpr
-
-  all_types_strongly_normalizing : ∀ e ty, some ty = f_ty e → trivially_strongly_normalizing e
 
   well_typed (e : LExpr) := (f_ty e).isSome = true
 
@@ -75,7 +82,6 @@ structure TypeContext where
     | app lhs rhs =>
       ∃ bind_ty body, f_ty rhs = some bind_ty ∧ f_ty body = some ty ∧ f_ty lhs = some (fall bind_ty body)
     | _ => true
-
 
 inductive is_strongly_normalizing (ctx : TypeContext) : LExpr → Prop
   | trivial (e : LExpr) : trivially_strongly_normalizing e → is_strongly_normalizing ctx e
@@ -120,6 +126,7 @@ def strongly_normalizing (ctx : TypeContext) (e : LExpr) (ty : LExpr) (h_ty_corr
         -- This is because the left hand side being strongly normalizing
         -- means it is beta equivalent to one of the trivially normalizing exprs
         exact @is_strongly_normalizing.hard ctx (app lhs rhs) (by
+          
           unfold eval_once
 
           match app lhs rhs with
