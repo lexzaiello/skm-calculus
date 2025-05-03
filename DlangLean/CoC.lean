@@ -18,14 +18,6 @@ deriving BEq
 
 open LExpr
 
-def final : LExpr → Bool
-  | abstraction _ _
-  | fall _ _
-  | ty _
-  | prp
-  | var _ => true
-  | app _ _ => false
-
 def map_indices_free (n_binders : ℕ) (f : ℕ → ℕ) : LExpr → LExpr
   | abstraction e_ty body => abstraction (map_indices_free n_binders.succ f e_ty) (map_indices_free n_binders.succ f body)
   | fall e_ty body => fall (map_indices_free n_binders.succ f e_ty) (map_indices_free n_binders.succ f body)
@@ -67,35 +59,108 @@ def eval_once : LExpr → LExpr
     app (eval_once lhs) rhs
   | x => x
 
+def trivially_strongly_normalizing (e : LExpr) := match e with
+    | app _ _ => false
+    | _ => true
+
 structure TypeContext where
   f_ty : LExpr → Option LExpr
 
+  all_types_strongly_normalizing : ∀ e ty, some ty = f_ty e → trivially_strongly_normalizing e
+
+  well_typed (e : LExpr) := (f_ty e).isSome = true
+
   -- If an application is well-typed, then its lhs is type forall
-  well_typed_app := ∀ lhs rhs, (f_ty $ app lhs rhs).isSome →
-    match f_ty lhs with
-      | some (fall _ _) => true
-      | _ => false
+  well_typed_app' (e : LExpr) (ty : LExpr) (h_ty_correct : f_ty e = some ty) : match e with
+    | app lhs rhs =>
+      ∃ bind_ty body, f_ty rhs = some bind_ty ∧ f_ty body = some ty ∧ f_ty lhs = some (fall bind_ty body)
+    | _ => true
 
-  all_types_final := ∀ e, (f_ty e).isSome → (f_ty e).map final = some true
 
-theorem well_typed_final (ctx : TypeContext) (e : LExpr) : (ctx.f_ty e).isSome → final e
-  | h_well_typed => by
+inductive is_strongly_normalizing (ctx : TypeContext) : LExpr → Prop
+  | trivial (e : LExpr) : trivially_strongly_normalizing e → is_strongly_normalizing ctx e
+  | hard (e : LExpr) : is_strongly_normalizing ctx (eval_once e) → is_strongly_normalizing ctx e
+
+def strongly_normalizing (ctx : TypeContext) (e : LExpr) (ty : LExpr) (h_ty_correct : ctx.f_ty e = some ty) : is_strongly_normalizing ctx e :=
     match h : e with
-      | var _
-      | fall _ _
-      | abstraction _ _
-      | ty _
-      | prp =>
-        unfold final
-        simp_all
-      | app lhs rhs =>
-        have h_abstr : match ctx.f_ty lhs with
-             | some (fall _ _) => true
-             | _ => false
-          := sorry
-        sorry
+      | var a =>
+        @is_strongly_normalizing.trivial ctx (var a) (by
+          unfold trivially_strongly_normalizing
+          simp
+        )
+      | fall bind_ty body =>
+        @is_strongly_normalizing.trivial ctx (fall bind_ty body) (by
+          unfold trivially_strongly_normalizing
+          simp
+        )
+      | abstraction bind_ty body => @is_strongly_normalizing.trivial ctx (abstraction bind_ty body) (by
+          unfold trivially_strongly_normalizing
+          simp
+        )
+      | LExpr.ty n => @is_strongly_normalizing.trivial ctx (LExpr.ty n) (by
+          unfold trivially_strongly_normalizing
+          simp
+        )
+      | prp => @is_strongly_normalizing.trivial ctx prp (by
+          unfold trivially_strongly_normalizing
+          simp
+        )
+      | app lhs rhs => by
+        have h_app_maybe_well_typed := ctx.well_typed_app' (app lhs rhs) ty h_ty_correct
+        simp at h_app_maybe_well_typed
 
-def eval (e : LExpr) (f_ty : TypeContext) (h_all_types_final : all_types_final f_ty) : ∃ e' : LExpr, final e' := by
+        have ⟨bind_ty, ⟨h_bind_ty, ⟨body, ⟨h_ty_body, h_ty_lhs⟩⟩⟩⟩ := h_app_maybe_well_typed
+
+        have h_lhs_strongly_normalizing : is_strongly_normalizing ctx lhs := strongly_normalizing ctx lhs (fall bind_ty body) (by simp [h_ty_lhs])
+        have h_rhs_strongly_normalizing : is_strongly_normalizing ctx rhs := strongly_normalizing ctx rhs bind_ty (by simp [h_bind_ty])
+
+        -- Given left hand side and right hand side are strongly normalizing, then
+        -- the whole substitution is strongly normalizing
+        --
+        -- This is because the left hand side being strongly normalizing
+        -- means it is beta equivalent to one of the trivially normalizing exprs
+        exact @is_strongly_normalizing.hard ctx (app lhs rhs) (by
+          unfold eval_once
+
+          match app lhs rhs with
+          | app (abstraction bind_ty body) rhs =>
+            simp
+            
+            sorry
+          | app lhs rhs => sorry
+          | abstraction  bind_ty body =>
+            simp
+            exact is_strongly_normalizing.trivial (abstraction bind_ty body) (by
+              unfold trivially_strongly_normalizing
+              simp
+            )
+          | var n =>
+            simp
+            exact is_strongly_normalizing.trivial (var n) (by
+              unfold trivially_strongly_normalizing
+              simp
+            )
+          | LExpr.ty n =>
+              simp
+              exact is_strongly_normalizing.trivial (LExpr.ty n) (by
+                unfold trivially_strongly_normalizing
+                simp
+              )
+            | prp =>
+              simp
+              exact is_strongly_normalizing.trivial prp (by
+                unfold trivially_strongly_normalizing
+                simp
+              )
+            | fall bind_ty body =>
+              simp
+              exact is_strongly_normalizing.trivial (fall bind_ty body) (by
+                unfold trivially_strongly_normalizing
+                simp
+              )
+        )
+
+/--def eval (e : LExpr) (f_ty : TypeContext) : ∃ e' : LExpr, final e' := by
   match h₁ : e with
     | app lhs rhs =>
       let ⟨lhs', h_lhs'_final⟩ := eval lhs f_ty (by simp_all)
@@ -131,7 +196,7 @@ def eval (e : LExpr) (f_ty : TypeContext) (h_all_types_final : all_types_final f
       unfold final
       simp
 
-/--def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
+def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
   do match e with
     | prp => pure $ pure $ leaf (ty 0)
     | ty n => pure $ pure $ leaf (ty $ n + 1)
