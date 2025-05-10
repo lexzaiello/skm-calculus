@@ -89,9 +89,9 @@ def obvious_reducibility_candidates (t : LExpr) : Set LExpr :=
     | _ => { e | match e with | var _ => true | _ => false }
 
 def t_well_behaved : Set LExpr := { t | match t with
-  | prp => true
-  | ty _ => true
-  | fall _ _ => true
+  | prp => t = prp
+  | ty n => t = ty n
+  | fall a b => t = fall a b
   | _ => false }
 
 def obviously_well_typed : LExpr → Option LExpr
@@ -167,14 +167,26 @@ theorem well_typed_well_behaved (t : LExpr) (e : LExpr) (h_holds_obvious_typings
       simp_all
     | var n =>
       simp_all
-      match t with
-        | prp => simp
-        | ty 0 => simp
-        | fall _ _ => simp
-        | ty a =>
-          unfold t_well_behaved at h_well_typed
-          simp_all
-    | app lhs rhs => sorry
+      unfold t_well_behaved at h_well_typed
+      split
+      simp
+      rw [← h]
+      simp
+      rw [h]
+      simp
+      simp
+      rw [← h]
+      simp
+      rw [h]
+      simp
+      rw [← h]
+      simp
+      rw [h]
+      simp
+    | app lhs rhs =>
+      have ty_lhs := f_ty lhs
+      have ty_rhs := f_ty rhs
+      sorry
 
 /--def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
   do match e with
