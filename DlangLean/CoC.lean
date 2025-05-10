@@ -68,23 +68,25 @@ inductive is_strongly_normalizing : LExpr → Prop
 
 def TypeContext := LExpr → Option LExpr
 
-def well_typed (f_ty : TypeContext) (e : LExpr) := ∃ ty, f_ty e = some ty
-
 def obvious_reducibility_candidates (t : LExpr) : Set LExpr :=
   match t with
     | prp => { e | match e with
-      | fall _ _ => True
+      | fall _ _ => true
+      | var _ => true
       | _ => false }
     | ty 0 => { e | match e with
       | prp => true
+      | var _ => true
       | _ => false }
     | ty (n + 1) => { e | match e with
       | ty n₂ => n₂ = n
+      | var _ => true
       | _ => false }
     | fall _ _ => { e | match e with
       | abstraction _ _ => true
+      | var _ => true
       | _ => false }
-    | _ => ∅
+    | _ => { e | match e with | var _ => true | _ => false }
 
 def t_well_behaved : Set LExpr := { t | match t with
   | prp => true
@@ -134,6 +136,45 @@ lemma all_obviously_well_typed_well_behaved (t : LExpr) (e : LExpr) : obviously_
           simp [*] at h
           simp_all
         simp_all
+
+def well_typed (f_ty : TypeContext) (e : LExpr) (_h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) := match e with
+  | app lhs rhs => (f_ty e).isSome ∧ well_typed f_ty lhs _h_holds_obvious_typings ∧ well_typed f_ty rhs _h_holds_obvious_typings
+  | e => (f_ty e).isSome ∧ ((f_ty e).map (. ∈ t_well_behaved)) = some true
+
+theorem well_typed_well_behaved (t : LExpr) (e : LExpr) (h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) (h_well_typed : well_typed f_ty e h_holds_obvious_typings) (h_specifically_well_typed : f_ty e = some t) : e ∈ obvious_reducibility_candidates t := by
+  unfold obvious_reducibility_candidates
+  unfold well_typed at h_well_typed
+  match h : e with
+    | prp =>
+      have h₃ : t = ty 0 := by
+        unfold obviously_well_typed at h_holds_obvious_typings
+        simp_all
+      simp_all
+    | ty n =>
+      have h₃ : t = (ty $ n + 1) := by
+        unfold obviously_well_typed at h_holds_obvious_typings
+        simp_all
+      simp_all
+    | fall _ _ =>
+      have h₃ : t = prp := by
+        unfold obviously_well_typed at h_holds_obvious_typings
+        simp_all
+      simp_all
+    | abstraction a b =>
+      have h₄ : t = fall a b := by
+        unfold obviously_well_typed at h_holds_obvious_typings
+        simp_all
+      simp_all
+    | var n =>
+      simp_all
+      match t with
+        | prp => simp
+        | ty 0 => simp
+        | fall _ _ => simp
+        | ty a =>
+          unfold t_well_behaved at h_well_typed
+          simp_all
+    | app lhs rhs => sorry
 
 /--def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
   do match e with
