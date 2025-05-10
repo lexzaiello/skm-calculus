@@ -70,54 +70,70 @@ def TypeContext := LExpr → Option LExpr
 
 def well_typed (f_ty : TypeContext) (e : LExpr) := ∃ ty, f_ty e = some ty
 
-def obvious_reducibility_candidates (t : LExpr) : ∃ s : Set LExpr, ∀ e, e ∈ s → is_strongly_normalizing e :=
+def obvious_reducibility_candidates (t : LExpr) : Set LExpr :=
   match t with
-    | prp => ⟨setOf (match . with
+    | prp => { e | match e with
       | fall _ _ => True
-      | ty 0 => True
-      | _ => false), λ e h_e => is_strongly_normalizing.trivial e (by
-        unfold eval_once
-        match e with
-          | fall _ _ => simp_all
-          | ty _ => simp_all
-      )⟩
-    | ty n => ⟨setOf (match . with
-      | ty n₂ => n₂ = n + 1
-      | _ => false), λ e h_e => is_strongly_normalizing.trivial e (by
-        unfold eval_once
-        match e with
-          | ty _ => simp_all
-      )⟩
-    | fall _ _ => ⟨setOf (match . with
+      | _ => false }
+    | ty 0 => { e | match e with
+      | prp => true
+      | _ => false }
+    | ty (n + 1) => { e | match e with
+      | ty n₂ => n₂ = n
+      | _ => false }
+    | fall _ _ => { e | match e with
       | abstraction _ _ => true
-      | _ => false), λ e h_e => is_strongly_normalizing.trivial e (by
-        unfold eval_once
-        match e with
-          | abstraction _ _ => simp_all
-      )⟩
-    | _ => ⟨setOf (Function.const _ false), λ e h_e => by simp_all⟩
+      | _ => false }
+    | _ => ∅
 
--- Expressions that strongly normalize that are of type t
-def reducibility_candidates (t : LExpr) : ∃ s : Set LExpr, ∀ e, e ∈ s → is_strongly_normalizing e :=
-  -- Anything of type Prop has an obvious candidate: ∀
-  -- So does ty n
-  -- And so does anything of type ∀ (e.g., λ)
-  let obv_candidates := match t with
-    | prp => setOf (match . with
-      | fall _ _ => True
-      | ty 0 => True
-      | _ => false)
-    | ty n => setOf (match . with
-      | ty n₂ => n₂ = n + 1
-      | _ => false)
-    | fall _ _ => setOf (match . with
-      | abstraction _ _ => true
-      | _ => false)
-    | _ => setOf (Function.const _ false)
+def t_well_behaved : Set LExpr := { t | match t with
+  | prp => true
+  | ty _ => true
+  | fall _ _ => true
+  | _ => false }
 
-  -- For other cases, we must use induction to find the reducibility set
+def obviously_well_typed : LExpr → Option LExpr
+  | prp => some $ ty 0
+  | ty n => some (ty $ n + 1)
+  | fall _ _ =>
+    some prp
+  | abstraction a b =>
+    some $ fall a b
+  | _ => none
 
-  sorry
+def e_obviously_well_behaved : Set LExpr := { e | match e with
+  | prp => true
+  | ty _ => true
+  | fall _ _ => true
+  | abstraction _ _ => true
+  | _ => false }
+
+lemma all_obviously_well_typed_well_behaved (t : LExpr) (e : LExpr) : obviously_well_typed e = some t → e ∈ obvious_reducibility_candidates t
+  | h => by
+    simp [obviously_well_typed] at h
+    unfold obvious_reducibility_candidates
+    match h₂ : e with
+      | prp =>
+        have h₃ : t = ty 0 := by
+          simp [*] at h
+          simp_all
+        simp_all
+      | ty n =>
+        simp_all
+        have h₃ : t = (ty $ n + 1) := by
+          simp [*] at h
+          simp_all
+        simp_all
+      | fall _ _ =>
+        have h₃ : t = prp := by
+          simp [*] at h
+          simp_all
+        simp_all
+      | abstraction a b =>
+        have h₄ : t = fall a b := by
+          simp [*] at h
+          simp_all
+        simp_all
 
 /--def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
   do match e with
