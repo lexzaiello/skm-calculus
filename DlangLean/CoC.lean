@@ -191,6 +191,14 @@ theorem well_typed_well_behaved (f_ty : TypeContext) (t : LExpr) (e : LExpr) (h_
       have h_lhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_lhs lhs h_holds_obvious_typings h₃ (by simp [h₄a, h₄b])
       let lhs' := substitute rhs lhs
 
+      -- The varible being bound in the lhs substitution is necessarily in obvious_reducibility_candidates
+      -- This means it cannot be an application
+      -- After substitution, it is possible that lhs will contain more applications
+      -- Lhs must be of type prop. Otherwise, it cannot be applied
+      -- Furthermore, lhs is well-behaved, so its body must also be well-behaved
+      -- f_ty eval_once e = f_ty lhs.body
+      -- lhs.body is surely well-behaved
+      -- So, therefore, the whole expression is well-behaved
       sorry
 
 /--def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
