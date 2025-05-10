@@ -138,10 +138,10 @@ lemma all_obviously_well_typed_well_behaved (t : LExpr) (e : LExpr) : obviously_
         simp_all
 
 def well_typed (f_ty : TypeContext) (e : LExpr) (_h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) := match e with
-  | app lhs rhs => (f_ty e).isSome ∧ well_typed f_ty lhs _h_holds_obvious_typings ∧ well_typed f_ty rhs _h_holds_obvious_typings
+  | app lhs rhs => (f_ty e).isSome ∧ (f_ty lhs).map (λt => ∃ lhs' rhs', t = fall lhs' rhs') = some true ∧ well_typed f_ty lhs _h_holds_obvious_typings ∧ well_typed f_ty rhs _h_holds_obvious_typings
   | e => (f_ty e).isSome ∧ ((f_ty e).map (. ∈ t_well_behaved)) = some true
 
-theorem well_typed_well_behaved (t : LExpr) (e : LExpr) (h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) (h_well_typed : well_typed f_ty e h_holds_obvious_typings) (h_specifically_well_typed : f_ty e = some t) : e ∈ obvious_reducibility_candidates t := by
+theorem well_typed_well_behaved (f_ty : TypeContext) (t : LExpr) (e : LExpr) (h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) (h_well_typed : well_typed f_ty e h_holds_obvious_typings) (h_specifically_well_typed : f_ty e = some t) : e ∈ obvious_reducibility_candidates t := by
   unfold obvious_reducibility_candidates
   unfold well_typed at h_well_typed
   match h : e with
@@ -184,8 +184,13 @@ theorem well_typed_well_behaved (t : LExpr) (e : LExpr) (h_holds_obvious_typings
       rw [h]
       simp
     | app lhs rhs =>
-      have ty_lhs := f_ty lhs
-      have ty_rhs := f_ty rhs
+      simp at h_well_typed
+      have ⟨h₁, h₂, h₃, h₄⟩ := h_well_typed
+      let ⟨ty_lhs, ⟨h₄a, ⟨inner_lhs, inner_rhs, h₄b⟩⟩⟩ := h₂
+      simp_all
+      have h_lhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_lhs lhs h_holds_obvious_typings h₃ (by simp [h₄a, h₄b])
+      let lhs' := substitute rhs lhs
+
       sorry
 
 /--def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
