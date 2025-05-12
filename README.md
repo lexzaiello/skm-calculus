@@ -1,1 +1,1 @@
-# dlang-lean
+# CoC Lean
