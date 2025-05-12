@@ -137,11 +137,18 @@ lemma all_obviously_well_typed_well_behaved (t : LExpr) (e : LExpr) : obviously_
           simp_all
         simp_all
 
+def eval_same_type (f_ty : TypeContext) (e : LExpr) := f_ty (eval_once e) = f_ty e
+
 def well_typed (f_ty : TypeContext) (e : LExpr) (_h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) := match e with
-  | app lhs rhs => (f_ty e).isSome ∧ (f_ty lhs).map (λt => ∃ lhs' rhs', t = fall lhs' rhs') = some true ∧ well_typed f_ty lhs _h_holds_obvious_typings ∧ well_typed f_ty rhs _h_holds_obvious_typings
+  | app lhs rhs =>
+    (f_ty e).isSome ∧
+    (Option.map₂ (λa b => (a, b)) (Option.map₂ (λa b => (a, b)) (f_ty lhs) (f_ty e)) (f_ty rhs) |>
+      Option.map (λ((ty_lhs, ty_e), ty_rhs) => ty_lhs = fall ty_rhs ty_e)) = some true ∧
+    well_typed f_ty lhs _h_holds_obvious_typings ∧
+    well_typed f_ty rhs _h_holds_obvious_typings
   | e => (f_ty e).isSome ∧ ((f_ty e).map (. ∈ t_well_behaved)) = some true
 
-theorem well_typed_well_behaved (f_ty : TypeContext) (t : LExpr) (e : LExpr) (h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) (h_well_typed : well_typed f_ty e h_holds_obvious_typings) (h_specifically_well_typed : f_ty e = some t) : e ∈ obvious_reducibility_candidates t := by
+theorem well_typed_well_behaved (f_ty : TypeContext) (t : LExpr) (e : LExpr) (h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) (h_well_typed : well_typed f_ty e h_holds_obvious_typings) (h_specifically_well_typed : f_ty e = some t) (h_eval_same_type : ∀ e, eval_same_type f_ty e): e ∈ obvious_reducibility_candidates t := by
   unfold obvious_reducibility_candidates
   unfold well_typed at h_well_typed
   match h : e with
@@ -185,10 +192,10 @@ theorem well_typed_well_behaved (f_ty : TypeContext) (t : LExpr) (e : LExpr) (h_
       simp
     | app lhs rhs =>
       simp at h_well_typed
-      have ⟨h₁, h₂, h₃, h₄⟩ := h_well_typed
-      let ⟨ty_lhs, ⟨h₄a, ⟨inner_lhs, inner_rhs, h₄b⟩⟩⟩ := h₂
-      simp_all
-      have h_lhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_lhs lhs h_holds_obvious_typings h₃ (by simp [h₄a, h₄b])
+      have ⟨h₁, h₂, well_typed_lhs, well_typed_rhs⟩ := h_well_typed
+      let ⟨ty_lhs, ⟨ty_e, ⟨ty_rhs, ⟨h_ty_lhs, h_ty_e, h_ty_rhs⟩, h_ty_lhs_fall⟩⟩⟩ := h₂
+      have h_lhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_lhs lhs h_holds_obvious_typings well_typed_lhs h_ty_lhs
+      have h_rhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_rhs rhs h_holds_obvious_typings well_typed_rhs h_ty_rhs
       let lhs' := substitute rhs lhs
 
       -- The varible being bound in the lhs substitution is necessarily in obvious_reducibility_candidates
@@ -199,6 +206,28 @@ theorem well_typed_well_behaved (f_ty : TypeContext) (t : LExpr) (e : LExpr) (h_
       -- f_ty eval_once e = f_ty lhs.body
       -- lhs.body is surely well-behaved
       -- So, therefore, the whole expression is well-behaved
+      -- We will need to take the assumption that the type of an expression stays the same after evaluation
+
+      -- Since lhs is of type forall, it must be some expression in the reducibility candidates
+      -- for type forall
+      -- This could be any abstraction
+      -- Thus, it is well-behaved
+      --
+      -- We will need to use induction somewhere by recursing
+      -- Where will that be?
+      -- If substitution produces no more applications, then we can say
+      -- that the expression `e` is in the reducibility candidates
+      -- There are two cases here:
+      -- - The easy case, where substitution produces no more applications
+      -- - And the recursive case where it produces a new application
+      --   - We can't just recurse, since we need some decreasing factor
+      -- The right hand side of an application is well-behaved, since it is well-typed
+      -- We can show this inductively
+      -- Therefore, the entire expression is well-behaved
+      -- Since e ≠ app _ _, since it is in the reducibility candidates
+
+      
+
       sorry
 
 /--def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
