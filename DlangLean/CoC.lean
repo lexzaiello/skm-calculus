@@ -82,8 +82,12 @@ def obvious_reducibility_candidates (t : LExpr) : Set LExpr :=
       | ty n₂ => n₂ = n
       | var _ => true
       | _ => false }
-    | fall _ _ => { e | match e with
-      | abstraction _ _ => true
+    | fall bind_ty body_ty =>
+      let candidates_bind_ty := obvious_reducibility_candidates bind_ty
+      let candidates_body_ty := obvious_reducibility_candidates body_ty
+
+      { e | match e with
+      | a@(abstraction _ _) => ∀ u ∈ candidates_bind_ty, substitute a u ∈ candidates_body_ty
       | var _ => true
       | _ => false }
     | _ => { e | match e with | var _ => true | _ => false }
@@ -194,8 +198,8 @@ theorem well_typed_well_behaved (f_ty : TypeContext) (t : LExpr) (e : LExpr) (h_
       simp at h_well_typed
       have ⟨h₁, h₂, well_typed_lhs, well_typed_rhs⟩ := h_well_typed
       let ⟨ty_lhs, ⟨ty_e, ⟨ty_rhs, ⟨h_ty_lhs, h_ty_e, h_ty_rhs⟩, h_ty_lhs_fall⟩⟩⟩ := h₂
-      have h_lhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_lhs lhs h_holds_obvious_typings well_typed_lhs h_ty_lhs
-      have h_rhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_rhs rhs h_holds_obvious_typings well_typed_rhs h_ty_rhs
+      have h_lhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_lhs lhs h_holds_obvious_typings well_typed_lhs h_ty_lhs h_eval_same_type
+      have h_rhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_rhs rhs h_holds_obvious_typings well_typed_rhs h_ty_rhs h_eval_same_type
       let lhs' := substitute rhs lhs
 
       -- The varible being bound in the lhs substitution is necessarily in obvious_reducibility_candidates
@@ -223,9 +227,7 @@ theorem well_typed_well_behaved (f_ty : TypeContext) (t : LExpr) (e : LExpr) (h_
       --   - We can't just recurse, since we need some decreasing factor
       -- The right hand side of an application is well-behaved, since it is well-typed
       -- We can show this inductively
-      -- Therefore, the entire expression is well-behaved
-      -- Since e ≠ app _ _, since it is in the reducibility candidates
-
+      -- Therefore, the right hand side necessarily is not an application
       
 
       sorry
