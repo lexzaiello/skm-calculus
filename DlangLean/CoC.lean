@@ -87,9 +87,9 @@ def obvious_reducibility_candidates (t : LExpr) : Set LExpr :=
       let candidates_body_ty := obvious_reducibility_candidates body_ty
 
       { e | match e with
-      | a@(abstraction _ _) => ∀ u ∈ candidates_bind_ty, substitute a u ∈ candidates_body_ty
-      | var _ => true
-      | _ => false }
+        | a@(abstraction _ _) => ∀ u ∈ candidates_bind_ty, substitute a u ∈ candidates_body_ty
+        | var _ => true
+        | _ => false }
     | _ => { e | match e with | var _ => true | _ => false }
 
 def t_well_behaved : Set LExpr := { t | match t with
