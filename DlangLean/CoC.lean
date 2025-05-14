@@ -83,6 +83,19 @@ structure TypeContext where
         some prp
       | _ => none
 
+  obviously_well_typed_def : obviously_well_typed = λe => match e with
+      | prp => some $ ty 0
+      | ty n => some (ty $ n + 1)
+      | fall _ _ =>
+        some prp
+      | _ => none
+
+  t_well_behaved_def : t_well_behaved = { t | match t with
+    | prp => t = prp
+    | ty n => t = ty n
+    | fall a b => t = fall a b
+    | _ => false }
+
   holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e
 
   eval_same_type (e : LExpr) := f_ty (eval_once e) = f_ty e
@@ -126,8 +139,6 @@ def obvious_reducibility_candidates { ctx : TypeContext } (t : LExpr) : Set LExp
         | _ => false }
     | _ => { e | match e with | var _ => true | _ => false }
 
-end TypeContext
-
 lemma all_reducibility_candidates_strongly_normalizing {ctx : TypeContext} : ∀ t e, e ∈ ctx.obvious_reducibility_candidates t → is_strongly_normalizing e := sorry
 
 -- If e -> e' and e' ∈ obvious_reducibility_candidates, e ∈ obvious_reducibility_candidates
@@ -142,32 +153,33 @@ theorem well_typed_well_behaved
   (e : LExpr)
   (h_well_typed : ctx.well_typed e)
   (h_is_type : some t = ctx.f_ty e)
-   : e ∈ ctx.obvious_reducibility_candidates t := by
+    : e ∈ ctx.obvious_reducibility_candidates t := by
+    unfold TypeContext.obvious_reducibility_candidates
+    have h_holds_obvious_typings := ctx.holds_obvious_typings
+    rw [TypeContext.obviously_well_typed_def] at h_holds_obvious_typings
+    simp at h_holds_obvious_typings
     match h : e with
       | prp =>
-        unfold obvious_reducibility_candidates
-        have h₃ : t = ty 0 := by
-          unfold obviously_well_typed at h_holds_obvious_typings
+        have h₃ : ctx.f_ty prp = ty 0 := by
+          simp [h_holds_obvious_typings prp]
+        have h₄ : t = ty 0 := by
           simp_all
-        rw [h₃]
-        simp_all
+        simp [h₄]
       | ty n =>
-        unfold obvious_reducibility_candidates
-        have h₃ : t = (ty $ n + 1) := by
-          unfold obviously_well_typed at h_holds_obvious_typings
+        have h₃ : ctx.f_ty (ty n) = ty (n + 1) := by
+          simp [h_holds_obvious_typings $ ty n]
+        have h₄ : t = ty (n + 1) := by
           simp_all
-        simp_all
-      | fall _ _ =>
-        unfold obvious_reducibility_candidates
-        have h₃ : t = prp := by
-          unfold obviously_well_typed at h_holds_obvious_typings
+        simp [h₄]
+      | fall a b =>
+        have h₃ : ctx.f_ty (fall a b) = prp := by
+          simp [h_holds_obvious_typings $ (fall a b)]
+        have h₄ : t = prp := by
           simp_all
-        simp_all
+        simp [h₄]
       | abstraction a b =>
         sorry
       | var n =>
-        unfold obvious_reducibility_candidates
-        simp_all
         split
         simp
         simp
@@ -202,6 +214,8 @@ theorem well_typed_well_behaved
       -- We can show this inductively
       -- Therefore, the right hand side necessarily is not an application
         sorry
+
+end TypeContext
 
 /--def infer (dir_types : List $ List $ PathDirection LExpr) (e : LExpr) : Option (List $ PathDirection LExpr) :=
   do match e with
