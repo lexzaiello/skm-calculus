@@ -119,7 +119,9 @@ def obvious_reducibility_candidates (f_ty : TypeContext) (t : LExpr) (_h_holds_o
         | _ => false }
     | _ => { e | match e with | var _ => true | _ => false }
 
-theorem all_reducibility_candidates_strongly_normalizing (f_ty : TypeContext) (_h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) : ∀ t e, e ∈ obvious_reducibility_candidates f_ty t _h_holds_obvious_typings → is_strongly_normalizing e := sorry
+lemma all_reducibility_candidates_strongly_normalizing (f_ty : TypeContext) (_h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) : ∀ t e, e ∈ obvious_reducibility_candidates f_ty t _h_holds_obvious_typings → is_strongly_normalizing e := sorry
+
+lemma all_well_typed_abstractions_in_r (f_ty : TypeContext) (t : LExpr) (e : LExpr) (_h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) (h_well_typed : well_typed f_ty e _h_holds_obvious_typings) (h_is_type : some t = f_ty e) (h_is_abstraction : match e with | abstraction _ _ => true | _ => false) (h_ty_is_fall : match t with | fall _ _ => true | _ => false) : e ∈ obvious_reducibility_candidates f_ty t _h_holds_obvious_typings := sorry
 
 theorem well_typed_well_behaved
   (f_ty : TypeContext)
@@ -151,45 +153,7 @@ theorem well_typed_well_behaved
           simp_all
         simp_all
       | abstraction a b =>
-        unfold well_typed at h_well_typed
-        have h_well_typed' := h_well_typed
-        simp at h_well_typed'
-        have ⟨_, body_has_type, bind_ty_well_typed, body_well_typed, body_ty, ⟨body_ty_is_type, t_concrete_ty⟩⟩ := h_well_typed'
-        match h₁ : t with
-          | ty _ =>
-            simp_all
-          | prp =>
-            simp_all
-          | fall bind_ty body =>
-            unfold obvious_reducibility_candidates
-            simp
-            intro u hu h_u_well_typed
-            simp_all
-            have h_body_well_typed_well_behaved := well_typed_well_behaved f_ty body_ty b h_holds_obvious_typings body_well_typed (Eq.symm body_ty_is_type) ( by simp [h_app_type_derived]) h_eval_same_type
-            unfold well_typed
-            simp
-            have h_app_type := h_app_type_derived ((a.abstraction b).app u)
-            simp at h_app_type
-            have h_app_type_concrete := h_app_type (by simp [t_concrete_ty]) (by
-              unfold well_typed at h_u_well_typed
-              simp_all
-              match u with
-                | app _ _ => simp_all
-                | abstraction _ _ => simp_all
-                | var _ => simp_all
-                | prp => simp_all
-                | ty _ => simp_all
-                | fall _ _ => simp_all
-            )
-            intro h_app_type_concrete2
-            intro x x₁ x₂ is_ty_abstr is_ty_app is_ty_u is_app_ty abstr_well_typed u_well_typed
-            sorry
-          | abstraction _  _ =>
-            simp_all
-          | app lhs rhs =>
-            simp_all
-          | var _ =>
-            simp_all
+        exact all_well_typed_abstractions_in_r f_ty t (abstraction a b) h_holds_obvious_typings h_well_typed h_is_type sorry sorry
       | var n =>
         unfold obvious_reducibility_candidates
         simp_all
