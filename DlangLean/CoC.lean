@@ -68,30 +68,6 @@ inductive is_strongly_normalizing : LExpr → Prop
 
 def TypeContext := LExpr → Option LExpr
 
-def obvious_reducibility_candidates (t : LExpr) : Set LExpr :=
-  match t with
-    | prp => { e | match e with
-      | fall _ _ => true
-      | var _ => true
-      | _ => false }
-    | ty 0 => { e | match e with
-      | prp => true
-      | var _ => true
-      | _ => false }
-    | ty (n + 1) => { e | match e with
-      | ty n₂ => n₂ = n
-      | var _ => true
-      | _ => false }
-    | fall bind_ty body_ty =>
-      let candidates_bind_ty := obvious_reducibility_candidates bind_ty
-      let candidates_body_ty := obvious_reducibility_candidates body_ty
-
-      { e | match e with
-        | a@(abstraction _ _) => ∀ u ∈ candidates_bind_ty, substitute a u ∈ candidates_body_ty
-        | var _ => true
-        | _ => false }
-    | _ => { e | match e with | var _ => true | _ => false }
-
 def t_well_behaved : Set LExpr := { t | match t with
   | prp => t = prp
   | ty n => t = ty n
@@ -103,43 +79,7 @@ def obviously_well_typed : LExpr → Option LExpr
   | ty n => some (ty $ n + 1)
   | fall _ _ =>
     some prp
-  | abstraction a b =>
-    some $ fall a b
   | _ => none
-
-def e_obviously_well_behaved : Set LExpr := { e | match e with
-  | prp => true
-  | ty _ => true
-  | fall _ _ => true
-  | abstraction _ _ => true
-  | _ => false }
-
-lemma all_obviously_well_typed_well_behaved (t : LExpr) (e : LExpr) : obviously_well_typed e = some t → e ∈ obvious_reducibility_candidates t
-  | h => by
-    simp [obviously_well_typed] at h
-    unfold obvious_reducibility_candidates
-    match h₂ : e with
-      | prp =>
-        have h₃ : t = ty 0 := by
-          simp [*] at h
-          simp_all
-        simp_all
-      | ty n =>
-        simp_all
-        have h₃ : t = (ty $ n + 1) := by
-          simp [*] at h
-          simp_all
-        simp_all
-      | fall _ _ =>
-        have h₃ : t = prp := by
-          simp [*] at h
-          simp_all
-        simp_all
-      | abstraction a b =>
-        have h₄ : t = fall a b := by
-          simp [*] at h
-          simp_all
-        simp_all
 
 def eval_same_type (f_ty : TypeContext) (e : LExpr) := f_ty (eval_once e) = f_ty e
 
@@ -150,57 +90,122 @@ def well_typed (f_ty : TypeContext) (e : LExpr) (_h_holds_obvious_typings : ∀ 
       Option.map (λ((ty_lhs, ty_e), ty_rhs) => ty_lhs = fall ty_rhs ty_e)) = some true ∧
     well_typed f_ty lhs _h_holds_obvious_typings ∧
     well_typed f_ty rhs _h_holds_obvious_typings
+  | abstraction bind_ty body =>
+    (f_ty e).isSome ∧ (f_ty body).isSome ∧ well_typed f_ty bind_ty _h_holds_obvious_typings ∧ well_typed f_ty body _h_holds_obvious_typings ∧ (f_ty body).map (λt_body => f_ty e = some (fall bind_ty t_body)) = some true
   | e => (f_ty e).isSome ∧ ((f_ty e).map (. ∈ t_well_behaved)) = some true
 
-theorem well_typed_well_behaved (f_ty : TypeContext) (t : LExpr) (e : LExpr) (h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) (h_well_typed : well_typed f_ty e h_holds_obvious_typings) (h_specifically_well_typed : f_ty e = some t) (h_eval_same_type : ∀ e, eval_same_type f_ty e): e ∈ obvious_reducibility_candidates t := by
-  unfold obvious_reducibility_candidates
-  unfold well_typed at h_well_typed
-  match h : e with
-    | prp =>
-      have h₃ : t = ty 0 := by
-        unfold obviously_well_typed at h_holds_obvious_typings
+
+def obvious_reducibility_candidates (f_ty : TypeContext) (t : LExpr) (_h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) : Set LExpr :=
+  match t with
+    | prp => { e | match e with
+      | fall a b => e = fall a b
+      | var n => e = var n
+      | _ => false }
+    | ty 0 => { e | match e with
+      | prp => e = prp
+      | var n => e = var n
+      | _ => false }
+    | ty (n + 1) => { e | match e with
+      | ty n₂ => n₂ = n
+      | var n => e = var n
+      | _ => false }
+    | fall bind_ty body_ty =>
+      let candidates_bind_ty := obvious_reducibility_candidates f_ty bind_ty _h_holds_obvious_typings
+      let candidates_body_ty := obvious_reducibility_candidates f_ty body_ty _h_holds_obvious_typings
+
+      { e | match e with
+        | a@(abstraction _ _) => ∀ u ∈ (candidates_bind_ty ∩ { x | well_typed f_ty x _h_holds_obvious_typings }), well_typed f_ty (app a u) _h_holds_obvious_typings → (eval_once $ app a u) ∈ candidates_body_ty
+        | var n => e = var n
+        | _ => false }
+    | _ => { e | match e with | var _ => true | _ => false }
+
+theorem all_reducibility_candidates_strongly_normalizing (f_ty : TypeContext) (_h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e) : ∀ t e, e ∈ obvious_reducibility_candidates f_ty t _h_holds_obvious_typings → is_strongly_normalizing e := sorry
+
+theorem well_typed_well_behaved
+  (f_ty : TypeContext)
+  (t : LExpr)
+  (e : LExpr)
+  (h_holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e)
+  (h_well_typed : well_typed f_ty e h_holds_obvious_typings)
+  (h_is_type : some t = f_ty e)
+  (h_app_type_derived : ∀ e, match e with | app lhs rhs => (f_ty lhs).isSome → (f_ty rhs).isSome → (f_ty e).isSome | _ => false)
+  (h_eval_same_type : ∀ e, eval_same_type f_ty e) : e ∈ obvious_reducibility_candidates f_ty t h_holds_obvious_typings := by
+    match h : e with
+      | prp =>
+        unfold obvious_reducibility_candidates
+        have h₃ : t = ty 0 := by
+          unfold obviously_well_typed at h_holds_obvious_typings
+          simp_all
+        rw [h₃]
         simp_all
-      simp_all
-    | ty n =>
-      have h₃ : t = (ty $ n + 1) := by
-        unfold obviously_well_typed at h_holds_obvious_typings
+      | ty n =>
+        unfold obvious_reducibility_candidates
+        have h₃ : t = (ty $ n + 1) := by
+          unfold obviously_well_typed at h_holds_obvious_typings
+          simp_all
         simp_all
-      simp_all
-    | fall _ _ =>
-      have h₃ : t = prp := by
-        unfold obviously_well_typed at h_holds_obvious_typings
+      | fall _ _ =>
+        unfold obvious_reducibility_candidates
+        have h₃ : t = prp := by
+          unfold obviously_well_typed at h_holds_obvious_typings
+          simp_all
         simp_all
-      simp_all
-    | abstraction a b =>
-      have h₄ : t = fall a b := by
-        unfold obviously_well_typed at h_holds_obvious_typings
+      | abstraction a b =>
+        unfold well_typed at h_well_typed
+        have h_well_typed' := h_well_typed
+        simp at h_well_typed'
+        have ⟨_, body_has_type, bind_ty_well_typed, body_well_typed, body_ty, ⟨body_ty_is_type, t_concrete_ty⟩⟩ := h_well_typed'
+        match h₁ : t with
+          | ty _ =>
+            simp_all
+          | prp =>
+            simp_all
+          | fall bind_ty body =>
+            unfold obvious_reducibility_candidates
+            simp
+            intro u hu h_u_well_typed
+            simp_all
+            have h_body_well_typed_well_behaved := well_typed_well_behaved f_ty body_ty b h_holds_obvious_typings body_well_typed (Eq.symm body_ty_is_type) ( by simp [h_app_type_derived]) h_eval_same_type
+            unfold well_typed
+            simp
+            have h_app_type := h_app_type_derived ((a.abstraction b).app u)
+            simp at h_app_type
+            have h_app_type_concrete := h_app_type (by simp [t_concrete_ty]) (by
+              unfold well_typed at h_u_well_typed
+              simp_all
+              match u with
+                | app _ _ => simp_all
+                | abstraction _ _ => simp_all
+                | var _ => simp_all
+                | prp => simp_all
+                | ty _ => simp_all
+                | fall _ _ => simp_all
+            )
+            intro h_app_type_concrete2
+            intro x x₁ x₂ is_ty_abstr is_ty_app is_ty_u is_app_ty abstr_well_typed u_well_typed
+            sorry
+          | abstraction _  _ =>
+            simp_all
+          | app lhs rhs =>
+            simp_all
+          | var _ =>
+            simp_all
+      | var n =>
+        unfold obvious_reducibility_candidates
         simp_all
-      simp_all
-    | var n =>
-      simp_all
-      unfold t_well_behaved at h_well_typed
-      split
-      simp
-      rw [← h]
-      simp
-      rw [h]
-      simp
-      simp
-      rw [← h]
-      simp
-      rw [h]
-      simp
-      rw [← h]
-      simp
-      rw [h]
-      simp
-    | app lhs rhs =>
-      simp at h_well_typed
-      have ⟨h₁, h₂, well_typed_lhs, well_typed_rhs⟩ := h_well_typed
-      let ⟨ty_lhs, ⟨ty_e, ⟨ty_rhs, ⟨h_ty_lhs, h_ty_e, h_ty_rhs⟩, h_ty_lhs_fall⟩⟩⟩ := h₂
-      have h_lhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_lhs lhs h_holds_obvious_typings well_typed_lhs h_ty_lhs h_eval_same_type
-      have h_rhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_rhs rhs h_holds_obvious_typings well_typed_rhs h_ty_rhs h_eval_same_type
-      let lhs' := substitute rhs lhs
+        split
+        simp
+        simp
+        simp
+        simp
+        simp
+      | app lhs rhs =>
+        simp at h_well_typed
+        have ⟨h₁, h₂, well_typed_lhs, well_typed_rhs⟩ := h_well_typed
+        let ⟨ty_lhs, ⟨ty_e, ⟨ty_rhs, ⟨h_ty_lhs, h_ty_e, h_ty_rhs⟩, h_ty_lhs_fall⟩⟩⟩ := h₂
+        have h_lhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_lhs lhs h_holds_obvious_typings well_typed_lhs h_ty_lhs h_eval_same_type
+        have h_rhs_well_typed_well_behaved := well_typed_well_behaved f_ty ty_rhs rhs h_holds_obvious_typings well_typed_rhs h_ty_rhs h_eval_same_type
+        let lhs' := substitute rhs lhs
 
       -- The varible being bound in the lhs substitution is necessarily in obvious_reducibility_candidates
       -- This means it cannot be an application
