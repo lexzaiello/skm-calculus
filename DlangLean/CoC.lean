@@ -75,53 +75,51 @@ structure TypeContext where
     | fall a b => t = fall a b
     | _ => false }
 
-  obviously_well_typed (e : LExpr) : Option LExpr :=
-    match e with
-      | prp => some $ ty 0
-      | ty n => some (ty $ n + 1)
-      | fall _ _ =>
-        some prp
-      | _ => none
-
-  obviously_well_typed_def : obviously_well_typed = λe => match e with
-      | prp => some $ ty 0
-      | ty n => some (ty $ n + 1)
-      | fall _ _ =>
-        some prp
-      | _ => none
-
   t_well_behaved_def : t_well_behaved = { t | match t with
     | prp => t = prp
     | ty n => t = ty n
     | fall a b => t = fall a b
     | _ => false }
 
-  holds_obvious_typings : ∀ e, (obviously_well_typed e).isSome → f_ty e = obviously_well_typed e
-
   eval_same_type (e : LExpr) := f_ty (eval_once e) = f_ty e
 
 namespace TypeContext
+
+def obviously_well_typed { ctx : TypeContext } (e : LExpr) : Option LExpr :=
+    match e with
+      | prp => some $ ty 0
+      | ty n => some (ty $ n + 1)
+      | fall _ _ =>
+        some prp
+      | abstraction bind_ty body =>
+        ctx.obviously_well_typed body |> Option.map (fall bind_ty .)
+      | _ => none
+
+def h_holds_obvious_typings { ctx : TypeContext } := ∀ e, (ctx.obviously_well_typed e).isSome → ctx.f_ty e = ctx.obviously_well_typed e
 
 def is_type (t : LExpr) : Prop := match t with
   | abstraction _ _ => false
   | _ => true
 
-def is_well_typed { ctx : TypeContext } (t e : LExpr) := is_type t ∧ (match e with
+def is_well_typed { ctx : TypeContext } (t e : LExpr) := is_type t ∧ ctx.f_ty e = some t ∧ t ∈ ctx.t_well_behaved ∧ (match e with
     | app lhs rhs =>
-      (ctx.f_ty e) = some t ∧
-      (Option.map₂ (λa b => (a, b)) (Option.map₂ (λa b => (a, b)) (ctx.f_ty lhs) (ctx.f_ty e)) (ctx.f_ty rhs) |>
-        Option.map (λ((ty_lhs, ty_e), ty_rhs) => ty_lhs = fall ty_rhs ty_e ∧ @is_well_typed ctx ty_lhs lhs ∧ @is_well_typed ctx ty_rhs rhs)) = some (true = false)
+      ((Option.map₂ Prod.mk (ctx.f_ty lhs) (ctx.f_ty rhs)) |>
+        Option.map (λ(ty_lhs, ty_rhs) =>
+          (match lhs with | abstraction bind_ty' body => bind_ty' = ty_rhs ∧ ctx.is_well_typed t body | _ => false) ∧
+          ty_lhs = fall ty_rhs t ∧
+          ctx.is_well_typed ty_lhs lhs ∧
+          ctx.is_well_typed ty_rhs rhs)) = some (true : Prop)
     | abstraction bind_ty1 body =>
-      (ctx.f_ty e) = some t ∧ match t with
+      match t with
         | fall bind_ty body_ty =>
-          (ctx.f_ty e) = some t ∧
           bind_ty1 = bind_ty ∧
-          (ctx.f_ty body) = some body_ty ∧
-          @is_well_typed ctx body_ty body ∧
-          (ctx.f_ty body).map (λt_body => ctx.f_ty e = some (fall bind_ty t_body)) = some true ∧
-          ∀ arg, ctx.f_ty (app (abstraction bind_ty1 body) arg) = some body_ty → (ctx.f_ty arg = some bind_ty1 ∧ ctx.f_ty arg = some bind_ty)
+          ctx.is_well_typed body_ty body ∧
+          is_type body_ty ∧
+          (∀ arg, ctx.f_ty arg = some bind_ty → ctx.f_ty (app (abstraction bind_ty body) arg) = some body_ty)
         | _ => false
-    | e => (ctx.f_ty e) = some t ∧ ((ctx.f_ty e).map (. ∈ ctx.t_well_behaved)) = some true)
+    | fall a b => ctx.f_ty (fall a b) = some prp
+    | var 0 => ∀ arg, ctx.f_ty arg = some t → ctx.f_ty (substitute arg (var 0)) = some t ∧ substitute arg (var 0) = arg
+    | _ => true)
 
 def obvious_reducibility_candidates { ctx : TypeContext } (t : LExpr) : Set LExpr :=
   match t with
@@ -151,6 +149,28 @@ def obvious_reducibility_candidates { ctx : TypeContext } (t : LExpr) : Set LExp
           | _ => false }
     | _ => { e | match e with | var _ => true | _ => false }
 
+lemma all_substitutions_same_type { ctx : TypeContext } (t e : LExpr) : ctx.obviously_well_typed e = some t → ∀ arg arg_t, (ctx.obviously_well_typed arg = some arg_t) → ctx.obviously_well_typed (substitute arg e) = some t := by
+  intro h_obv_typed
+  intro arg arg_t h_arg_t_obv_typed
+  unfold obviously_well_typed at *
+  match e with
+    | abstraction _ _ => sorry
+    | fall _ _ =>
+      unfold substitute
+      simp_all
+    | ty _ =>
+      unfold substitute
+      simp_all
+    | app _ _ =>
+      unfold substitute
+      simp_all
+    | var _ =>
+      unfold substitute
+      simp_all
+    | prp =>
+      unfold substitute
+      simp_all
+
 lemma all_reducibility_candidates_strongly_normalizing {ctx : TypeContext} : ∀ t e, e ∈ ctx.obvious_reducibility_candidates t → is_strongly_normalizing e := sorry
 
 -- If e -> e' and e' ∈ obvious_reducibility_candidates, e ∈ obvious_reducibility_candidates
@@ -173,22 +193,6 @@ lemma all_well_typed_abstractions_well_typed_args_in_reducibility_candidates { c
       match h₁ : e with
         | abstraction bind_ty' body =>
           simp at h_well_typed
-          have ⟨h_fall_is_e_ty, bind_ty_fall_same_bind_ty_e, ty_body_eq_body_ty_fall, well_typed_body, _, args_well_typed_bind_ty⟩ := h_well_typed
-          simp
-          intro u h_u_in_r u_well_typed well_typed_app
-          -- Since u is well-typed and in R, then it must be well-behaved.
-          -- We don't necessarily have to prove that the abstraction is well-behaved
-          -- Just that it is in R
-          -- An abstraction is in R if all of its one-step reduxes are in R
-          unfold obvious_reducibility_candidates
-          simp
-          match body_ty with
-            | prp => sorry
-            | ty _ => sorry
-            | fall _ _ => sorry
-            | abstraction _ _ => sorry
-            | app lhs rhs => sorry
-            | var _ => sorry
           sorry
 
 theorem well_typed_well_behaved
