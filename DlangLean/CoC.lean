@@ -55,9 +55,15 @@ def eval_once : LExpr → LExpr
     app (eval_once lhs) rhs
   | x => x
 
-inductive beta_normal : LExpr → LExpr → Prop
-  | trivial e   : eval_once e = e → beta_normal e e
-  | hard (e₁ e₂ : LExpr) : beta_normal e₁ (eval_once e₂) → beta_normal e₁ e₂
+inductive beta_normal : LExpr → Prop
+  | trivial e   : eval_once e = e           → beta_normal e
+  | hard e      : beta_normal (eval_once e) → beta_normal e
+
+inductive beta_eq : LExpr → LExpr → Prop
+  | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
+  | right   e₁ e₂ : beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
+  | left    e₁ e₂ : beta_eq (eval_once e₁) e₂ → beta_eq e₁ e₂
+  | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₂ → beta_eq e₁ e₃
 
 inductive is_strongly_normalizing : LExpr → Prop
   | trivial (e : LExpr) : eval_once e = e → is_strongly_normalizing e
@@ -117,23 +123,67 @@ def obvious_reducibility_candidates (t : LExpr) : Set LExpr :=
           | _ => false }
     | _ => { e | match e with | var _ => true | _ => false }
 
-def verify_typing_judgement (e : LExpr) (t : LExpr) : Prop :=
-  match e with
-    | prp => beta_normal (ty 0) t
-    | ty n => beta_normal t (ty $ n + 1)
+def obv_valid_judgements (e : LExpr) : Set LExpr := match e with
+    | prp => { ty 0 }
+    | ty n => { ty $ n + 1 }
     | fall _ body_ty =>
-      verify_typing_judgement body_ty t
+      obv_valid_judgements body_ty
     | abstraction bind_ty body =>
-      ∃ body_ty, beta_normal t (fall bind_ty body_ty) ∧ verify_typing_judgement body body_ty
+      { t | ∃ body_ty, beta_eq t (fall bind_ty body_ty) ∧ t ∈ obv_valid_judgements body }
     | app lhs rhs =>
-      ∃ rhs_ty, verify_typing_judgement lhs (fall rhs_ty t) ∧ verify_typing_judgement rhs rhs_ty
-    | var _ => true
+      { t | t ∈ obv_valid_judgements lhs ∧ t ∈ obv_valid_judgements rhs }
+    | var _ => { _t | true }
 
-lemma all_app_same_type (t e : LExpr) : obvious_type_inference e = some t → obvious_type_inference (eval_once e) = some t := by
-  intro h_obv_typed
-  rw [← h_obv_typed]
-  -- Everything but an app is inert and trivially the same type
-  sorry
+def valid_typing_judgements (e : LExpr) : Set LExpr :=
+  { t | t ∈ obv_valid_judgements e ∧ (∀ t', beta_eq t t' → t' ∈ obv_valid_judgements e) }
+
+lemma eval_beta_eq (e : LExpr) : beta_eq (eval_once e) e := beta_eq.right (eval_once e) e (beta_eq.trivial (eval_once e) (eval_once e) rfl)
+
+lemma beta_eq_t_overlap_typing_judgements (t t₁ : LExpr) : beta_eq t t₁ → ∀ e, t ∈ valid_typing_judgements e → t₁ ∈ valid_typing_judgements e := by
+  intro b_eq_t e valid_judgement_t
+  unfold valid_typing_judgements at *
+  simp_all
+  intro t' beq_t'
+  have ⟨lhs, rhs⟩ := valid_judgement_t
+  exact rhs t' $ beta_eq.trans t t₁ t' b_eq_t $ beta_eq.trivial t₁ t₁ rfl
+
+lemma beta_eq_same_type (t t₁ e e₁ : LExpr) : t ∈ valid_typing_judgements e ∧ t₁ ∈ valid_typing_judgements e₁ → beta_eq e e₁ ∧ beta_eq e₁ e → t₁ ∈ valid_typing_judgements e ∧ t ∈ valid_typing_judgements e₁
+  | ⟨lhs, rhs⟩, ⟨h_beta_eq_left, h_beta_eq_right⟩ => by
+    sorry
+
+lemma all_app_same_type (t e : LExpr) : verify_typing_judgement e t → verify_typing_judgement (eval_once e) t := by
+  intro h_judgement_true
+  have h_judgement_true₂ := h_judgement_true
+  match e with
+    | prp =>
+      unfold eval_once
+      unfold verify_typing_judgement at *
+      exact h_judgement_true
+    | ty n =>
+      unfold eval_once
+      unfold verify_typing_judgement at *
+      exact h_judgement_true
+    | var n =>
+      unfold eval_once
+      unfold verify_typing_judgement at *
+      exact h_judgement_true
+    | fall _ _ =>
+      unfold eval_once
+      unfold verify_typing_judgement at *
+      exact h_judgement_true
+    | abstraction _ _ =>
+      unfold eval_once
+      unfold verify_typing_judgement at *
+      exact h_judgement_true
+    | app lhs rhs =>
+      unfold verify_typing_judgement at h_judgement_true
+      unfold verify_typing_judgement
+      have ⟨rhs_ty, lhs_is_fall_ty, rhs_ty_is_rhs_ty⟩ := h_judgement_true
+      split
+      case h_1 e heq =>
+        have h_prp_beq_eval : beta_eq prp (eval_once (app lhs rhs)) := beta_eq.trivial prp (eval_once (app lhs rhs)) (Eq.symm heq)
+        
+      sorry
 
 lemma all_reducibility_candidates_strongly_normalizing : ∀ t e, e ∈ ctx.obvious_reducibility_candidates t → is_strongly_normalizing e := sorry
 
