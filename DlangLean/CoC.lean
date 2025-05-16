@@ -160,8 +160,6 @@ lemma overlap_typing_judgements_beta_eq_t (t t₁ : LExpr) : ∀ e, t ∈ valid_
   intro e h_t_judgement₁ h_t_judgement₂
   unfold valid_typing_judgements at *
   simp_all
-  
-  sorry
 
 lemma beta_eq_same_type (t t₁ e e₁ : LExpr) : t ∈ valid_typing_judgements e ∧ t₁ ∈ valid_typing_judgements e₁ → beta_eq e e₁ ∧ beta_eq e₁ e → t₁ ∈ valid_typing_judgements e ∧ t ∈ valid_typing_judgements e₁
   | ⟨lhs, rhs⟩, ⟨h_beta_eq_left, h_beta_eq_right⟩ => by
