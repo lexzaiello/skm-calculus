@@ -61,9 +61,10 @@ inductive beta_normal : LExpr → Prop
 
 inductive beta_eq : LExpr → LExpr → Prop
   | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
-  | right   e₁ e₂ : beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
-  | left    e₁ e₂ : beta_eq (eval_once e₁) e₂ → beta_eq e₁ e₂
-  | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₂ → beta_eq e₁ e₃
+  | right   e₁ e₂    : beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
+  | left    e₁ e₂    : beta_eq (eval_once e₁) e₂ → beta_eq e₁ e₂
+  | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
+  | symm    e₁ e₂    : beta_eq e₁ e₂ → beta_eq e₂ e₁
 
 inductive is_strongly_normalizing : LExpr → Prop
   | trivial (e : LExpr) : eval_once e = e → is_strongly_normalizing e
@@ -135,20 +136,40 @@ def obv_valid_judgements (e : LExpr) : Set LExpr := match e with
     | var _ => { _t | true }
 
 def valid_typing_judgements (e : LExpr) : Set LExpr :=
-  { t | t ∈ obv_valid_judgements e ∧ (∀ t', beta_eq t t' → t' ∈ obv_valid_judgements e) }
+  { t | t ∈ obv_valid_judgements e ∧ (∀ t', beta_eq t t' ↔ t' ∈ obv_valid_judgements e) }
 
 lemma eval_beta_eq (e : LExpr) : beta_eq (eval_once e) e := beta_eq.right (eval_once e) e (beta_eq.trivial (eval_once e) (eval_once e) rfl)
 
 lemma beta_eq_t_overlap_typing_judgements (t t₁ : LExpr) : beta_eq t t₁ → ∀ e, t ∈ valid_typing_judgements e → t₁ ∈ valid_typing_judgements e := by
   intro b_eq_t e valid_judgement_t
   unfold valid_typing_judgements at *
-  simp_all
-  intro t' beq_t'
+  simp at valid_judgement_t
   have ⟨lhs, rhs⟩ := valid_judgement_t
-  exact rhs t' $ beta_eq.trans t t₁ t' b_eq_t $ beta_eq.trivial t₁ t₁ rfl
+  simp [*]
+  constructor
+  exact (rhs t₁).mp b_eq_t
+  intro t'
+  have h := rhs t'
+  constructor
+  intro b_eq_t'_t₁
+  exact (h.mp (beta_eq.trans t t₁ t' b_eq_t b_eq_t'_t₁))
+  intro h₁
+  exact beta_eq.trans t₁ t t' (beta_eq.symm t t₁ b_eq_t) (h.mpr h₁)
+
+lemma overlap_typing_judgements_beta_eq_t (t t₁ : LExpr) : ∀ e, t ∈ valid_typing_judgements e → t₁ ∈ valid_typing_judgements e → beta_eq t t₁ := by
+  intro e h_t_judgement₁ h_t_judgement₂
+  unfold valid_typing_judgements at *
+  simp_all
+  
+  sorry
 
 lemma beta_eq_same_type (t t₁ e e₁ : LExpr) : t ∈ valid_typing_judgements e ∧ t₁ ∈ valid_typing_judgements e₁ → beta_eq e e₁ ∧ beta_eq e₁ e → t₁ ∈ valid_typing_judgements e ∧ t ∈ valid_typing_judgements e₁
   | ⟨lhs, rhs⟩, ⟨h_beta_eq_left, h_beta_eq_right⟩ => by
+    constructor
+    unfold valid_typing_judgements at *
+    simp_all
+    constructor
+    
     sorry
 
 lemma all_app_same_type (t e : LExpr) : verify_typing_judgement e t → verify_typing_judgement (eval_once e) t := by
