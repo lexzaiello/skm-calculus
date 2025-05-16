@@ -132,7 +132,7 @@ def obv_valid_judgements (e : LExpr) : Set LExpr := match e with
     | abstraction bind_ty body =>
       { t | ∃ body_ty, beta_eq t (fall bind_ty body_ty) ∧ t ∈ obv_valid_judgements body }
     | app lhs rhs =>
-      { t | t ∈ obv_valid_judgements lhs ∧ t ∈ obv_valid_judgements rhs }
+      { t | ∃ ty_rhs, ty_rhs ∈ obv_valid_judgements rhs ∧ (fall (ty_rhs) t) ∈ obv_valid_judgements lhs }
     | var _ => { _t | true }
 
 def valid_typing_judgements (e : LExpr) : Set LExpr :=
@@ -161,12 +161,84 @@ lemma overlap_typing_judgements_beta_eq_t (t t₁ : LExpr) : ∀ e, t ∈ valid_
   unfold valid_typing_judgements at *
   simp_all
 
-lemma beta_eq_same_type (t t₁ e e₁ : LExpr) : t ∈ valid_typing_judgements e ∧ t₁ ∈ valid_typing_judgements e₁ → beta_eq e e₁ ∧ beta_eq e₁ e → t₁ ∈ valid_typing_judgements e ∧ t ∈ valid_typing_judgements e₁
-  | ⟨lhs, rhs⟩, ⟨h_beta_eq_left, h_beta_eq_right⟩ => by
-    constructor
-    unfold valid_typing_judgements at *
-    simp_all
-    constructor
+-- If two types are beta equivalent,
+-- then we can say that they are eventually
+-- definitionally equivalent after some sequence of reductions
+--
+-- However, we can't easily do induction on this, since this is unfounded recursion
+-- However, if we somehow change the goal to proving that t and t₂ are beta_equivalent
+-- then we can construct the inductive case to solve our goal
+-- We can use our overlap_typing_judgements_beta_eq_t lemma
+-- If we can prove that the two types are beta normal, then we can prove the goal
+--
+-- have h := beta_eq_t_overlap_typing_judgements t t₂ sorry sorry
+-- this tells us that if e is in both of the typing judgements, then the types are the same
+-- we can prove this in two cases:
+-- t₁ is clearly a proper typing judgement for *something*. Perhaps not e, but an e₂
+-- there a couple cases:
+-- e is contained by e₂
+-- e₂ is contained in e
+-- e₂ = e (easy case)
+--
+--Note that the only case in which evaluation does not produce the same term is application
+-- our definition of the typing judgement defines application as producing the same type
+
+lemma eval_once_noop_not_app (e : LExpr) (h_not_app : match e with | app _ _ => false | _ => true) : eval_once e = e := by
+  match e with
+    | var _ =>
+      unfold eval_once
+      rfl
+    | ty _ =>
+      unfold eval_once
+      rfl
+    | app _ _ =>
+      contradiction
+    | prp =>
+      unfold eval_once
+      rfl
+    | fall _ _ =>
+      unfold eval_once
+      rfl
+    | abstraction _ _ =>
+      unfold eval_once
+      rfl
+
+lemma beta_eq_judgement_holds_not_app (t e e' : LExpr) (h_not_app : match e with | app _ _ => false | _ => true) (h_not_app₂ : match e' with | app _ _ => false | _ => true) : beta_eq e e' → t ∈ valid_typing_judgements e → t ∈ valid_typing_judgements e' := by
+  intro h_beta_eq valid_t_judgement
+  unfold valid_typing_judgements at *
+  have h_e_eval_noop : eval_once e = e := eval_once_noop_not_app e h_not_app
+  have h_e_eval_noop' : eval_once e' = e' := eval_once_noop_not_app e' h_not_app₂
+  -- Since beta equivalence is define as either trivial definitional reflexivity,
+  -- or n-step reduction equivalence, we can show that the terms are definitionally
+  match h_beta_eq with
+    | beta_eq.trivial lhs rhs h_rfl_eq =>
+      simp_all
+    | beta_eq.right lhs rhs eval_eq =>
+      constructor
+      
+    | beta_eq.left lhs rhs eval_eq => sorry
+    | beta_eq.symm lhs rhs eval_eq => sorry
+    | beta_eq.trans e₁ e₂ e₃ eq_right eq_left => sorry
+
+lemma beta_eq_judgement_holds (t t₁ e : LExpr) : ∀ e', beta_eq e e' ∧ beta_eq e' e → t ∈ valid_typing_judgements e → t₁ ∈ valid_typing_judgements e' → t ∈ valid_typing_judgements e' := by
+  intro e' ⟨beq_lhs, beq_rhs⟩ h₂ h₃
+  match beq_lhs with
+    | beta_eq.trivial e e' h_rfl =>
+      rw [← h_rfl]
+      exact h₂
+    | beta_eq.trans e e' e₃ h_beq_1 h_beq_2 =>
+      sorry
+    | beta_eq.left e e' h_left =>
+      -- Important case: bera normal evaluation is the same type
+      -- we can show this easily for expressions that are beta normal
+      -- and evaluation does nothing
+      
+      sorry
+    | beta_eq.right e e' h_right => sorry
+    | beta_eq.symm e e' h_symm => sorry
+
+lemma beta_eq_same_type (t t₁ e e₁ : LExpr) : t ∈ valid_typing_judgements e ∧ t₁ ∈ valid_typing_judgements e₁ → beta_eq e e₁ ∧ beta_eq e₁ e → beta_eq t t₁
+  | ⟨⟨lhs₁, lhs₂⟩, ⟨rhs₁, rhs₂⟩⟩, ⟨h_beta_eq_left, h_beta_eq_right⟩ => by
     
     sorry
 
