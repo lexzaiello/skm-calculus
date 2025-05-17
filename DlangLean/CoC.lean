@@ -60,11 +60,9 @@ inductive beta_normal : LExpr → Prop
   | hard e      : beta_normal (eval_once e) → beta_normal e
 
 inductive beta_eq : LExpr → LExpr → Prop
-  | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
-  | right   e₁ e₂    : beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
-  | left    e₁ e₂    : beta_eq (eval_once e₁) e₂ → beta_eq e₁ e₂
-  | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
-  | symm    e₁ e₂    : beta_eq e₁ e₂ → beta_eq e₂ e₁
+  | trivial e₁ e₂    : e₁ = e₂  → beta_eq e₁ e₂
+  | right   e₁ e₂    : e₁ ≠ e₂  → beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
+  | left    e₁ e₂    : e₁ ≠ e₂  → beta_eq (eval_once e₁) e₂ → beta_eq e₁ e₂
 
 inductive is_strongly_normalizing : LExpr → Prop
   | trivial (e : LExpr) : eval_once e = e → is_strongly_normalizing e
@@ -138,23 +136,12 @@ def obv_valid_judgements (e : LExpr) : Set LExpr := match e with
 def valid_typing_judgements (e : LExpr) : Set LExpr :=
   { t | t ∈ obv_valid_judgements e ∧ (∀ t', beta_eq t t' ↔ t' ∈ obv_valid_judgements e) }
 
-lemma eval_beta_eq (e : LExpr) : beta_eq (eval_once e) e := beta_eq.right (eval_once e) e (beta_eq.trivial (eval_once e) (eval_once e) rfl)
-
-lemma beta_eq_t_overlap_typing_judgements (t t₁ : LExpr) : beta_eq t t₁ → ∀ e, t ∈ valid_typing_judgements e → t₁ ∈ valid_typing_judgements e := by
-  intro b_eq_t e valid_judgement_t
-  unfold valid_typing_judgements at *
-  simp at valid_judgement_t
-  have ⟨lhs, rhs⟩ := valid_judgement_t
-  simp [*]
-  constructor
-  exact (rhs t₁).mp b_eq_t
-  intro t'
-  have h := rhs t'
-  constructor
-  intro b_eq_t'_t₁
-  exact (h.mp (beta_eq.trans t t₁ t' b_eq_t b_eq_t'_t₁))
-  intro h₁
-  exact beta_eq.trans t₁ t t' (beta_eq.symm t t₁ b_eq_t) (h.mpr h₁)
+lemma eval_beta_eq (e : LExpr) : beta_eq (eval_once e) e := by
+  if h : eval_once e = e then
+    rw [h]
+    exact beta_eq.trivial e e rfl
+  else
+    exact beta_eq.right (eval_once e) e h $ beta_eq.trivial (eval_once e) (eval_once e) rfl
 
 lemma overlap_typing_judgements_beta_eq_t (t t₁ : LExpr) : ∀ e, t ∈ valid_typing_judgements e → t₁ ∈ valid_typing_judgements e → beta_eq t t₁ := by
   intro e h_t_judgement₁ h_t_judgement₂
@@ -208,17 +195,19 @@ lemma beta_eq_judgement_holds_not_app (t e e' : LExpr) (h_not_app : match e with
   unfold valid_typing_judgements at *
   have h_e_eval_noop : eval_once e = e := eval_once_noop_not_app e h_not_app
   have h_e_eval_noop' : eval_once e' = e' := eval_once_noop_not_app e' h_not_app₂
-  -- Since beta equivalence is define as either trivial definitional reflexivity,
-  -- or n-step reduction equivalence, we can show that the terms are definitionally
-  match h_beta_eq with
+  -- Beta reduction for something that is not an application deos NOTHING
+  -- Thus, if two things are beta equivalent that do not reduce to anything else
+  -- they must be definitionally equivalent
+
+  match h₃ : h_beta_eq with
     | beta_eq.trivial lhs rhs h_rfl_eq =>
       simp_all
-    | beta_eq.right lhs rhs eval_eq =>
+    | beta_eq.right e e' eval_eq =>
       constructor
+      simp_all
       
+      sorry
     | beta_eq.left lhs rhs eval_eq => sorry
-    | beta_eq.symm lhs rhs eval_eq => sorry
-    | beta_eq.trans e₁ e₂ e₃ eq_right eq_left => sorry
 
 lemma beta_eq_judgement_holds (t t₁ e : LExpr) : ∀ e', beta_eq e e' ∧ beta_eq e' e → t ∈ valid_typing_judgements e → t₁ ∈ valid_typing_judgements e' → t ∈ valid_typing_judgements e' := by
   intro e' ⟨beq_lhs, beq_rhs⟩ h₂ h₃
