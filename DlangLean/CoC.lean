@@ -190,6 +190,42 @@ lemma eval_once_noop_not_app (e : LExpr) (h_not_app : match e with | app _ _ => 
       unfold eval_once
       rfl
 
+lemma substitute_judgement_holds (t bind_ty body : LExpr) : t ∈ valid_typing_judgements (abstraction bind_ty body) → ∀ e, bind_ty ∈ valid_typing_judgements e → t ∈ valid_typing_judgements (substitute e $ abstraction bind_ty body) := sorry
+
+lemma eval_once_judgement_holds (t e) : t ∈ valid_typing_judgements e → t ∈ valid_typing_judgements (eval_once e) := by
+  -- Easy cases are where e is not an application, since eval is a noop
+  match h : e with
+    | app lhs rhs =>
+      intro ht
+      unfold eval_once
+      unfold valid_typing_judgements at *
+      unfold obv_valid_judgements at *
+      have ⟨⟨ty_rhs, ⟨h_ty_rhs, h_ty_lhs⟩⟩, h_all_eq_types⟩ := ht
+      constructor
+      -- Now, we know that the type of lhs body = t and ty_rhs = bind_ty
+      -- We can say that the expression reduces to body pretty easily
+      match h' : lhs with
+        | abstraction bind_ty body =>
+          have h'' := substitute_judgement_holds t ty_rhs body (by sorry) body
+          sorry
+        | lhs => sorry
+      sorry
+    | var n =>
+      have h : eval_once (var n) = (var n) := eval_once_noop_not_app (var n) (by simp)
+      simp_all
+    | ty n =>
+      have h : eval_once (ty n) = (ty n) := eval_once_noop_not_app (ty n) (by simp)
+      simp_all
+    | prp =>
+      have h : eval_once prp = prp := eval_once_noop_not_app prp (by simp)
+      simp_all
+    | fall a b =>
+      have h : eval_once (fall a b) = (fall a b) := eval_once_noop_not_app (fall a b) (by simp)
+      simp_all
+    | abstraction a b =>
+      have h : eval_once (abstraction a b) = (abstraction a b) := eval_once_noop_not_app (abstraction a b) (by simp)
+      simp_all
+
 lemma beta_eq_judgement_holds_not_app (t e e' : LExpr) (h_not_app : match e with | app _ _ => false | _ => true) (h_not_app₂ : match e' with | app _ _ => false | _ => true) : beta_eq e e' → t ∈ valid_typing_judgements e → t ∈ valid_typing_judgements e' := by
   intro h_beta_eq valid_t_judgement
   unfold valid_typing_judgements at *
@@ -202,12 +238,18 @@ lemma beta_eq_judgement_holds_not_app (t e e' : LExpr) (h_not_app : match e with
   match h₃ : h_beta_eq with
     | beta_eq.trivial lhs rhs h_rfl_eq =>
       simp_all
-    | beta_eq.right e e' eval_eq =>
+    | beta_eq.right e e' h_neq eval_eq =>
+      simp_all
       constructor
       simp_all
+      -- beta_eq e e₁ ∧ e ≠ e₁ → ¬beta_eq.trivial e e₁ → beta_eq.left e e₁ ∨ beta_eq.right e e₁
+      -- HOWEVER
+      -- evaluation not doing anything throws a big loop in this, since
+      -- beta_eq.left relies on it:
+      -- beta_eq.left implies at some poin tthat 
       
       sorry
-    | beta_eq.left lhs rhs eval_eq => sorry
+    | beta_eq.left e e' h_neq eval_eq => sorry
 
 lemma beta_eq_judgement_holds (t t₁ e : LExpr) : ∀ e', beta_eq e e' ∧ beta_eq e' e → t ∈ valid_typing_judgements e → t₁ ∈ valid_typing_judgements e' → t ∈ valid_typing_judgements e' := by
   intro e' ⟨beq_lhs, beq_rhs⟩ h₂ h₃
