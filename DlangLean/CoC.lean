@@ -122,6 +122,10 @@ def obvious_reducibility_candidates (t : LExpr) : Set LExpr :=
           | _ => false }
     | _ => { e | match e with | var _ => true | _ => false }
 
+-- De-bruijn indices type stack context
+-- telescopes: well-formed in tail of context, well-formedness
+-- De bruiijn index lemmas
+
 def obv_valid_judgements (e : LExpr) : Set LExpr := match e with
     | prp => { ty 0 }
     | ty n => { ty $ n + 1 }
@@ -134,7 +138,7 @@ def obv_valid_judgements (e : LExpr) : Set LExpr := match e with
     | var _ => { _t | true }
 
 def valid_typing_judgements (e : LExpr) : Set LExpr :=
-  { t | t ∈ obv_valid_judgements e ∧ (∀ t', beta_eq t t' ↔ t' ∈ obv_valid_judgements e) }
+  { t | t ∈ obv_valid_judgements e } ∪ { t | ∃ t', beta_eq t t' ∧ t' ∈ obv_valid_judgements e }
 
 lemma eval_beta_eq (e : LExpr) : beta_eq (eval_once e) e := by
   if h : eval_once e = e then
@@ -147,6 +151,7 @@ lemma overlap_typing_judgements_beta_eq_t (t t₁ : LExpr) : ∀ e, t ∈ valid_
   intro e h_t_judgement₁ h_t_judgement₂
   unfold valid_typing_judgements at *
   simp_all
+  sorry
 
 -- If two types are beta equivalent,
 -- then we can say that they are eventually
@@ -190,6 +195,8 @@ lemma eval_once_noop_not_app (e : LExpr) (h_not_app : match e with | app _ _ => 
       unfold eval_once
       rfl
 
+lemma obv_valid_judgement_imp_valid_judgement : ∀ e t, t ∈ valid_typing_judgement e
+
 lemma substitute_judgement_holds (t bind_ty body : LExpr) : t ∈ valid_typing_judgements (abstraction bind_ty body) → ∀ e, bind_ty ∈ valid_typing_judgements e → t ∈ valid_typing_judgements (substitute e $ abstraction bind_ty body) := sorry
 
 lemma eval_once_judgement_holds (t e) : t ∈ valid_typing_judgements e → t ∈ valid_typing_judgements (eval_once e) := by
@@ -200,16 +207,21 @@ lemma eval_once_judgement_holds (t e) : t ∈ valid_typing_judgements e → t �
       unfold eval_once
       unfold valid_typing_judgements at *
       unfold obv_valid_judgements at *
-      have ⟨⟨ty_rhs, ⟨h_ty_rhs, h_ty_lhs⟩⟩, h_all_eq_types⟩ := ht
-      constructor
-      -- Now, we know that the type of lhs body = t and ty_rhs = bind_ty
-      -- We can say that the expression reduces to body pretty easily
-      match h' : lhs with
-        | abstraction bind_ty body =>
-          have h'' := substitute_judgement_holds t ty_rhs body (by sorry) body
-          sorry
-        | lhs => sorry
-      sorry
+      simp at ht
+      cases ht
+      case inl h =>
+        simp
+        have ⟨ty_rhs, h_ty_rhs, h_ty_lhs⟩ := h
+        match lhs with
+          -- Simple substitution case. We have a lemma for this
+          | abstraction bind_ty body =>
+            have h := substitute_judgement_holds (ty_rhs.fall t) bind_ty body (by simp_all) rhs
+            
+            sorry
+          | app lhs rhs => sorry
+          | _ => sorry
+      case inr =>
+        sorry
     | var n =>
       have h : eval_once (var n) = (var n) := eval_once_noop_not_app (var n) (by simp)
       simp_all
