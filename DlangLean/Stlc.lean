@@ -75,3 +75,31 @@ inductive beta_eq {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Conte
 inductive is_strongly_normalizing {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Context $ @Ty σ) : @Expr α σ f_ty → Prop
   | trivial (e : Expr) : eval_once e = e → is_strongly_normalizing ctx e
   | hard    (e : Expr) : is_strongly_normalizing ctx (eval_once e) → is_strongly_normalizing ctx e
+
+
+lemma eval_once_noop_not_app {α : Type} {σ : Type} {f_ty : α → Option σ} (e : @Expr α σ f_ty) (h_not_app : match e with | app _ _ => false | _ => true) : eval_once e = e := by
+  match e with
+    | var _ =>
+      unfold eval_once
+      rfl
+    | app _ _ =>
+      contradiction
+    | abstraction _ _ =>
+      unfold eval_once
+      rfl
+    | const _ =>
+      unfold eval_once
+      rfl
+
+lemma eval_once_noop_judgement_holds {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Context $ @Ty σ) (e : @Expr α σ f_ty) (h_not_app : match e with | app _ _ => false | _ => true) : ∀ t, t ∈ @valid_typing_judgements α σ f_ty ctx e → t ∈ valid_typing_judgements ctx (eval_once e) := by
+  match h : e with
+    | var _ =>
+      simp [eval_once_noop_not_app]
+    | app _ _ =>
+      contradiction
+    | abstraction _ _ =>
+      simp [eval_once_noop_not_app]
+    | const _ =>
+      simp [eval_once_noop_not_app]
+
+lemma eval_once_judgement_holds {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Context $ @Ty σ) : ∀ e t, t ∈ @valid_typing_judgements α σ f_ty ctx e → t ∈ valid_typing_judgements ctx (eval_once e) := sorry
