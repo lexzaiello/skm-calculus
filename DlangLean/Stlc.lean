@@ -63,3 +63,15 @@ def valid_typing_judgements {α : Type} {σ : Type} {f_ty : α → Option σ} (c
   | abstraction bind_ty body =>
     { t | ∃ body_ty, (body_ty : @Ty σ) ∈ valid_typing_judgements ctx body → t = arrow bind_ty body_ty }
 
+inductive beta_normal {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Context $ @Ty σ) : Expr → Prop
+  | trivial e   : @eval_once α σ f_ty e = e     → beta_normal ctx e
+  | hard e      : beta_normal ctx (eval_once e) → beta_normal ctx e
+
+inductive beta_eq {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Context $ @Ty σ) : @Expr α σ f_ty → @Expr α σ f_ty → Prop
+  | trivial e₁ e₂    : e₁ = e₂  → beta_eq ctx e₁ e₂
+  | right   e₁ e₂    : e₁ ≠ e₂  → beta_eq ctx e₁ (eval_once e₂) → beta_eq ctx e₁ e₂
+  | left    e₁ e₂    : e₁ ≠ e₂  → beta_eq ctx (eval_once e₁) e₂ → beta_eq ctx e₁ e₂
+
+inductive is_strongly_normalizing {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Context $ @Ty σ) : @Expr α σ f_ty → Prop
+  | trivial (e : Expr) : eval_once e = e → is_strongly_normalizing ctx e
+  | hard    (e : Expr) : is_strongly_normalizing ctx (eval_once e) → is_strongly_normalizing ctx e
