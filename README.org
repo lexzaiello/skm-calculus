@@ -1,4 +1,4 @@
-#+TITLE: Strong Normalization of the Calculus of Constructions in Lean by Decomposition Into the SK Combinators
+#+TITLE: Strong Normalization of the Simply-Typed Lambda Calculus in Lean by Decomposition Into the SK Combinators
 #+AUTHOR: Dowland Aiello
 #+DATE: 5/26/25
 #+BIBLIOGRAPHY: bibliography.bib
@@ -40,9 +40,18 @@ A natural interpretation of the combinators as typed functions results in the de
 \]
 #+END_EXPORT
 
+* Decomposition of the Simply-Typed Lambda Calculus into Dependently Typed SK Combinators
 
+I follow an SK compilation scheme outlined in "The Implementation of Functional Programming Languages" [cite:@10.5555/1096899]:
 
-* Decomposition of the Simply-Typed Lambda Calculus into SK Combinators
+#+BEGIN_EXPORT latex
+\begin{align}
+(\lambda x.e_{1}\ e_{2})\ arg &= S (\lambda x.e_{1}) (\lambda x.e_{2})\ arg \\
+(\lambda x.x) &= SKK \\
+(\lambda x.c) &= K c
+\end{align}
+#+END_EXPORT
+
 * Proof
 ** Strong Normalization of the Typed SK Combinators
 ** Strong Normalization of the STLC
