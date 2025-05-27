@@ -9,7 +9,7 @@
 * Abstract
 
 Proofs of strong normalization of the simply-typed lambda calculus have been exhaustively enumerated in the literature. A common strategy invented by W. W. Tait known as "Tait's method," [cite:@harper2022] interprets types as sets of "well-behaving" terms which are known to be strongly normalizing and composed of expressions in some such set.
-Strong normalization of the typed SK combinator calculus has been comparatively under-studied. Herein, I demonstrate that the typical proof of strong normalization using Tait's method holds for the typed SK combinator calculus. I also show that decomposition of the STLC into the SK combinator calculus simplifies the typical proof of strong normalization.
+Strong normalization of the typed SK combinator calculus has been comparatively under-studied. Herein, I demonstrate that the typical proof of strong normalization using Tait's method holds for the typed SK combinator calculus. I also show that decomposition of the STLC into SK combinator expressions simplifies the typical proof of strong normalization.
 
 * A Type Discipline for the SK Combinators
 
@@ -23,6 +23,9 @@ I consider the usual SK combinator calculus defined as such:
 #+END_EXPORT
 
 A natural interpretation of the combinators as typed functions results in the dependent typing:
+
+#+NAME: inference:1
+\label{inference:1}
 
 #+BEGIN_EXPORT latex
 \[
@@ -69,6 +72,8 @@ T = \{ t \mid t \in B\}\ \cup\ \{ t \mid \exists\  t_{1} \in T, t_{2} \in T, t =
 \]
 #+END_EXPORT
 
+#+NAME: maplemma:1
+\label{maplemma:1}
 ** Type Expressivity & Equivalence
 
 I define a mapping (M_{t}) from the \rightarrow type constructor to \forall: $(\alpha \rightarrow \beta) \mapsto \forall x : \alpha.\beta$. I also assume the existence of a mapping (M_{c}) from the base types $B$ to arbitrary objects in my dependently-typed SK combinator calculus. Type inference is trivially derived from the above inference rules: $\forall c \in B, \exists\ t, t', c : t \implies t' = M_{t} t \implies M_{c} : t$.
@@ -86,6 +91,28 @@ It suffices to conclude that all well-typed expressions have well-typed counterp
 #+END_EXPORT
 
 * Proof
+
+In order to prove strong normalization of the STLC, it suffices to demonstrate that a) no well-typed lambda calculus expression is inexpressible in the dependently-typed SK combinator calculus; and b) all well-typed SK combinator expressions are strongly normalizing.
+
+** Comprehensiveness of the SK Mapping
+
+#+BEGIN_EXPORT latex
+\begin{proof}
+Suppose (1) there exists some well-typed expression $e$ of type $t \in T$ in the STLC which is not representible in the dependently-typed SK combinator calculus. By induction: \\
+\begin{itemize}
+\item If the expression is a constant, it must be contained in $M_{c}$, per the \href{maplemma:1}{above} lemma. \textbf{contradiction} \\
+\item If the expression is a well-typed expression contained in $M_{c}$ which is a dependently-typed SK expression, its type is inferred per the \href{inference:1}{inference rules}. The expression is thus representible. \textbf{contradiction} \\
+\item If the expression is a well-typed lambda expression, its type is of the form: $\alpha \rightarrow \beta$, where $\{\alpha, \beta\} \subset T$. An image must exist in $M_{t}$ per \href{maplemma:1}{above} of the form $\forall x : \alpha.\beta$. \\
+\begin{itemize}
+  \item Its body is also well-typed, and has a valid type. Its body is thus representible \textbf{by induction}. \\
+  \item The expression is thus representible, per the \href{decomplemma:1}{decomposition rules}. \textbf{contradiction} \\
+\end{itemize}
+\item If the expression is a well-typed application $e_{1} e_{2}$, its left hand side is of type $\alpha \rightarrow \beta$, where $\{\alpha, \beta\} \subset T$. Its right hand side must be of type $beta$. The expression is thus of type $t$. By induction, the expression is representible. \textbf{contradiction} \\
+\end{itemize}
+
+Conclusion: no expression exists which has no image in the set of well-typed dependently-typed SK combinator expressions.
+\end{proof}
+#+END_EXPORT
 ** Strong Normalization of the Typed SK Combinators
 ** Strong Normalization of the STLC
 ** Encoding in Lean
