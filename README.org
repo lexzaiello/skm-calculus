@@ -48,8 +48,18 @@ A natural interpretation of the combinators as typed functions results in the de
 \]
 \[
 \inferrule
+  { \Gamma \alpha : T_{n}, \beta : T_{m}, x : \alpha, y : \beta }
+  { \Gamma \vdash K x y : \alpha }
+\]
+\[
+\inferrule
   { \Gamma \alpha : T_{n}, \beta : T_{m}, \gamma : T_{o}, x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha }
   { \Gamma \vdash S : (\forall x, y, z.\gamma) }
+\]
+\[
+\inferrule
+  { \Gamma \alpha : T_{n}, \beta : T_{m}, \gamma : T_{o}, x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha }
+  { \Gamma \vdash S x z (y z) : \gamma }
 \]
 #+END_EXPORT
 
@@ -183,9 +193,22 @@ R(T_{n + 1}) = \{ T_{n} \}\ \\
 
 *** Inductive Proof
 
-It suffices in order to prove strong normalization of this sytem that a) all reducibility candidates in $R$ are strongly-normalizing; and b) all well-typed expression $(e : t)$ can be expressed using only expressions in $R(t)$.
+It suffices in order to prove strong normalization of this sytem that a) all reducibility candidates in $R$ are strongly-normalizing; and c) all well-typed expression $(e : t)$ can be expressed using expressions in $R(t)$.
 
-**** Strong Normalization of Reducibility Candidates
+**** Preservation
+
+In order to execute an inductive proof leveraging our definition of $R(t)$, it is useful to prove that evaluation maintains the typing of an expression.
+
+#+BEGIN_EXPORT latex
+\begin{lemma}
+For all well-typed expressions, $e : t \implies (eval\_once\ e) : t$.
+\begin{proof}
+The proof is obvious for obviously reducible expressions of the form $T_{n}$ and $(\forall x:A.B)$. The $K : t$ combinator is inert ($\text{eval\_once}\ k = k \implies t = t'$) except when it is provided two well-typed arguments: $K (x : t_{1}) (y : t_{2})$. Per the \href{inference:1}{inference rules}, $(K x y) : t$ is of the type $t = t_{1}$. Evaluation of $K x y$ is defined to be equivalent to $x$. Thus, preservation is trivially achieved.
+\end{proof}
+\end{lemma}
+#+END_EXPORT
+
+**** Proof Execution
 
 #+BEGIN_EXPORT latex
 \begin{lemma}
@@ -193,7 +216,22 @@ All expressions $e$ which are well-typed with type $t$ and occupy the set $R(t)$
 \begin{proof}
 Inductively: \\
 \begin{itemize}
-\item 
+\item All obviously reducing candidates are strongly normalizing:
+\begin{itemize}
+\item All expressions of the form $T_{n}$ are strongly normalizing, as they are inert.
+\item All expressions of the form $(\forall x : A.B)$ are strongly normalizing, as they are inert.
+\end{itemize}
+\item All $K : t$ combinators in $R(t)$ are strongly normalizing. $K$ is insert, and invokes no function applications. By the definition of $R(t)$, $K \in R(t)$ will produce only one-step reduxes which are in $R$, and which are strongly normalizing \textbf{by induction}. Thus, the expression is \textbf{strongly normalizing}.
+\item All $S : t$ combinators in $R(t)$ are strongly normalizing. $S$ is not inert, and invokes $xz (yz)$. However, $x$, $y$, and $z$ live in $R$, requiring that their one-step reduxes live in $R$ and are strongly-normalizing. The expression is strongly-normalizing \textbf{by induction}.
+\end{itemize}
+\end{proof}
+\end{lemma}
+\begin{lemma}
+All well-typed expressions $(e : t)$ occupy the set $R(t)$.
+\begin{proof}
+The proof is trivially proven for objects of the form $T_{n}$ and $(\forall x:A.B)$, as above.
+\begin{itemize}
+\item All well-typed $K : t$ combinators are of the type $t = \forall x, y.\alpha$, where x is well-typed ($x : \alpha$) and y is well-typed ($y : \beta$). $x \in R(\alpha) \land y \in R(\beta)$ \textbf{by induction}.
 \end{itemize}
 \end{proof}
 \end{lemma}
