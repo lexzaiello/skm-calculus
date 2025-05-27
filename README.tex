@@ -1,4 +1,4 @@
-% Created 2025-05-27 Tue 13:19
+% Created 2025-05-27 Tue 13:29
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -34,12 +34,12 @@
 \tableofcontents
 
 \section{Abstract}
-\label{sec:orgd679f4b}
+\label{sec:orgc32f9a1}
 
 Proofs of strong normalization of the simply-typed lambda calculus have been exhaustively enumerated in the literature. A common strategy invented by W. W. Tait known as "Tait's method," (Robert Harper, 2022) interprets types as sets of "well-behaving" terms which are known to be strongly normalizing and composed of expressions in some such set.
 Strong normalization of the typed call-by-need SK combinator calculus has been comparatively under-studied. Herein, I demonstrate that the typical proof of strong normalization using Tait's method holds for the typed SK combinator calculus. I also show that decomposition of the STLC into SK combinator expressions simplifies the typical proof of strong normalization.
 \section{A Type Discipline for the SK Combinators}
-\label{sec:orgee97b01}
+\label{sec:orgcde23bf}
 
 I consider the usual SK combinator calculus defined as such:
 
@@ -75,7 +75,7 @@ A natural interpretation of the combinators as typed functions results in the de
 
 \label{decomplemma:1}
 \section{Decomposition of the Simply-Typed Lambda Calculus into Dependently Typed SK Combinators}
-\label{sec:org562270d}
+\label{sec:orge60c753}
 
 I utilize an SK compilation scheme outlined in "The Implementation of Functional Programming Languages" (Peyton Jones, Simon L., 1987):
 
@@ -93,7 +93,7 @@ T = \{ t \mid t \in B\}\ \cup\ \{ t \mid \exists\  t_{1} \in T, t_{2} \in T, t =
 
 \label{maplemma:1}
 \subsection{Type Expressivity \& Equivalence}
-\label{sec:org0c0cf34}
+\label{sec:orgc25750d}
 
 I define a mapping (M\textsubscript{t}) from the \(\rightarrow\) type constructor to \(\forall\): \((\alpha \rightarrow \beta) \mapsto \forall x : \alpha.\beta\). I also assume the existence of a mapping (M\textsubscript{c}) from the base types \(B\) to arbitrary objects in my dependently-typed SK combinator calculus. Type inference is trivially derived from the above inference rules: \(\forall c \in B, \exists\ t, t', c : t \implies t' = M_{t} t \implies M_{c} c : t\).
 
@@ -107,11 +107,11 @@ It follows by induction on $e : t$, where $e$ is well-typed per the \href{decomp
 It suffices to conclude that all well-typed expressions have well-typed counterparts in the dependently-typed SK combinator calculus.
 \end{proof}
 \section{Proof}
-\label{sec:orgd8194f3}
+\label{sec:org93675b2}
 
 In order to prove strong normalization of the STLC, it suffices to demonstrate that a) no well-typed lambda calculus expression is inexpressible in the dependently-typed SK combinator calculus; and b) all well-typed SK combinator expressions are strongly normalizing.
 \subsection{Comprehensiveness of the SK Mapping}
-\label{sec:org3fd59b8}
+\label{sec:org753cebf}
 
 \begin{proof}
 Suppose (1) there exists some well-typed expression $e$ of type $t \in T$ in the STLC which is not representible in the dependently-typed SK combinator calculus. By induction: \\
@@ -129,7 +129,7 @@ Suppose (1) there exists some well-typed expression $e$ of type $t \in T$ in the
 Conclusion: no expression exists which has no image in the set of well-typed dependently-typed SK combinator expressions.
 \end{proof}
 \subsection{Strong Normalization of the Typed SK Combinators}
-\label{sec:orgb9cdc07}
+\label{sec:org9839d16}
 
 I assume the existence of a one-step reduction function: \texttt{eval\_once}
 
@@ -142,7 +142,7 @@ inductive strongly_normalizing : Expr → Prop
              strongly_normalizing e
 \end{verbatim}
 \subsubsection{Reducibility Candidates}
-\label{sec:org8c9c379}
+\label{sec:org339c25f}
 
 The \(K\) combinator is trivially strongly normalizing. It invokes no function applications, although it may produce an expression which contains an application. For example:
 
@@ -163,32 +163,42 @@ Or, more succinctly:
 \{ K \mid ...,\ arg_{1}\ \in R(\alpha) \}
 \]
 
-\(R(t)\) can be similarly extended to include the S combinator:
+\(R(t)\) can be similarly extended to include the S combinator.
 
 \begin{gather*}
 \{ S \mid \forall \alpha : T_{n},\ \beta : T_{m},\ \gamma : T_{o},\ T_{x} = (\forall x : \alpha, y : \beta.\gamma),\ T_{y} = (\forall x : \alpha.\alpha),\ T_{z} = \alpha, \notag \\
   x : T_{x},\ y : T_{y},\ z : T_{z},\ S : (\forall x, y, z.\gamma), \forall arg_{1} : T_{x},\ arg_{2} : T_{z},\ arg_{3} : T_{z}, \notag \\
   arg_{1} \in R(T_{x}) \land arg_{2} \in R(T_{y}) \land arg_{3} \in R(T_{z}) \}
 \end{gather*}
+
+Expressions which are obviously reducible and inert are as follows:
+
+\begin{gather*}
+\{ T_{n} \mid T_{n} : T_{n + 1} \}\ \cup \notag \\
+\{ \text{fall} \mid \forall K : T_{n},\ L : T_{m},\ A : K,\ B : L,\ \text{fall} = (\forall x : A.B) \land \text{fall} : L \}
+\end{gather*}
 \subsubsection{Inductive Proof}
-\label{sec:orgccfb148}
+\label{sec:orgbdea9f5}
 
 It suffices in order to prove strong normalization of this sytem that a) all reducibility candidates in \(R\) are strongly-normalizing; and b) all well-typed expression \((e : t)\) can be expressed using only expressions in \(R(t)\).
 \begin{enumerate}
 \item Strong Normalization of Reducibility Candidates
-\label{sec:org8c205c7}
+\label{sec:org2a9ec50}
 
 \begin{lemma}
 All expressions $e$ which are well-typed with type $t$ and occupy the set $R(t)$ are strongly normalizing.
 \begin{proof}
-
+Inductively: \\
+\begin{itemize}
+\item 
+\end{itemize}
 \end{proof}
 \end{lemma}
 \end{enumerate}
 \subsection{Strong Normalization of the STLC}
-\label{sec:orgceee71f}
+\label{sec:orge9fdcfb}
 \subsection{Encoding in Lean}
-\label{sec:org812ec4c}
+\label{sec:org67adb2c}
 
 \noindent
 Peyton Jones, Simon L. (1987). \emph{The Implementation of Functional Programming Languages (Prentice-Hall International Series in Computer Science)}, Prentice-Hall, Inc..
