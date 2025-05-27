@@ -1,5 +1,51 @@
-#+NAME: Strong Normalization of the Simply Typed Lambda Calculus in Lean by Decomposition Into the SK Combinators
-#+AUTOR: Dowland Aiello
+#+TITLE: Strong Normalization of the Calculus of Constructions in Lean by Decomposition Into the SK Combinators
+#+AUTHOR: Dowland Aiello
 #+DATE: 5/26/25
+#+BIBLIOGRAPHY: bibliography.bib
+#+LATEX_HEADER: \usepackage{mathpartir}
 
-Bruh
+* Abstract
+
+Proofs of strong normalization of the simply-typed lambda calculus have been exhaustively enumerated in the literature. A common strategy invented by W. W. Tait known as "Tait's method," [cite:@harper2022] interprets types as sets of "well-behaving" terms which are known to be strongly normalizing and composed of expressions in some such set.
+Strong normalization of the typed SK combinator calculus has been comparatively under-studied. Herein, I demonstrate that the typical proof of strong normalization using Tait's method holds for the typed SK combinator calculus. I also show that decomposition of the STLC into the SK combinator calculus simplifies the typical proof of strong normalization.
+
+* A Type Discipline for the SK Combinators
+
+I consider the usual SK combinator calculus defined as such:
+
+#+BEGIN_EXPORT latex
+\begin{align}
+& K xy = x \\
+& S xyz = xz (yz)
+\end{align}
+#+END_EXPORT
+
+A natural interpretation of the combinators as typed functions results in the dependent typing:
+
+#+BEGIN_EXPORT latex
+\[
+\inferrule
+  { \Gamma \vdash A : K \ \Gamma,x : A \vdash B : L }
+  { \Gamma \vdash (\forall x : A.B) : L}
+\]
+\[
+\inferrule
+  { }
+  { \Gamma \vdash K : (\forall \alpha, \beta, x : \alpha, y : \beta.\alpha) }
+\]
+\[
+\inferrule
+  { }
+  { \Gamma \vdash S : (\forall \alpha, \beta, \gamma, x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha, y : \beta.\alpha), z : \alpha.\gamma) }
+\]
+#+END_EXPORT
+
+
+
+* Decomposition of the Simply-Typed Lambda Calculus into SK Combinators
+* Proof
+** Strong Normalization of the Typed SK Combinators
+** Strong Normalization of the STLC
+** Encoding in Lean
+
+#+PRINT_BIBLIOGRAPHY:

@@ -17,7 +17,6 @@ inductive Expr {α : Type} {σ : Type} {f_ty : α → Option σ} where
 
 open Expr
 
-
 def map_indices_free {α : Type} {σ : Type} {f_ty : α → Option σ} (n_binders : ℕ) (f : ℕ → ℕ) : @Expr α σ f_ty → @Expr α σ f_ty
   | abstraction e_ty body => abstraction e_ty (map_indices_free n_binders.succ f body)
   -- if bound, don't touch this
@@ -63,6 +62,11 @@ def valid_typing_judgements {α : Type} {σ : Type} {f_ty : α → Option σ} (c
   | abstraction bind_ty body =>
     { t | ∃ body_ty, (body_ty : @Ty σ) ∈ valid_typing_judgements ctx body ∧ t = arrow bind_ty body_ty }
 
+inductive valid_typing_judgement {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Context $ @Ty σ) : @Expr α σ f_ty → @Ty σ → Prop
+  | const v e t (h : e = const v) : some t = (f_ty v).map (Ty.base .) → valid_typing_judgement ctx e t
+  | var n e t (h : e = var n) : ctx[n]? = some t → valid_typing_judgement ctx e t
+  | app lhs rhs ty_rhs e (t : @Ty σ) (h : e = app lhs rhs) : valid_typing_judgement ctx lhs (arrow ty_rhs t) → valid_typing_judgement ctx rhs ty_rhs → valid_judgement (app lhs rhs) t
+
 inductive beta_normal {α : Type} {σ : Type} {f_ty : α → Option σ} : Context (@Ty σ) → Expr → Prop
   | trivial ctx e   : @eval_once α σ f_ty ctx e = ⟨ctx, e⟩                → beta_normal ctx e
   | hard ctx e      : beta_normal (eval_once ctx e).1 (eval_once ctx e).2 → beta_normal ctx e
@@ -75,7 +79,6 @@ inductive beta_eq {α : Type} {σ : Type} {f_ty : α → Option σ} : Context (@
 inductive is_strongly_normalizing {α : Type} {σ : Type} {f_ty : α → Option σ} : Context (@Ty σ) → @Expr α σ f_ty → Prop
   | trivial (ctx : Context Ty) (e : Expr) : eval_once ctx e = ⟨ctx, e⟩                                      → is_strongly_normalizing ctx e
   | hard    (ctx : Context Ty) (e : Expr) : is_strongly_normalizing (eval_once ctx e).1 (eval_once ctx e).2 → is_strongly_normalizing ctx e
-
 
 lemma eval_once_noop_not_app {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Context Ty) (e : @Expr α σ f_ty) (h_not_app : match e with | app _ _ => false | _ => true) : eval_once ctx e = ⟨ctx, e⟩ := by
   match e with
@@ -102,7 +105,22 @@ lemma eval_once_noop_judgement_holds {α : Type} {σ : Type} {f_ty : α → Opti
     | const _ =>
       simp [eval_once_noop_not_app]
 
-lemma eval_once_judgement_holds {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Context $ @Ty σ) : ∀ e t, t ∈ @valid_typing_judgements α σ f_ty ctx e → t ∈ valid_typing_judgements ctx (eval_once e)
+lemma eval_abstr_imp_t_in_context {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Context $ @Ty σ) (e : @Expr α σ f_ty) (h_is_abstraction : match e with | abstraction _ _ => true | _ => false) : ∀ (arg : @Expr α σ f_ty) t_rhs t_body, (arrow t_rhs t_body) ∈ valid_typing_judgements ctx e → t_rhs ∈ valid_typing_judgements ctx arg → (eval_once ctx (app e arg)).1[0]? = some t_rhs := by
+  intro arg t_rhs t_body h_t_e h_t_arg
+  unfold eval_once
+  unfold valid_typing_judgements at h_t_e
+  simp at h_t_e
+  match h : e with
+    | abstraction _ _ =>
+      simp_all
+    | var n =>
+      simp_all
+    | const _ =>
+      simp_all
+    | app lhs rhs =>
+      simp_all
+
+lemma eval_once_judgement_holds {α : Type} {σ : Type} {f_ty : α → Option σ} (ctx : Context $ @Ty σ) : ∀ e t, t ∈ @valid_typing_judgements α σ f_ty ctx e → t ∈ valid_typing_judgements (eval_once ctx e).1 (eval_once ctx e).2
   | e, t, h_t =>
     match h : e with
       | var n =>
@@ -115,27 +133,21 @@ lemma eval_once_judgement_holds {α : Type} {σ : Type} {f_ty : α → Option σ
         unfold valid_typing_judgements at h_t
         simp at h_t
         have ⟨ty_lhs, ty_rhs, ⟨h_ty_rhs, h_t_lhs, h_t'⟩⟩ := h_t
-        unfold eval_once
-        match lhs with
-          | abstraction bind_ty body =>
-            unfold substitute
-            unfold valid_typing_judgements
-            simp
-            unfold valid_typing_judgements at h_t_lhs
-            simp at h_t_lhs
-            have ⟨body_ty, h_body_ty⟩ := h_t_lhs
-            simp_all
-            have ⟨h_t_rhs', h_t_body'⟩ := h_t'
-            split
+        match h₁ : lhs with
+          | a@(abstraction bind_ty body) =>
+            -- Evaluation returns the body. We know that the body must be of type t with all vars substituted under the new context
+            have h_ctx :=  eval_abstr_imp_t_in_context ctx a (by simp_all) rhs ty_rhs t (by simp_all) (by simp_all)
             
             sorry
           | var n =>
+            unfold eval_once
             simp
             unfold eval_once
             unfold valid_typing_judgements
             simp
             exact h_t
           | const _ =>
+            unfold eval_once
             simp
             unfold eval_once
             unfold valid_typing_judgements
