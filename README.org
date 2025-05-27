@@ -48,20 +48,17 @@ A natural interpretation of the combinators as typed functions results in the de
 \]
 \[
 \inferrule
-  { \Gamma \alpha : T_{n}, \beta : T_{m}, x : \alpha, y : \beta }
-  { \Gamma \vdash K x y : \alpha }
-\]
-\[
-\inferrule
   { \Gamma \alpha : T_{n}, \beta : T_{m}, \gamma : T_{o}, x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha }
   { \Gamma \vdash S : (\forall x, y, z.\gamma) }
 \]
 \[
 \inferrule
-  { \Gamma \alpha : T_{n}, \beta : T_{m}, \gamma : T_{o}, x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha }
-  { \Gamma \vdash S x z (y z) : \gamma }
+  { \Gamma \alpha : T_{n},\ e_{1} : (\forall x : \alpha.body), e_{2} : \alpha }
+  { \Gamma \vdash a b : body[x = b] }
 \]
 #+END_EXPORT
+
+Where $body[x = b]$ denotes substitution within the scope of $\forall$.
 
 #+NAME: decomplemma:1
 \label{decomplemma:1}
