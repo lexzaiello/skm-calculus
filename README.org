@@ -3,6 +3,8 @@
 #+DATE: 5/26/25
 #+BIBLIOGRAPHY: bibliography.bib
 #+LATEX_HEADER: \usepackage{mathpartir}
+#+LATEX_HEADER: \usepackage{amsthm}
+#+LATEX_HEADER: \usepackage{hyperref}
 
 * Abstract
 
@@ -31,18 +33,24 @@ A natural interpretation of the combinators as typed functions results in the de
 \[
 \inferrule
   { }
-  { \Gamma \vdash K : (\forall \alpha, \beta, x : \alpha, y : \beta.\alpha) }
+  { \Gamma T_{n} : T_{n + 1} }
 \]
 \[
 \inferrule
-  { }
-  { \Gamma \vdash S : (\forall \alpha, \beta, \gamma, x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha, y : \beta.\alpha), z : \alpha.\gamma) }
+  { \Gamma \alpha : T_{n}, \beta : T_{m}, x : \alpha, y : \beta }
+  { \Gamma \vdash K : (\forall x, y.\alpha) }
+\]
+\[
+\inferrule
+  { \Gamma \alpha : T_{n}, \beta : T_{m}, \gamma : T_{o}, x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha }
+  { \Gamma \vdash S : (\forall x, y, z.\gamma) }
 \]
 #+END_EXPORT
 
+#+NAME: decomplemma:1
 * Decomposition of the Simply-Typed Lambda Calculus into Dependently Typed SK Combinators
 
-I follow an SK compilation scheme outlined in "The Implementation of Functional Programming Languages" [cite:@10.5555/1096899]:
+I utilize an SK compilation scheme outlined in "The Implementation of Functional Programming Languages" [cite:@10.5555/1096899]:
 
 #+BEGIN_EXPORT latex
 \begin{align}
@@ -50,6 +58,27 @@ I follow an SK compilation scheme outlined in "The Implementation of Functional 
 (\lambda x.x) &= SKK \\
 (\lambda x.c) &= K c
 \end{align}
+#+END_EXPORT
+
+I consider a generic simply-typed lambda calculus with base types $B$, a type constructor \rightarrow and the type universe:
+
+#+BEGIN_EXPORT latex
+\[
+T = \{ t \mid t \in B\}\ \cup\ \{ t \mid \exists\  t_{1} \in T, t_{2} \in T, t = t_{1} \rightarrow t_{2} \}
+\]
+#+END_EXPORT
+
+** Type Expressivity & Equivalence
+
+I define a mapping (M_{t}) from the \rightarrow type constructor to \forall: $(\alpha \rightarrow \beta) \mapsto \forall x : \alpha.\beta$. I also assume the existence of a mapping (M_{c}) from the base types $B$ to arbitrary objects in my dependently-typed SK combinator calculus. Type inference is trivially derived from the above inference rules: $\forall c \in B, \exists\ t, t', c : t \implies t' = M_{t} t \implies M_{c} : t$.
+
+It follows that every well-typed expression in our simply-typed lambda calculus has an equivalent SK expression:
+
+#+BEGIN_EXPORT latex
+\begin{proof}
+Assume (1) that for all $c \in B, \exists!\ c' \in M_{c}, c' = M_{c} c$. Assume (2) that for all $\{t_{1}, t_{2}, t\} \subset T, t = (t_{1} \rightarrow t_{2}), \exists!\ t' \in M_{t}, t' = M_{t} t$. Per above[[decomplemma:1]], and induction on (1) there exists a mapping from every lambda expression to an SK combinator expression. It follows by induction on $e : t$, where e is well-typed per the inference rules[[decomplemma:1]] that all $t \in$ the simply-typed $T$ are in $M_{t}$.
+
+\end{proof}
 #+END_EXPORT
 
 * Proof

@@ -1,4 +1,4 @@
-% Created 2025-05-27 Tue 09:06
+% Created 2025-05-27 Tue 10:30
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -13,6 +13,8 @@
 \usepackage{capt-of}
 \usepackage{hyperref}
 \usepackage{mathpartir}
+\usepackage{amsthm}
+\usepackage{hyperref}
 \author{Dowland Aiello}
 \date{5/26/25}
 \title{Strong Normalization of the Simply-Typed Lambda Calculus in Lean by Decomposition Into the SK Combinators}
@@ -29,12 +31,12 @@
 \tableofcontents
 
 \section{Abstract}
-\label{sec:org0e76f1f}
+\label{sec:orgd36852f}
 
 Proofs of strong normalization of the simply-typed lambda calculus have been exhaustively enumerated in the literature. A common strategy invented by W. W. Tait known as "Tait's method," (Robert Harper, 2022) interprets types as sets of "well-behaving" terms which are known to be strongly normalizing and composed of expressions in some such set.
 Strong normalization of the typed SK combinator calculus has been comparatively under-studied. Herein, I demonstrate that the typical proof of strong normalization using Tait's method holds for the typed SK combinator calculus. I also show that decomposition of the STLC into the SK combinator calculus simplifies the typical proof of strong normalization.
 \section{A Type Discipline for the SK Combinators}
-\label{sec:orgceca387}
+\label{sec:org5de6060}
 
 I consider the usual SK combinator calculus defined as such:
 
@@ -53,31 +55,53 @@ A natural interpretation of the combinators as typed functions results in the de
 \[
 \inferrule
   { }
-  { \Gamma \vdash K : (\forall \alpha, \beta, x : \alpha, y : \beta.\alpha) }
+  { \Gamma T_{n} : T_{n + 1} }
 \]
 \[
 \inferrule
-  { }
-  { \Gamma \vdash S : (\forall \alpha, \beta, \gamma, x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha, y : \beta.\alpha), z : \alpha.\gamma) }
+  { \Gamma \alpha : T_{n}, \beta : T_{m}, x : \alpha, y : \beta }
+  { \Gamma \vdash K : (\forall x, y.\alpha) }
+\]
+\[
+\inferrule
+  { \Gamma \alpha : T_{n}, \beta : T_{m}, \gamma : T_{o}, x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha }
+  { \Gamma \vdash S : (\forall x, y, z.\gamma) }
 \]
 \section{Decomposition of the Simply-Typed Lambda Calculus into Dependently Typed SK Combinators}
-\label{sec:orgbc213ed}
+\label{sec:org6907ff3}
 
-I follow an SK compilation scheme outlined in "The Implementation of Functional Programming Languages" (Peyton Jones, Simon L., 1987):
+I utilize an SK compilation scheme outlined in "The Implementation of Functional Programming Languages" (Peyton Jones, Simon L., 1987):
 
 \begin{align}
 (\lambda x.e_{1}\ e_{2})\ arg &= S (\lambda x.e_{1}) (\lambda x.e_{2})\ arg \\
 (\lambda x.x) &= SKK \\
 (\lambda x.c) &= K c
 \end{align}
+
+I consider a generic simply-typed lambda calculus with base types \(B\), a type constructor \(\rightarrow\) and the type universe:
+
+\[
+T = \{ t \mid t \in B\}\ \cup\ \{ t \mid \exists\  t_{1} \in T, t_{2} \in T, t = t_{1} \rightarrow t_{2} \}
+\]
+\subsection{Type Expressivity \& Equivalence}
+\label{sec:org7d48d09}
+
+I define a mapping (M\textsubscript{t}) from the \(\rightarrow\) type constructor to \(\forall\): \((\alpha \rightarrow \beta) \mapsto \forall x : \alpha.\beta\). I also assume the existence of a mapping (M\textsubscript{c}) from the base types \(B\) to arbitrary objects in my dependently-typed SK combinator calculus. Type inference is trivially derived from the above inference rules: \(\forall c \in B, \exists\ t, t', c : t \implies t' = M_{t} t \implies M_{c} : t\).
+
+It follows that every well-typed expression in our simply-typed lambda calculus has an equivalent SK expression:
+
+\begin{proof}
+Assume (1) that for all $c \in B, \exists!\ c' \in M_{c}, c' = M_{c} c$. Assume (2) that for all $\{t_{1}, t_{2}, t\} \subset T, t = (t_{1} \rightarrow t_{2}), \exists!\ t' \in M_{t}, t' = M_{t} t$. Per above[[decomplemma:1]], and induction on (1) there exists a mapping from every lambda expression to an SK combinator expression. It follows by induction on $e : t$, where e is well-typed per the inference rules[[decomplemma:1]] that all $t \in$ the simply-typed $T$ are in $M_{t}$.
+
+\end{proof}
 \section{Proof}
-\label{sec:orgb1961a0}
+\label{sec:org680014b}
 \subsection{Strong Normalization of the Typed SK Combinators}
-\label{sec:org12d23e8}
+\label{sec:orgc5723d8}
 \subsection{Strong Normalization of the STLC}
-\label{sec:org16c7d50}
+\label{sec:org8c074fe}
 \subsection{Encoding in Lean}
-\label{sec:orgc484a71}
+\label{sec:org5397e5e}
 
 \noindent
 Peyton Jones, Simon L. (1987). \emph{The Implementation of Functional Programming Languages (Prentice-Hall International Series in Computer Science)}, Prentice-Hall, Inc..
