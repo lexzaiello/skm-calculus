@@ -1,1 +1,0 @@
-# CoC Lean

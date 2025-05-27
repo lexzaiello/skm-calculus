@@ -1,0 +1,5 @@
+#+NAME: Strong Normalization of the Simply Typed Lambda Calculus in Lean by Decomposition Into the SK Combinators
+#+AUTOR: Dowland Aiello
+#+DATE: 5/26/25
+
+Bruh
