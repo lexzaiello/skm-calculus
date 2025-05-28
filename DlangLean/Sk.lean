@@ -7,10 +7,12 @@ inductive SkExpr where
   | fall : SkExpr → SkExpr → SkExpr
   | var  : ℕ → SkExpr
   | ty   : ℕ → SkExpr
+  | prp : SkExpr
 
 open SkExpr
 
 def substitute (n : ℕ) (with_expr : SkExpr): SkExpr → SkExpr
+  | prp => ty 0
   | fall bind_ty body =>
     fall (substitute n.succ with_expr bind_ty) (substitute n.succ with_expr body)
   | t@(ty _) => t
@@ -24,42 +26,18 @@ def body : SkExpr → SkExpr
   | fall _ body => body
   | x => x
 
-inductive valid_judgement : SkExpr → SkExpr → Prop
-  | k e t (h_is_k : match e with | SkExpr.k => true | _ => false) :
-    -- K α : ∀ β.∀ (x : α).∀ (y : β).α
-    t = fall (SkExpr.var 1) (
-          fall (SkExpr.var 1) (fall (SkExpr.var 3) (fall (SkExpr.var 3) (SkExpr.var 4)))) → valid_judgement e t
-  | s e t (h_is_s : match e with | SkExpr.s => true | _ => false) :
-    -- ∀ α β γ (x : α → β → γ) (y : α → β) (z : α), γ
-    t =
-      -- α
-      (fall (SkExpr.var 1)
-        -- β
-        (fall (SkExpr.var 1)
-          -- γ
-          (fall (SkExpr.var 1)
-            (fall
-              -- x : α → β → γ
-              (fall (SkExpr.var 4)
-                (fall
-                  (SkExpr.var 5)
-                  (SkExpr.var 4)))
-              (fall
-                -- y : α → β
-                (fall
-                  (SkExpr.var 6)
-                  (SkExpr.var 5))
-                (fall
-                  -- z : α
-                  (SkExpr.var 7)
-                  (SkExpr.var 5))))))) → valid_judgement e t
-  | call e t (lhs : SkExpr) (rhs : SkExpr) (t_lhs : SkExpr) (t_rhs : SkExpr) (h_is_call : match e with | call lhs' rhs' => lhs' = lhs ∧ rhs' = rhs | _ => false) :
-    valid_judgement lhs t_lhs → valid_judgement rhs t_rhs → t = body (substitute 0 rhs t_lhs) → valid_judgement e t
-  | fall e t bind_ty body t_body (h_is_fall : match e with | fall _ _ => true | _ => false) :
-    valid_judgement body t_body →
-    e = fall bind_ty body →
-    t = t_body → valid_judgement e t
-  | obvious e t : (match e with | ty n => t = ty n.succ | _ => false) → valid_judgement e t
+abbrev ty_k := fall (SkExpr.var 1) (
+  fall (SkExpr.var 1) (fall (SkExpr.var 3) (fall (SkExpr.var 3) (SkExpr.var 4))))
+
+def imp := fall
+
+infixr:65 " ~> " => imp
+
+def specialize_ty_k (α β : SkExpr) := α ~> β ~> α
+def specialize_ty_s (α β γ : SkExpr) := (α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ
+
+--               α                 β                 γ               x : α → β → γ                                            y : α → β                             z : α             γ
+abbrev ty_s := (SkExpr.var 1) ~> (SkExpr.var 1) ~> (SkExpr.var 1) ~> ((SkExpr.var 4) ~> (SkExpr.var 4) ~> (SkExpr.var 4)) ~> ((SkExpr.var 5) ~> (SkExpr.var 4)) ~> (SkExpr.var 6) ~> (SkExpr.var 4)
 
 def eval_once : SkExpr → SkExpr
   | k => k
@@ -68,9 +46,51 @@ def eval_once : SkExpr → SkExpr
   | call (call (call s x) y) z => call (call x z) (call y z)
   | x => x
 
+inductive beta_eq : SkExpr → SkExpr → Prop
+  | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
+  | hard    e₁ e₂    : beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
+  | symm    e₁ e₂    : beta_eq e₂ e₁ → beta_eq e₁ e₂
+  | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
+
+inductive valid_judgement : SkExpr → SkExpr → Prop
+  | k e t (h_is_k : match e with | SkExpr.k => true | _ => false) :
+    -- K α : ∀ β.∀ (x : α).∀ (y : β).α
+    t = ty_k → valid_judgement e t
+  | s e t (h_is_s : match e with | SkExpr.s => true | _ => false) :
+    -- ∀ α β γ (x : α → β → γ) (y : α → β) (z : α), γ
+    t = ty_s → valid_judgement e t
+  | call e t (lhs : SkExpr) (rhs : SkExpr) (t_lhs : SkExpr) (t_rhs : SkExpr) (h_is_call : match e with | call lhs' rhs' => lhs' = lhs ∧ rhs' = rhs | _ => false) :
+    valid_judgement lhs t_lhs → valid_judgement rhs t_rhs → t = body (substitute 0 rhs t_lhs) → valid_judgement e t
+  | fall e t bind_ty body t_body (h_is_fall : match e with | fall _ _ => true | _ => false) :
+    valid_judgement body t_body →
+    e = fall bind_ty body →
+    t = t_body → valid_judgement e t
+  | obvious e t : (match e with | ty n => t = ty n.succ | prp => t = ty 0 | _ => false) → valid_judgement e t
+  | beta_eq e e₂ t : beta_eq e e₂ → valid_judgement e₂ t → valid_judgement e t
+
 inductive sn : SkExpr → Prop
   | trivial e : eval_once e = e    → sn e
   | hard    e : (sn ∘ eval_once) e → sn e
+
+inductive in_r : SkExpr → SkExpr → Prop
+  -- K α β is in r if all of its one-step reduxes are in R
+  | k t e α β (h_t : t = (specialize_ty_k α β)) : ∀ arg₁ arg₂,
+    valid_judgement t e →
+    in_r α arg₁ →
+    in_r (eval_once (call (call (call (call k α) β) arg₁) arg₂)) α →
+    in_r t e
+  | s t e α β γ (h_t : t = (specialize_ty_s α β γ)) : ∀ arg₁ arg₂ arg₃,
+    valid_judgement t e →
+    in_r 
+  | obvious t e (h_is_obv : match e with | ty _ => true | fall _ _ => true | _ => false) : valid_judgement e t → in_r t e
+
+example : eval_once (call (call k k) k) = k := by
+  unfold eval_once
+  simp
+
+example : (eval_once ∘ eval_once) (call (call (call s k) k) k) = k := by
+  unfold eval_once
+  simp
 
 -- K α : ∀ β.∀ (x : α).∀ (y : β).α
 example : valid_judgement (call k (ty 1)) (fall (var 1) (fall (ty 1) (fall (var 3) (ty 1)))) := by
@@ -98,6 +118,8 @@ example : valid_judgement (call k (ty 1)) (fall (var 1) (fall (ty 1) (fall (var 
   simp
   unfold body
   simp
+
+-- S prp prp prp (k prp prp) (
 
 -- K α β : ∀ (x : α).∀ (y : β).α
 example : valid_judgement (call (call k (ty 1)) (ty 2)) (fall (ty 1) (fall (ty 2) (ty 1))) := by
