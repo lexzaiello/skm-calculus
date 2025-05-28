@@ -1,20 +1,11 @@
-name = "dlang-lean"
+name = "sk-lean"
 version = "0.1.0"
-defaultTargets = ["dlang-lean"]
+defaultTargets = ["sk-lean"]
 
 [[require]]
 name = "mathlib"
 git = "https://github.com/leanprover-community/mathlib4"
 rev = "v4.19.0-rc2"
 
-[[require]]
-name = "Parser"
-git = "https://github.com/fgdorais/lean4-parser"
-rev = "main"
-
 [[lean_lib]]
-name = "DlangLean"
-
-[[lean_exe]]
-name = "dlang-lean"
-root = "Main"
+name = "SkLean"
