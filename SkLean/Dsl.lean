@@ -27,21 +27,24 @@ end NamedSkExpr
 declare_syntax_cat skexpr
 syntax "K"                                         : skexpr
 syntax "S"                                         : skexpr
-syntax "prop"                                      : skexpr
-syntax "ty" num                                    : skexpr
-syntax "∀"  "(" str ":" skexpr ")",+ "." skexpr    : skexpr
+syntax "Prop"                                      : skexpr
+syntax "Type" num                                  : skexpr
+syntax "∀"  ident ":" skexpr "," skexpr  : skexpr
 syntax "(" skexpr skexpr ")"                       : skexpr
-syntax str                                         : skexpr
+syntax "(" skexpr ")"                              : skexpr
+syntax ident                                       : skexpr
 
 syntax " ⟪ " skexpr " ⟫ " : term
 
 macro_rules
+  | `(⟪ ($e:skexpr) ⟫) => `(⟪ $e ⟫)
   | `(⟪ K ⟫)              => `(NamedSkExpr.k)
   | `(⟪ S ⟫)              => `(NamedSkExpr.s)
-  | `(⟪ prop ⟫)           => `(NamedSkExpr.prp)
-  | `(⟪ ty $n:num ⟫)      => `(NamedSkExpr.ty $n)
-  | `(⟪ $var:str ⟫)       => `(NamedSkExpr.var $var)
-  | `(⟪ ∀ ($var:str : $e_ty:skexpr).$body:skexpr ⟫) => `(NamedSkExpr.fall $var ⟪ $e_ty ⟫ ⟪ $body ⟫)
+  | `(⟪ Prop ⟫)           => `(NamedSkExpr.prp)
+  | `(⟪ Type $n:num ⟫)    => `(NamedSkExpr.ty $n)
+  | `(⟪ $var:ident ⟫)       => `(NamedSkExpr.var $(Lean.quote var.getId.toString))
+  | `(⟪ ∀ $var:ident : $e_ty:skexpr , $body:skexpr ⟫) =>
+    `(NamedSkExpr.fall $(Lean.quote var.getId.toString) ⟪ $e_ty ⟫ ⟪ $body ⟫)
   | `(⟪ ($e₁:skexpr $e₂:skexpr )⟫) => `(NamedSkExpr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
 
 syntax "SK[ " skexpr " ] " : term
@@ -51,4 +54,5 @@ macro_rules
 
 #eval SK[K]
 #eval SK[S]
-#eval SK[((K K) K)]
+#eval SK[∀ x : Prop, (∀ y : x, Prop)]
+#eval SK[∀ α : α, (∀ β : β, (∀ x : α, (∀ y : β, α)))]
