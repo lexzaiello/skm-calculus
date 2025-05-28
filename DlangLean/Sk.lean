@@ -26,18 +26,17 @@ def body : SkExpr → SkExpr
   | fall _ body => body
   | x => x
 
-abbrev ty_k := fall (SkExpr.var 1) (
-  fall (SkExpr.var 1) (fall (SkExpr.var 3) (fall (SkExpr.var 3) (SkExpr.var 4))))
-
-def imp := fall
+abbrev imp := fall
 
 infixr:65 " ~> " => imp
 
+abbrev ty_k := (SkExpr.var 1) ~> (SkExpr.var 1) ~> (SkExpr.var 3) ~> (SkExpr.var 3) ~> (SkExpr.var 4)
+
+--             α                 β                 γ               x : α → β → γ                                            y : α → β                             z : α             γ
+abbrev ty_s := (SkExpr.var 1) ~> (SkExpr.var 1) ~> (SkExpr.var 1) ~> ((SkExpr.var 4) ~> (SkExpr.var 4) ~> (SkExpr.var 4)) ~> ((SkExpr.var 5) ~> (SkExpr.var 4)) ~> (SkExpr.var 6) ~> (SkExpr.var 4)
+
 def specialize_ty_k (α β : SkExpr) := α ~> β ~> α
 def specialize_ty_s (α β γ : SkExpr) := (α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ
-
---               α                 β                 γ               x : α → β → γ                                            y : α → β                             z : α             γ
-abbrev ty_s := (SkExpr.var 1) ~> (SkExpr.var 1) ~> (SkExpr.var 1) ~> ((SkExpr.var 4) ~> (SkExpr.var 4) ~> (SkExpr.var 4)) ~> ((SkExpr.var 5) ~> (SkExpr.var 4)) ~> (SkExpr.var 6) ~> (SkExpr.var 4)
 
 def eval_once : SkExpr → SkExpr
   | k => k
@@ -118,8 +117,6 @@ example : valid_judgement (call k (ty 1)) (fall (var 1) (fall (ty 1) (fall (var 
   simp
   unfold body
   simp
-
--- S prp prp prp (k prp prp) (
 
 -- K α β : ∀ (x : α).∀ (y : β).α
 example : valid_judgement (call (call k (ty 1)) (ty 2)) (fall (ty 1) (fall (ty 2) (ty 1))) := by

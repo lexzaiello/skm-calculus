@@ -1,15 +1,11 @@
-% Created 2025-05-28 Wed 09:09
-% Intended LaTeX compiler: pdflatex
+% Created 2025-05-28 Wed 09:15
+% Intended LaTeX compiler: xelatex
 \documentclass[11pt]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
 \usepackage{graphicx}
 \usepackage{longtable}
 \usepackage{wrapfig}
 \usepackage{rotating}
 \usepackage[normalem]{ulem}
-\usepackage{amsmath}
-\usepackage{amssymb}
 \usepackage{capt-of}
 \usepackage{hyperref}
 \usepackage{mathpartir}
@@ -18,7 +14,11 @@
 \usepackage{hyperref}
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}[theorem]{Lemma}
-\usepackage[utf8x]{inputenc}
+\usepackage{fontspec}
+\setmonofont{Fira Code}
+\usepackage{minted}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
 \author{Dowland Aiello}
 \date{5/26/25}
 \title{Strong Normalization of the Simply-Typed Lambda Calculus in Lean by Decomposition Into the Call-By-Need SK Combinators}
@@ -32,15 +32,13 @@
 \begin{document}
 
 \maketitle
-\tableofcontents
-
 \section{Abstract}
-\label{sec:org2b396dc}
+\label{sec:org90ab230}
 
 Proofs of strong normalization of the simply-typed lambda calculus have been exhaustively enumerated in the literature. A common strategy invented by W. W. Tait known as "Tait's method," (Robert Harper, 2022) interprets types as sets of "well-behaving" terms which are known to be strongly normalizing and composed of expressions in some such set.
 Strong normalization of the typed call-by-need SK combinator calculus has been comparatively under-studied. Herein, I demonstrate that the typical proof of strong normalization using Tait's method holds for the typed SK combinator calculus. I also show that decomposition of the STLC into SK combinator expressions simplifies the typical proof of strong normalization.
 \section{A Type Discipline for the SK Combinators}
-\label{sec:org56ceff1}
+\label{sec:org8193386}
 
 I consider the usual SK combinator calculus defined as such:
 
@@ -108,7 +106,7 @@ where Expr is a typed combinator expression.
 
 \label{decomplemma:1}
 \section{Decomposition of the Simply-Typed Lambda Calculus into Dependently Typed SK Combinators}
-\label{sec:org64e6af1}
+\label{sec:orgef1d5a2}
 
 I utilize an SK compilation scheme outlined in "The Implementation of Functional Programming Languages" (Peyton Jones, Simon L., 1987):
 
@@ -126,7 +124,7 @@ T = \{ t \mid t \in B\}\ \cup\ \{ t \mid \exists\  t_{1} \in T, t_{2} \in T, t =
 
 \label{maplemma:1}
 \subsection{Type Expressivity \& Equivalence}
-\label{sec:orga2a7bd2}
+\label{sec:org78b4582}
 
 I define a mapping (M\textsubscript{t}) from the \(\rightarrow\) type constructor to \(\forall\): \((\alpha \rightarrow \beta) \mapsto \forall x : \alpha.\beta\). I also assume the existence of a mapping (M\textsubscript{c}) from the base types \(B\) to arbitrary objects in my dependently-typed SK combinator calculus. Type inference is trivially derived from the above inference rules: \(\forall c \in B, \exists\ t, t', c : t \implies t' = M_{t} t \implies M_{c} c : t\).
 
@@ -140,11 +138,11 @@ It follows by induction on $e : t$, where $e$ is well-typed per the \href{decomp
 It suffices to conclude that all well-typed expressions have well-typed counterparts in the dependently-typed SK combinator calculus.
 \end{proof}
 \section{Proof}
-\label{sec:orgacdc073}
+\label{sec:org8ba8336}
 
 In order to prove strong normalization of the STLC, it suffices to demonstrate that a) no well-typed lambda calculus expression is inexpressible in the dependently-typed SK combinator calculus; and b) all well-typed SK combinator expressions are strongly normalizing.
 \subsection{Comprehensiveness of the SK Mapping}
-\label{sec:org85407ac}
+\label{sec:org4c91cba}
 
 \begin{proof}
 Suppose (1) there exists some well-typed expression $e$ of type $t \in T$ in the STLC which is not representible in the dependently-typed SK combinator calculus. By induction: \\
@@ -162,7 +160,7 @@ Suppose (1) there exists some well-typed expression $e$ of type $t \in T$ in the
 Conclusion: no expression exists which has no image in the set of well-typed dependently-typed SK combinator expressions.
 \end{proof}
 \subsection{Strong Normalization of the Typed SK Combinators}
-\label{sec:org3fd782d}
+\label{sec:org59fa0c4}
 
 I define strong-normalization inductively (where \(e\) is an SK combinator expression) as:
 
@@ -173,7 +171,7 @@ inductive strongly_normalizing : Expr → Prop
              strongly_normalizing e
 \end{verbatim}
 \subsubsection{Reducibility Candidates}
-\label{sec:org90230ad}
+\label{sec:orgf34f08f}
 
 The \(K\) combinator is trivially strongly normalizing. It invokes no function applications, although it may produce an expression which contains an application. For example:
 
@@ -214,12 +212,12 @@ R(T_{n + 1}) = \{ T_{n} \}\ \\
 \forall K : T_{n},\ L : T_{m},\ A : K,\ B : L,\ R(L) = \{ \text{fall} \mid ,\ \text{fall} = (\forall x : A.B) \land \text{fall} : L \}
 \end{gather*}
 \subsubsection{Inductive Proof}
-\label{sec:orgfd7b293}
+\label{sec:orgde08659}
 
 It suffices in order to prove strong normalization of this sytem that a) all reducibility candidates in \(R\) are strongly-normalizing; and c) all well-typed expression \((e : t)\) can be expressed using expressions in \(R(t)\).
 \begin{enumerate}
 \item Preservation
-\label{sec:org23dfefc}
+\label{sec:org50bb3c7}
 
 In order to execute an inductive proof leveraging our definition of \(R(t)\), it is useful to prove that evaluation maintains the typing of an expression.
 
@@ -234,7 +232,7 @@ The same is true of the $S$ combinator, whose inference rules trivially prove th
 \end{proof}
 \end{lemma}
 \item Proof Execution
-\label{sec:orgc961a88}
+\label{sec:org7dceafb}
 
 \begin{lemma}
 All expressions $e$ which are well-typed with type $t$ and occupy the set $R(t)$ are strongly normalizing.
@@ -267,17 +265,17 @@ and per the definition of $R$, $K$ is in $R(t)$. The $S$ combinator is not inert
 All well-typed dependently-typed SK combinator expressions are well-typed, as enumerated.
 \end{enumerate}
 \subsection{Strong Normalization of the STLC}
-\label{sec:orga39c263}
+\label{sec:org2c970ce}
 
 I have shown in \href{decomplemma:1} and \href{maplemma:1} that every well-typed expression in our simply-typed lambda calculus has a meaningful equivalent dependently-typed SK combinator expression.
 I have also demonstrated that there is no well-typed expression in the STLC which cannot be described by a well-typed dependently-typed SK combinator expression.
 I have demonstrated above that all well-typed SK dependently-typed SK combinator expressions are strongly normalizing. It follows that all well-typed expressions in the STLC are strongly normalizing.
 \subsection{Encoding in Lean}
-\label{sec:org4ea4486}
+\label{sec:org87d8441}
 
 I have executed this proof in Lean.
 \section{References}
-\label{sec:org12ecebf}
+\label{sec:org69c3a2d}
 
 \noindent
 Peyton Jones, Simon L. (1987). \emph{The Implementation of Functional Programming Languages (Prentice-Hall International Series in Computer Science)}, Prentice-Hall, Inc..

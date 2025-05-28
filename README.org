@@ -2,13 +2,20 @@
 #+AUTHOR: Dowland Aiello
 #+DATE: 5/26/25
 #+BIBLIOGRAPHY: bibliography.bib
+#+LATEX_COMPILER: xelatex
 #+LATEX_HEADER: \usepackage{mathpartir}
 #+LATEX_HEADER: \usepackage{amsthm}
 #+LATEX_HEADER: \usepackage{amsmath}
 #+LATEX_HEADER: \usepackage{hyperref}
 #+LATEX_HEADER: \newtheorem{theorem}{Theorem}[section]
 #+LATEX_HEADER: \newtheorem{lemma}[theorem]{Lemma}
-#+LATEX_HEADER: \usepackage[utf8x]{inputenc}
+#+LATEX_HEADER: \usepackage{fontspec}
+#+LATEX_HEADER: \setmonofont{Fira Code}
+#+LATEX_HEADER: \usepackage{minted}
+#+OPTIONS: toc:nil
+#+PROPERTY: header-args :exports code
+#+LATEX_HEADER: \usepackage[utf8]{inputenc}
+#+LATEX_HEADER: \usepackage[T1]{fontenc}
 
 * Abstract
 
