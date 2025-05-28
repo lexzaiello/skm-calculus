@@ -2,21 +2,20 @@
 #+AUTHOR: Dowland Aiello
 #+DATE: 5/26/25
 #+BIBLIOGRAPHY: bibliography.bib
-#+LATEX_COMPILER: xelatex
 #+LATEX_HEADER: \usepackage{mathpartir}
 #+LATEX_HEADER: \usepackage{amsthm}
 #+LATEX_HEADER: \usepackage{amsmath}
 #+LATEX_HEADER: \usepackage{hyperref}
 #+LATEX_HEADER: \newtheorem{theorem}{Theorem}[section]
 #+LATEX_HEADER: \newtheorem{lemma}[theorem]{Lemma}
+#+LATEX_COMPILER: xelatex
 #+LATEX_HEADER: \usepackage{fontspec}
 #+LATEX_HEADER: \setmonofont{Fira Code}
 #+LATEX_HEADER: \usepackage{minted}
 #+OPTIONS: toc:nil
-#+PROPERTY: header-args :exports code
 #+LATEX_HEADER: \usepackage[utf8]{inputenc}
 #+LATEX_HEADER: \usepackage[T1]{fontenc}
-#+LATEX_HEADER: \setmainfont{Latin Modern Roman}
+
 
 * Abstract
 
@@ -42,33 +41,33 @@ A natural interpretation of the combinators as typed functions results in the de
 #+BEGIN_EXPORT latex
 \[
 \inferrule
-  { $\Gamma$  }
-  { $\Gamma \vdash \text{Prop} : Ty_{0}$ }
+  { \Gamma  }
+  { \Gamma \vdash \text{Prop} : Ty_{0} }
 \]
 \[
 \inferrule
-  { $\Gamma \vdash A : K \ \Gamma,x : A \vdash B : L$ }
-  { $\Gamma \vdash (\forall x : A.B) : L$ }
+  { \Gamma \vdash A : K \ \Gamma,x : A \vdash B : L }
+  { \Gamma \vdash (\forall x : A.B) : L }
 \]
 \[
 \inferrule
   { }
-  { $\Gamma \vdash T_{n} : T_{n + 1}$ }
+  { \Gamma \vdash T_{n} : T_{n + 1} }
 \]
 \[
 \inferrule
-  { $\Gamma x : \alpha, y : \beta$ }
-  { $\Gamma \vdash K \alpha \beta : (\forall x, y.\alpha)$ }
+  { \Gamma x : \alpha, y : \beta }
+  { \Gamma \vdash K \alpha \beta : (\forall x, y.\alpha) }
 \]
 \[
 \inferrule
-  { $\Gamma x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha$ }
-  { $\Gamma \vdash S \alpha \beta \gamma : (\forall x, y, z.\gamma)$ }
+  { \Gamma x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha }
+  { \Gamma \vdash S \alpha \beta \gamma : (\forall x, y, z.\gamma }
 \]
 \[
 \inferrule
-  { $\Gamma \alpha : T_{n},\ e_{1} : (\forall x : \alpha.\text{body}), e_{2} : \alpha$ }
-  { $\Gamma \vdash e_{1} e_{2} : \text{body}[x = b]$ }
+  { \Gamma \alpha : T_{n},\ e_{1} : (\forall x : \alpha.\text{body}), e_{2} : \alpha }
+  { \Gamma \vdash e_{1} e_{2} : \text{body}[x = b] }
 \]
 #+END_EXPORT
 
@@ -80,26 +79,25 @@ I extend the inference rules to include beta-equivalent terms:
 
 #+BEGIN_SRC lean
 inductive beta_eq : Expr → Expr → Prop
-  | trivial e₁ e₂ : e₁ = e₂ →
-    beta_eq e₁ e₂
-  | hard e₁ e₂ : beta_eq e₁ (eval_once e₂) →
-    beta_eq e₁ e₂
-  | symm e₁ e₂ : beta_eq e₂ e₁ →
-    beta_eq e₁ e₂
-  | trans e₁ e₂ e₃ : beta_eq e₁ e₂ →
-    beta_eq e₂ e₃ →
-    beta_eq e₁ e₃
+  | trivial e₁ e₂ :
+    e₁ = e₂ → beta_eq e₁ e₂
+  | hard e₁ e₂ : 
+    beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
+  | symm e₁ e₂ :
+    beta_eq e₂ e₁ → beta_eq e₁ e₂
+  | trans e₁ e₂ e₃ :
+    beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
 #+END_SRC
+
+where Expr is a typed combinator expression.
 
 #+BEGIN_EXPORT latex
 \[
 \inferrule
-  { $\Gamma e_{1} : \alpha, \text{\texttt{beta_eq}} e_{1} e_{2}$ }
-  { $\Gamma \vdash : e_{2} : \alpha$ }
+  { \Gamma e_{1} : \alpha,\ \text{\texttt{beta\_eq}}\ e_{1}\ e_{2} }
+  { \Gamma \vdash e_{2} : \alpha }
 \]
 #+END_EXPORT
-
-where Expr is a typed combinator expression.
 
 #+NAME: decomplemma:1
 \label{decomplemma:1}
@@ -130,7 +128,7 @@ T = \{ t \mid t \in B\}\ \cup\ \{ t \mid \exists\  t_{1} \in T, t_{2} \in T, t =
 I define a mapping (M_{t}) from the \rightarrow type constructor to \forall: $(\alpha \rightarrow \beta) \mapsto \forall x : \alpha.\beta$. I also assume the existence of a mapping (M_{c}) from the base types $B$ to arbitrary objects in my dependently-typed SK combinator calculus. Type inference is trivially derived from the above inference rules: $\forall c \in B, \exists\ t, t', c : t \implies t' = M_{t} t \implies M_{c} c : t$.
 
 It follows that every well-typed expression in our simply-typed lambda calculus has an equivalent well-typed SK expression:
-
+1
 #+BEGIN_EXPORT latex
 \begin{proof}
 Assume (1) that for all $c \in B, \exists!\ c' \in M_{c}, c' = M_{c} c$.

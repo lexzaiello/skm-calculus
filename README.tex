@@ -1,4 +1,4 @@
-% Created 2025-05-28 Wed 09:46
+% Created 2025-05-28 Wed 10:00
 % Intended LaTeX compiler: xelatex
 \documentclass[11pt]{article}
 \usepackage{graphicx}
@@ -19,7 +19,6 @@
 \usepackage{minted}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\setmainfont{Latin Modern Roman}
 \author{Dowland Aiello}
 \date{5/26/25}
 \title{Strong Normalization of the Simply-Typed Lambda Calculus in Lean by Decomposition Into the Call-By-Need SK Combinators}
@@ -34,12 +33,12 @@
 
 \maketitle
 \section{Abstract}
-\label{sec:orgb779a83}
+\label{sec:org1f0fd8e}
 
 Proofs of strong normalization of the simply-typed lambda calculus have been exhaustively enumerated in the literature. A common strategy invented by W. W. Tait known as "Tait's method," (Robert Harper, 2022) interprets types as sets of "well-behaving" terms which are known to be strongly normalizing and composed of expressions in some such set.
 Strong normalization of the typed call-by-need SK combinator calculus has been comparatively under-studied. Herein, I demonstrate that the typical proof of strong normalization using Tait's method holds for the typed SK combinator calculus. I also show that decomposition of the STLC into SK combinator expressions simplifies the typical proof of strong normalization.
 \section{A Type Discipline for the SK Combinators}
-\label{sec:org83c896b}
+\label{sec:org7eb0b36}
 
 I consider the usual SK combinator calculus defined as such:
 
@@ -54,33 +53,33 @@ A natural interpretation of the combinators as typed functions results in the de
 
 \[
 \inferrule
-  { $\Gamma$  }
-  { $\Gamma \vdash \text{Prop} : Ty_{0}$ }
+  { \Gamma  }
+  { \Gamma \vdash \text{Prop} : Ty_{0} }
 \]
 \[
 \inferrule
-  { $\Gamma \vdash A : K \ \Gamma,x : A \vdash B : L$ }
-  { $\Gamma \vdash (\forall x : A.B) : L$ }
+  { \Gamma \vdash A : K \ \Gamma,x : A \vdash B : L }
+  { \Gamma \vdash (\forall x : A.B) : L }
 \]
 \[
 \inferrule
   { }
-  { $\Gamma \vdash T_{n} : T_{n + 1}$ }
+  { \Gamma \vdash T_{n} : T_{n + 1} }
 \]
 \[
 \inferrule
-  { $\Gamma x : \alpha, y : \beta$ }
-  { $\Gamma \vdash K \alpha \beta : (\forall x, y.\alpha)$ }
+  { \Gamma x : \alpha, y : \beta }
+  { \Gamma \vdash K \alpha \beta : (\forall x, y.\alpha) }
 \]
 \[
 \inferrule
-  { $\Gamma x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha$ }
-  { $\Gamma \vdash S \alpha \beta \gamma : (\forall x, y, z.\gamma)$ }
+  { \Gamma x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha }
+  { \Gamma \vdash S \alpha \beta \gamma : (\forall x, y, z.\gamma }
 \]
 \[
 \inferrule
-  { $\Gamma \alpha : T_{n},\ e_{1} : (\forall x : \alpha.\text{body}), e_{2} : \alpha$ }
-  { $\Gamma \vdash e_{1} e_{2} : \text{body}[x = b]$ }
+  { \Gamma \alpha : T_{n},\ e_{1} : (\forall x : \alpha.\text{body}), e_{2} : \alpha }
+  { \Gamma \vdash e_{1} e_{2} : \text{body}[x = b] }
 \]
 
 Where \(body[x = b]\) denotes substitution within the scope of \(\forall\).
@@ -91,28 +90,27 @@ I extend the inference rules to include beta-equivalent terms:
 
 \begin{verbatim}
 inductive beta_eq : Expr → Expr → Prop
-  | trivial e₁ e₂ : e₁ = e₂ →
-    beta_eq e₁ e₂
-  | hard e₁ e₂ : beta_eq e₁ (eval_once e₂) →
-    beta_eq e₁ e₂
-  | symm e₁ e₂ : beta_eq e₂ e₁ →
-    beta_eq e₁ e₂
-  | trans e₁ e₂ e₃ : beta_eq e₁ e₂ →
-    beta_eq e₂ e₃ →
-    beta_eq e₁ e₃
+  | trivial e₁ e₂ :
+    e₁ = e₂ → beta_eq e₁ e₂
+  | hard e₁ e₂ : 
+    beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
+  | symm e₁ e₂ :
+    beta_eq e₂ e₁ → beta_eq e₁ e₂
+  | trans e₁ e₂ e₃ :
+    beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
 \end{verbatim}
-
-\[
-\inferrule
-  { $\Gamma e_{1} : \alpha, \text{\texttt{beta_eq}} e_{1} e_{2}$ }
-  { $\Gamma \vdash : e_{2} : \alpha$ }
-\]
 
 where Expr is a typed combinator expression.
 
+\[
+\inferrule
+  { \Gamma e_{1} : \alpha,\ \text{\texttt{beta\_eq}}\ e_{1}\ e_{2} }
+  { \Gamma \vdash e_{2} : \alpha }
+\]
+
 \label{decomplemma:1}
 \section{Decomposition of the Simply-Typed Lambda Calculus into Dependently Typed SK Combinators}
-\label{sec:org85b904c}
+\label{sec:org655c2ba}
 
 I utilize an SK compilation scheme outlined in "The Implementation of Functional Programming Languages" (Peyton Jones, Simon L., 1987):
 
@@ -130,12 +128,12 @@ T = \{ t \mid t \in B\}\ \cup\ \{ t \mid \exists\  t_{1} \in T, t_{2} \in T, t =
 
 \label{maplemma:1}
 \subsection{Type Expressivity \& Equivalence}
-\label{sec:orgb450e69}
+\label{sec:org65abd31}
 
 I define a mapping (M\textsubscript{t}) from the \(\rightarrow\) type constructor to \(\forall\): \((\alpha \rightarrow \beta) \mapsto \forall x : \alpha.\beta\). I also assume the existence of a mapping (M\textsubscript{c}) from the base types \(B\) to arbitrary objects in my dependently-typed SK combinator calculus. Type inference is trivially derived from the above inference rules: \(\forall c \in B, \exists\ t, t', c : t \implies t' = M_{t} t \implies M_{c} c : t\).
 
 It follows that every well-typed expression in our simply-typed lambda calculus has an equivalent well-typed SK expression:
-
+1
 \begin{proof}
 Assume (1) that for all $c \in B, \exists!\ c' \in M_{c}, c' = M_{c} c$.
 Assume (2) that for all $\{t_{1}, t_{2}, t\} \subset T, t = (t_{1} \rightarrow t_{2}), \exists!\ t' \in M_{t}, t' = M_{t} t$.
@@ -144,11 +142,11 @@ It follows by induction on $e : t$, where $e$ is well-typed per the \href{decomp
 It suffices to conclude that all well-typed expressions have well-typed counterparts in the dependently-typed SK combinator calculus.
 \end{proof}
 \section{Proof}
-\label{sec:orgb0b9e4b}
+\label{sec:org35d17a9}
 
 In order to prove strong normalization of the STLC, it suffices to demonstrate that a) no well-typed lambda calculus expression is inexpressible in the dependently-typed SK combinator calculus; and b) all well-typed SK combinator expressions are strongly normalizing.
 \subsection{Comprehensiveness of the SK Mapping}
-\label{sec:orgc09fed1}
+\label{sec:orgd5314f0}
 
 \begin{proof}
 Suppose (1) there exists some well-typed expression $e$ of type $t \in T$ in the STLC which is not representible in the dependently-typed SK combinator calculus. By induction: \\
@@ -166,7 +164,7 @@ Suppose (1) there exists some well-typed expression $e$ of type $t \in T$ in the
 Conclusion: no expression exists which has no image in the set of well-typed dependently-typed SK combinator expressions.
 \end{proof}
 \subsection{Strong Normalization of the Typed SK Combinators}
-\label{sec:orgcdf24eb}
+\label{sec:orge4f4edb}
 
 I define strong-normalization inductively (where \(e\) is an SK combinator expression) as:
 
@@ -177,7 +175,7 @@ inductive strongly_normalizing : Expr → Prop
              strongly_normalizing e
 \end{verbatim}
 \subsubsection{Reducibility Candidates}
-\label{sec:org8de2635}
+\label{sec:org7d847e3}
 
 The \(K\) combinator is trivially strongly normalizing. It invokes no function applications, although it may produce an expression which contains an application. For example:
 
@@ -218,12 +216,12 @@ R(T_{n + 1}) = \{ T_{n} \}\ \\
 \forall K : T_{n},\ L : T_{m},\ A : K,\ B : L,\ R(L) = \{ \text{fall} \mid ,\ \text{fall} = (\forall x : A.B) \land \text{fall} : L \}
 \end{gather*}
 \subsubsection{Inductive Proof}
-\label{sec:org997c80e}
+\label{sec:org9a15613}
 
 It suffices in order to prove strong normalization of this sytem that a) all reducibility candidates in \(R\) are strongly-normalizing; and c) all well-typed expression \((e : t)\) can be expressed using expressions in \(R(t)\).
 \begin{enumerate}
 \item Preservation
-\label{sec:org0e534c0}
+\label{sec:org79d273f}
 
 In order to execute an inductive proof leveraging our definition of \(R(t)\), it is useful to prove that evaluation maintains the typing of an expression.
 
@@ -238,7 +236,7 @@ The same is true of the $S$ combinator, whose inference rules trivially prove th
 \end{proof}
 \end{lemma}
 \item Proof Execution
-\label{sec:orge5cd60a}
+\label{sec:orgd20292c}
 
 \begin{lemma}
 All expressions $e$ which are well-typed with type $t$ and occupy the set $R(t)$ are strongly normalizing.
@@ -271,17 +269,17 @@ and per the definition of $R$, $K$ is in $R(t)$. The $S$ combinator is not inert
 All well-typed dependently-typed SK combinator expressions are well-typed, as enumerated.
 \end{enumerate}
 \subsection{Strong Normalization of the STLC}
-\label{sec:org55d6de9}
+\label{sec:orgb06505b}
 
 I have shown in \href{decomplemma:1} and \href{maplemma:1} that every well-typed expression in our simply-typed lambda calculus has a meaningful equivalent dependently-typed SK combinator expression.
 I have also demonstrated that there is no well-typed expression in the STLC which cannot be described by a well-typed dependently-typed SK combinator expression.
 I have demonstrated above that all well-typed SK dependently-typed SK combinator expressions are strongly normalizing. It follows that all well-typed expressions in the STLC are strongly normalizing.
 \subsection{Encoding in Lean}
-\label{sec:org9068682}
+\label{sec:org6c3ffbb}
 
 I have executed this proof in Lean.
 \section{References}
-\label{sec:org3a279cb}
+\label{sec:org9c52938}
 
 \noindent
 Peyton Jones, Simon L. (1987). \emph{The Implementation of Functional Programming Languages (Prentice-Hall International Series in Computer Science)}, Prentice-Hall, Inc..
