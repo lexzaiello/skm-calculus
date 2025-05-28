@@ -2,7 +2,7 @@ import Mathlib.Data.Nat.Notation
 
 structure BindId where
   toNat : ℕ
-deriving BEq
+deriving BEq, Repr
 
 namespace BindId
 
@@ -18,6 +18,7 @@ inductive SkExpr where
   | fall : SkExpr → SkExpr → SkExpr
   | call : SkExpr → SkExpr → SkExpr
   | var  : BindId → SkExpr
+deriving BEq, Repr
 
 namespace SkExpr
 

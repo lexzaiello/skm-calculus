@@ -11,19 +11,16 @@ inductive NamedSkExpr where
 
 namespace NamedSkExpr
 
-def to_sk_expr (names : List String) : NamedSkExpr → Option SkExpr
-  | .k => some .k
-  | .s => some .s
-  | .prp => some .prp
-  | .ty n => some $ .ty n
-  | .call lhs rhs => do
-    some $ .call (← (to_sk_expr names lhs)) (← (to_sk_expr names rhs))
-  | .var name => do
-    some $ .var ⟨← names.findIdx? (. = name)⟩
-  | .fall name bind_ty body => do
-    some $ .fall
-      (← (to_sk_expr (name :: names) bind_ty))
-      (← (to_sk_expr (name :: names) body))
+def to_sk_expr (names : List String) : NamedSkExpr → SkExpr
+  | .k => .k
+  | .s => .s
+  | .prp => .prp
+  | .ty n => .ty n
+  | .call lhs rhs => .call (to_sk_expr names lhs) (to_sk_expr names rhs)
+  | .var name => .var $ ⟨(names.findIdx? (. = name)).getD 0⟩
+  | .fall name bind_ty body => .fall
+      (to_sk_expr (name :: names) bind_ty)
+      (to_sk_expr (name :: names) body)
 
 end NamedSkExpr
 
@@ -45,5 +42,13 @@ macro_rules
   | `(⟪ ty $n:num ⟫)      => `(NamedSkExpr.ty $n)
   | `(⟪ $var:str ⟫)       => `(NamedSkExpr.var $var)
   | `(⟪ ∀ ($var:str : $e_ty:skexpr).$body:skexpr ⟫) => `(NamedSkExpr.fall $var ⟪ $e_ty ⟫ ⟪ $body ⟫)
-  | `(⟪ $e₁:skexpr ⟫ ⟪ $e₂:skexpr ⟫) => `(NamedSkExpr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
+  | `(⟪ ($e₁:skexpr $e₂:skexpr )⟫) => `(NamedSkExpr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
 
+syntax "SK[ " skexpr " ] " : term
+
+macro_rules
+  | `(SK[ $e:skexpr ]) => `(NamedSkExpr.to_sk_expr [] ⟪ $e ⟫)
+
+#eval SK[K]
+#eval SK[S]
+#eval SK[((K K) K)]
