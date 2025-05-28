@@ -1,5 +1,4 @@
 import SkLean.Ast
-import SkLean.Eval
 
 open SkExpr
 open SkType
