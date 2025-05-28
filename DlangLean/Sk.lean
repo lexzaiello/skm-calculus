@@ -1,4 +1,8 @@
 import Mathlib.Tactic
+import Lean
+import Lean.Elab.Term
+
+open Lean Elab Tactic
 
 inductive SkExpr where
   | k    : SkExpr
@@ -10,6 +14,8 @@ inductive SkExpr where
   | prp : SkExpr
 
 open SkExpr
+
+abbrev Ctx := List SkExpr
 
 def substitute (n : ℕ) (with_expr : SkExpr): SkExpr → SkExpr
   | prp => ty 0
@@ -51,37 +57,37 @@ inductive beta_eq : SkExpr → SkExpr → Prop
   | symm    e₁ e₂    : beta_eq e₂ e₁ → beta_eq e₁ e₂
   | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
 
-inductive valid_judgement : SkExpr → SkExpr → Prop
-  | k e t (h_is_k : match e with | SkExpr.k => true | _ => false) :
+inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
+  | k ctx e t (h_is_k : match e with | SkExpr.k => true | _ => false) :
     -- K α : ∀ β.∀ (x : α).∀ (y : β).α
-    t = ty_k → valid_judgement e t
-  | s e t (h_is_s : match e with | SkExpr.s => true | _ => false) :
+    t = ty_k → valid_judgement ctx e t
+  | s ctx e t (h_is_s : match e with | SkExpr.s => true | _ => false) :
     -- ∀ α β γ (x : α → β → γ) (y : α → β) (z : α), γ
-    t = ty_s → valid_judgement e t
-  | call e t (lhs : SkExpr) (rhs : SkExpr) (t_lhs : SkExpr) (t_rhs : SkExpr) (h_is_call : match e with | call lhs' rhs' => lhs' = lhs ∧ rhs' = rhs | _ => false) :
-    valid_judgement lhs t_lhs → valid_judgement rhs t_rhs → t = body (substitute 0 rhs t_lhs) → valid_judgement e t
-  | fall e t bind_ty body t_body (h_is_fall : match e with | fall _ _ => true | _ => false) :
-    valid_judgement body t_body →
+    t = ty_s → valid_judgement ctx e t
+  | call ctx e t (lhs : SkExpr) (rhs : SkExpr) (t_lhs : SkExpr) (t_rhs : SkExpr) (h_is_call : match e with | call lhs' rhs' => lhs' = lhs ∧ rhs' = rhs | _ => false) :
+    valid_judgement ctx lhs t_lhs → valid_judgement ctx rhs t_rhs → t = body (substitute 0 rhs t_lhs) → valid_judgement ctx e t
+  | fall ctx e t bind_ty body t_body (h_is_fall : match e with | fall _ _ => true | _ => false) :
+    valid_judgement (bind_ty :: ctx) body t_body →
     e = fall bind_ty body →
-    t = t_body → valid_judgement e t
-  | obvious e t : (match e with | ty n => t = ty n.succ | prp => t = ty 0 | _ => false) → valid_judgement e t
-  | beta_eq e e₂ t : beta_eq e e₂ → valid_judgement e₂ t → valid_judgement e t
+    t = t_body → valid_judgement ctx e t
+  | obvious ctx e t : (match e with | ty n => t = ty n.succ | prp => t = ty 0 | var (n + 1) => ctx[n]? = some t | _ => false) → valid_judgement ctx e t
+  | beta_eq ctx e e₂ t : beta_eq e e₂ → valid_judgement ctx e₂ t → valid_judgement ctx e t
 
 inductive sn : SkExpr → Prop
   | trivial e : eval_once e = e    → sn e
   | hard    e : (sn ∘ eval_once) e → sn e
 
-inductive in_r : SkExpr → SkExpr → Prop
+inductive in_r : Ctx → SkExpr → SkExpr → Prop
   -- K α β is in r if all of its one-step reduxes are in R
-  | k t e α β (h_t : t = (specialize_ty_k α β)) : ∀ arg₁ arg₂,
-    valid_judgement t e →
-    in_r α arg₁ →
-    in_r (eval_once (call (call (call (call k α) β) arg₁) arg₂)) α →
-    in_r t e
-  | s t e α β γ (h_t : t = (specialize_ty_s α β γ)) : ∀ arg₁ arg₂ arg₃,
-    valid_judgement t e →
-    in_r 
-  | obvious t e (h_is_obv : match e with | ty _ => true | fall _ _ => true | _ => false) : valid_judgement e t → in_r t e
+  | k ctx t e α β (h_t : t = (specialize_ty_k α β)) : ∀ arg₁ arg₂,
+    valid_judgement ctx t e →
+    in_r ctx α arg₁ →
+    in_r ctx (eval_once (call (call (call (call k α) β) arg₁) arg₂)) α →
+    in_r ctx t e
+  | s ctx t e α β γ (h_t : t = (specialize_ty_s α β γ)) : ∀ arg₁ arg₂ arg₃, sorry → in_r ctx e t
+  | obvious ctx t e (h_is_obv : match e with | ty _ => true | fall _ _ => true | _ => false) : valid_judgement ctx e t → in_r ctx t e
+
+lemma all_in_r_sn (ctx : Ctx) : ∀ e t, valid_judgement ctx e t → in_r ctx t e → sn e := sorry
 
 example : eval_once (call (call k k) k) = k := by
   unfold eval_once
@@ -92,8 +98,8 @@ example : (eval_once ∘ eval_once) (call (call (call s k) k) k) = k := by
   simp
 
 -- K α : ∀ β.∀ (x : α).∀ (y : β).α
-example : valid_judgement (call k (ty 1)) (fall (var 1) (fall (ty 1) (fall (var 3) (ty 1)))) := by
-  apply (valid_judgement.call
+example : valid_judgement ctx (call k (ty 1)) (fall (var 1) (fall (ty 1) (fall (var 3) (ty 1)))) := by
+  apply (valid_judgement.call ctx
     -- e
     (call k (ty 1))
     -- t
@@ -118,9 +124,11 @@ example : valid_judgement (call k (ty 1)) (fall (var 1) (fall (ty 1) (fall (var 
   unfold body
   simp
 
+-- S α : ∀ β γ (x : α → β → γ) (y : α → ̱̱β) (z : α).γ
+
 -- K α β : ∀ (x : α).∀ (y : β).α
-example : valid_judgement (call (call k (ty 1)) (ty 2)) (fall (ty 1) (fall (ty 2) (ty 1))) := by
-  apply (valid_judgement.call
+example : valid_judgement ctx (call (call k (ty 1)) (ty 2)) (fall (ty 1) (fall (ty 2) (ty 1))) := by
+  apply (valid_judgement.call ctx
     -- e
     (call (call k (ty 1)) (ty 2))
     -- t
@@ -135,7 +143,7 @@ example : valid_judgement (call (call k (ty 1)) (ty 2)) (fall (ty 1) (fall (ty 2
     (ty 3)
     (by simp)
   )
-  apply (valid_judgement.call
+  apply (valid_judgement.call ctx
     (k.call (ty 1))
     ((var 1).fall ((ty 1).fall ((var 3).fall (ty 1))))
     k
@@ -154,4 +162,57 @@ example : valid_judgement (call (call k (ty 1)) (ty 2)) (fall (ty 1) (fall (ty 2
   unfold body
   repeat unfold substitute
   simp
+
+-- (K (ty_k) (ty_k) k k) : ty_k
+example : valid_judgement ctx (call (call (call (call k ty_k) ty_k) k) k) ty_k := by
+  apply (valid_judgement.call ctx
+    ((((k.call ty_k).call ty_k).call k).call k)
+    ty_k
+    (((k.call ty_k).call ty_k).call k)
+    k
+    (var 1) -- This might be wrong
+    ty_k
+    (by simp))
+  apply (valid_judgement.call ctx
+    (((k.call ty_k).call ty_k).call k)
+    (var 1)
+    ((k.call ty_k).call ty_k)
+    k
+    (ty_k ~> ty_k ~> ty_k)
+    ty_k
+    (by simp))
+  apply (valid_judgement.call ctx
+    ((k.call ty_k).call ty_k)
+    (ty_k ~> ty_k ~> ty_k)
+    (k.call ty_k)
+    ty_k
+    ((var 1) ~> ty_k ~> (var 3) ~> ty_k)
+    (var 1)
+    (by simp)
+  )
+  apply (valid_judgement.call ctx
+    (k.call ty_k)
+    ((var 1) ~> ty_k ~> (var 3) ~> ty_k)
+    k
+    ty_k
+    ty_k
+    (var 1)
+    (by simp)
+  )
+  simp [valid_judgement.k]
+  unfold ty_k
+  apply (valid_judgement.fall ctx
+    (var 1 ~> var 1 ~> var 3 ~> var 3 ~> var 4)
+    (var 1)
+    (var 1)
+    (var 1 ~> var 3 ~> var 3 ~> var 4)
+    (var 1)
+    (by simp)
+  )
+  apply (valid_judgement.fall (var 1 :: ctx)
+    (var 1 ~> var 3 ~> var 3 ~> var 4)
+    (var 1)
+    
+  )
+  sorry
 
