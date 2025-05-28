@@ -1,6 +1,6 @@
 name = "sk-lean"
 version = "0.1.0"
-defaultTargets = ["sk-lean"]
+defaultTargets = ["SkLean"]
 
 [[require]]
 name = "mathlib"

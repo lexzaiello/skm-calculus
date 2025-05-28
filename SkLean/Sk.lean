@@ -1,59 +1,21 @@
-import Mathlib.Tactic
-import Lean
-import Lean.Elab.Term
-
-open Lean Elab Tactic
-
--- SkType
--- 
--- Context : function 
-
-inductive SkExpr where
-  | k    : SkExpr
-  | s    : SkExpr
-  | call : SkExpr → SkExpr → SkExpr
-  | fall : SkExpr → SkExpr → SkExpr
-  | var  : ℕ → SkExpr
-  | ty   : ℕ → SkExpr
-  | prp : SkExpr
+import SkLean.Ast
+import SkLean.Eval
 
 open SkExpr
+open SkType
 
-abbrev Ctx := List SkExpr
+structure Ctx where
+  binder_tys : BindId → SkTy
 
-def substitute (n : ℕ) (with_expr : SkExpr): SkExpr → SkExpr
-  | prp => ty 0
-  | fall bind_ty body =>
-    fall (substitute n.succ with_expr bind_ty) (substitute n.succ with_expr body)
-  | t@(ty _) => t
-  | var n' => if n == n' then with_expr else var $ n - 1
-  | call lhs rhs =>
-    call (substitute n with_expr lhs) (substitute n with_expr rhs)
-  | k => k
-  | s => s
+infixr:65 " ~> " => fall
 
-def body : SkExpr → SkExpr
-  | fall _ body => body
-  | x => x
-
-abbrev imp := fall
-
-infixr:65 " ~> " => imp
-
-abbrev ty_k := (SkExpr.var 1) ~> (SkExpr.var 1) ~> (SkExpr.var 3) ~> (SkExpr.var 3) ~> (SkExpr.var 4)
+abbrev ty_k := (var ⟨1⟩) ~> (SkExpr.var 1) ~> (SkExpr.var 3) ~> (SkExpr.var 3) ~> (SkExpr.var 4)
 
 --             α                 β                 γ               x : α → β → γ                                            y : α → β                             z : α             γ
 abbrev ty_s := (SkExpr.var 1) ~> (SkExpr.var 1) ~> (SkExpr.var 1) ~> ((SkExpr.var 4) ~> (SkExpr.var 4) ~> (SkExpr.var 4)) ~> ((SkExpr.var 5) ~> (SkExpr.var 4)) ~> (SkExpr.var 6) ~> (SkExpr.var 4)
 
 def specialize_ty_k (α β : SkExpr) := α ~> β ~> α
 def specialize_ty_s (α β γ : SkExpr) := (α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ
-
-def eval_once : SkExpr → SkExpr
-  | k => k
-  | s => s
-  | call (call k x) _ => x
-  | call (call (call s x) y) z => call (call x z) (call y z)
-  | x => x
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
