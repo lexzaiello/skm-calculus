@@ -75,3 +75,40 @@ example : valid_judgement (call k (ty 1)) (fall (var 1) (fall (ty 1) (fall (var 
   unfold body
   simp
 
+-- K α β : ∀ (x : α).∀ (y : β).α
+example : valid_judgement (call (call k (ty 1)) (ty 2)) (fall (ty 1) (fall (ty 2) (ty 1))) := by
+  apply (valid_judgement.call
+    -- e
+    (call (call k (ty 1)) (ty 2))
+    -- t
+    (fall (ty 1) (fall (ty 2) (ty 1)))
+    -- lhs
+    (call k (ty 1))
+    -- rhs
+    (ty 2)
+    -- t_lhs
+    (fall (var 1) (fall (ty 1) (fall (var 3) (ty 1))))
+    -- t_rhs
+    (ty 3)
+    (by simp)
+  )
+  apply (valid_judgement.call
+    (k.call (ty 1))
+    ((var 1).fall ((ty 1).fall ((var 3).fall (ty 1))))
+    k
+    (ty 1)
+    (fall (SkExpr.var 1) (
+          fall (SkExpr.var 1) (fall (SkExpr.var 3) (fall (SkExpr.var 3) (SkExpr.var 4)))))
+    (ty 2)
+    (by simp)
+  )
+  simp [valid_judgement.k]
+  simp [valid_judgement.obvious]
+  repeat unfold substitute
+  unfold body
+  simp
+  simp [valid_judgement.obvious]
+  unfold body
+  repeat unfold substitute
+  simp
+
