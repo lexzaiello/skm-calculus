@@ -4,6 +4,10 @@ import Lean.Elab.Term
 
 open Lean Elab Tactic
 
+-- SkType
+-- 
+-- Context : function 
+
 inductive SkExpr where
   | k    : SkExpr
   | s    : SkExpr
@@ -214,5 +218,9 @@ example : valid_judgement ctx (call (call (call (call k ty_k) ty_k) k) k) ty_k :
     (var 1)
     
   )
+
+
+
+#eval2
   sorry
 
