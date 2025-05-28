@@ -16,6 +16,7 @@
 #+PROPERTY: header-args :exports code
 #+LATEX_HEADER: \usepackage[utf8]{inputenc}
 #+LATEX_HEADER: \usepackage[T1]{fontenc}
+#+LATEX_HEADER: \setmainfont{Latin Modern Roman}
 
 * Abstract
 
@@ -41,33 +42,33 @@ A natural interpretation of the combinators as typed functions results in the de
 #+BEGIN_EXPORT latex
 \[
 \inferrule
-  { \Gamma  }
-  { \Gamma \vdash \text{Prop} : Ty_{0} }
+  { $\Gamma$  }
+  { $\Gamma \vdash \text{Prop} : Ty_{0}$ }
 \]
 \[
 \inferrule
-  { \Gamma \vdash A : K \ \Gamma,x : A \vdash B : L }
-  { \Gamma \vdash (\forall x : A.B) : L}
+  { $\Gamma \vdash A : K \ \Gamma,x : A \vdash B : L$ }
+  { $\Gamma \vdash (\forall x : A.B) : L$ }
 \]
 \[
 \inferrule
   { }
-  { \Gamma \vdash T_{n} : T_{n + 1} }
+  { $\Gamma \vdash T_{n} : T_{n + 1}$ }
 \]
 \[
 \inferrule
-  { \Gamma x : \alpha, y : \beta }
-  { \Gamma \vdash K \alpha \beta : (\forall x, y.\alpha) }
+  { $\Gamma x : \alpha, y : \beta$ }
+  { $\Gamma \vdash K \alpha \beta : (\forall x, y.\alpha)$ }
 \]
 \[
 \inferrule
-  { \Gamma x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha }
-  { \Gamma \vdash S \alpha \beta \gamma : (\forall x, y, z.\gamma) }
+  { $\Gamma x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha$ }
+  { $\Gamma \vdash S \alpha \beta \gamma : (\forall x, y, z.\gamma)$ }
 \]
 \[
 \inferrule
-  { \Gamma \alpha : T_{n},\ e_{1} : (\forall x : \alpha.\text{body}), e_{2} : \alpha }
-  { \Gamma \vdash e_{1} e_{2} : \text{body}[x = b] }
+  { $\Gamma \alpha : T_{n},\ e_{1} : (\forall x : \alpha.\text{body}), e_{2} : \alpha$ }
+  { $\Gamma \vdash e_{1} e_{2} : \text{body}[x = b]$ }
 \]
 #+END_EXPORT
 
@@ -79,17 +80,22 @@ I extend the inference rules to include beta-equivalent terms:
 
 #+BEGIN_SRC lean
 inductive beta_eq : Expr → Expr → Prop
-  | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
-  | hard    e₁ e₂    : beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
-  | symm    e₁ e₂    : beta_eq e₂ e₁ → beta_eq e₁ e₂
-  | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
+  | trivial e₁ e₂ : e₁ = e₂ →
+    beta_eq e₁ e₂
+  | hard e₁ e₂ : beta_eq e₁ (eval_once e₂) →
+    beta_eq e₁ e₂
+  | symm e₁ e₂ : beta_eq e₂ e₁ →
+    beta_eq e₁ e₂
+  | trans e₁ e₂ e₃ : beta_eq e₁ e₂ →
+    beta_eq e₂ e₃ →
+    beta_eq e₁ e₃
 #+END_SRC
 
 #+BEGIN_EXPORT latex
 \[
 \inferrule
-  { \Gamma e_{1} : \alpha, \text{\texttf{beta_eq}} e_{1} e_{2} }
-  { \Gamma \vdash : e_{2} : \alpha }
+  { $\Gamma e_{1} : \alpha, \text{\texttt{beta_eq}} e_{1} e_{2}$ }
+  { $\Gamma \vdash : e_{2} : \alpha$ }
 \]
 #+END_EXPORT
 
