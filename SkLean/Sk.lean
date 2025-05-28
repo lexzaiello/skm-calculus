@@ -4,7 +4,13 @@ open SkExpr
 open SkType
 
 structure Ctx where
-  binder_tys : BindId → SkTy
+  binder_tys : BindId → 
+
+def substitute (n : BindId) (with_expr : SkType): SkType → SkType
+  | fall bind_ty body =>
+    fall (substitute n.succ with_expr bind_ty) (substitute n.succ with_expr body)
+  | var n' => if n == n' then with_expr else var $ n - 1
+  | ty n => ty n
 
 infixr:65 " ~> " => fall
 
@@ -15,6 +21,7 @@ abbrev ty_s := (SkExpr.var 1) ~> (SkExpr.var 1) ~> (SkExpr.var 1) ~> ((SkExpr.va
 
 def specialize_ty_k (α β : SkExpr) := α ~> β ~> α
 def specialize_ty_s (α β γ : SkExpr) := (α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ
+
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
