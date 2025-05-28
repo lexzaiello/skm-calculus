@@ -8,6 +8,7 @@
 #+LATEX_HEADER: \usepackage{hyperref}
 #+LATEX_HEADER: \newtheorem{theorem}{Theorem}[section]
 #+LATEX_HEADER: \newtheorem{lemma}[theorem]{Lemma}
+#+LATEX_HEADER: \usepackage[utf8x]{inputenc}
 
 * Abstract
 
@@ -33,32 +34,59 @@ A natural interpretation of the combinators as typed functions results in the de
 #+BEGIN_EXPORT latex
 \[
 \inferrule
+  { \Gamma  }
+  { \Gamma \vdash \text{Prop} : Ty_{0} }
+\]
+\[
+\inferrule
   { \Gamma \vdash A : K \ \Gamma,x : A \vdash B : L }
   { \Gamma \vdash (\forall x : A.B) : L}
 \]
 \[
 \inferrule
   { }
-  { \Gamma T_{n} : T_{n + 1} }
+  { \Gamma \vdash T_{n} : T_{n + 1} }
 \]
 \[
 \inferrule
-  { \Gamma \alpha : T_{n}, \beta : T_{m}, x : \alpha, y : \beta }
+  { \Gamma x : \alpha, y : \beta }
   { \Gamma \vdash K \alpha \beta : (\forall x, y.\alpha) }
 \]
 \[
 \inferrule
-  { \Gamma \alpha : T_{n}, \beta : T_{m}, \gamma : T_{o}, x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha }
+  { \Gamma x : (\forall x : \alpha, y : \beta.\gamma), y : (\forall x : \alpha.\alpha), z : \alpha }
   { \Gamma \vdash S \alpha \beta \gamma : (\forall x, y, z.\gamma) }
 \]
 \[
 \inferrule
-  { \Gamma \alpha : T_{n},\ e_{1} : (\forall x : \alpha.body), e_{2} : \alpha }
-  { \Gamma \vdash a b : body[x = b] }
+  { \Gamma \alpha : T_{n},\ e_{1} : (\forall x : \alpha.\text{body}), e_{2} : \alpha }
+  { \Gamma \vdash e_{1} e_{2} : \text{body}[x = b] }
 \]
 #+END_EXPORT
 
 Where $body[x = b]$ denotes substitution within the scope of $\forall$.
+
+I assume the existence of a one-step reduction function of the combinators: =eval_once=.
+
+I extend the inference rules to include beta-equivalent terms:
+
+#+BEGIN_SRC lean
+inductive beta_eq : Expr → Expr → Prop
+  | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
+  | hard    e₁ e₂    : beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
+  | symm    e₁ e₂    : beta_eq e₂ e₁ → beta_eq e₁ e₂
+  | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
+#+END_SRC
+
+#+BEGIN_EXPORT latex
+\[
+\inferrule
+  { \Gamma e_{1} : \alpha, \text{\texttf{beta_eq}} e_{1} e_{2} }
+  { \Gamma \vdash : e_{2} : \alpha }
+\]
+#+END_EXPORT
+
+where Expr is a typed combinator expression.
 
 #+NAME: decomplemma:1
 \label{decomplemma:1}
@@ -125,8 +153,6 @@ Conclusion: no expression exists which has no image in the set of well-typed dep
 #+END_EXPORT
 
 ** Strong Normalization of the Typed SK Combinators
-
-I assume the existence of a one-step reduction function: =eval_once=.
 
 I define strong-normalization inductively (where $e$ is an SK combinator expression) as:
 
