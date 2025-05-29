@@ -3,7 +3,7 @@ import System.IO
 import System.Environment
 
 toMarkdown :: String -> String
-toMarkdown = unlines . snd . foldl step (False, ([] :: [String])) . lines
+toMarkdown = unlines . snd . foldl step (True, ([] :: [String])) . lines
   where
     step (isLean, acc) line
       | take 3 line == "--/" = (True, acc ++ ["```lean", drop 3 line])
