@@ -61,22 +61,27 @@ inductive in_r : Ctx → SkExpr → SkExpr → Prop
   | s ctx e t (α : SkExpr) (β : SkExpr) (γ : SkExpr) (h_t : t = SK[(α → β → γ) → (α → β) → α → γ]) : ∀ arg₁ arg₂ arg₃, sorry → in_r ctx e t
   | obvious ctx e t (h_is_obv : match e with | ty _ => true | fall _ _ => true | _ => false) : valid_judgement ctx e t → in_r ctx e t
 
-lemma all_k_arg_judgement_holds (ctx : Ctx) : ∀ α, valid_judgement ctx α SK[Type 0] → valid_judgement ctx SK[(K α)] SK[∀ β : Type 0, α → β → α] := by
-  intro α h_α
+example : eval_once SK[((((K k_ty) k_ty) K) K)]  = k := by
+  unfold eval_once
+  repeat unfold NamedSkExpr.to_sk_expr
+  simp
+
+-- SKKK = K K (K K) = K
+example :
+  let x := SK[((K ty_k) (∀ y : Type 0, ty_k))]
+  let y := SK[((K ty_k) (Type 0))]
+  let z := SK[K]
+  let ty_x := SK[∀ x : ty_k, ∀ y : (∀ y : Type 0, ty_k), ty_k]
+  let ty_y := SK[∀ x : ty_k, ∀ y : Type 0, ty_k]
+  let ty_z := ty_k
+  beta_eq SK[((((((S ty_x) ty_y) ty_z) x) y) z)] SK[K] := by
   repeat unfold NamedSkExpr.to_sk_expr at *
-  simp
-  apply valid_judgement.call ctx (k.call (var ⟨1⟩)) ((ty 0).fall ((var { toNat := 1 }).fall ((var { toNat := 3 }).fall (var { toNat := 1 }))))
-  sorry
-
-lemma all_k_args_judgement_holds (ctx : Ctx) : ∀ α (β : SkExpr) arg₁ (arg₂ : SkExpr), valid_judgement ctx arg₁ α → valid_judgement ctx SK[((((K α) β) arg₁) arg₂)] α := by
-  intro α β arg₁ arg₂ h_t_arg₁
-  
-  sorry
-
-example : eval_once (call (call k k) k) = k := by
+  simp_all
+  apply beta_eq.symm
+  apply beta_eq.hard
   unfold eval_once
   simp
-
-example : (eval_once ∘ eval_once) (call (call (call s k) k) k) = k := by
+  apply beta_eq.hard
   unfold eval_once
   simp
+  exact beta_eq.trivial k k rfl
