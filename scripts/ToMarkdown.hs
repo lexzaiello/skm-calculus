@@ -11,5 +11,8 @@ toMarkdown = unlines . snd . foldl step (False, ([] :: [String])) . lines
       | otherwise            = (isLean, acc ++ [line])
 
 main :: IO ()
-main = getContents >>= (putStrLn . toMarkdown)
+main = do
+  hSetEncoding stdin utf8
+  hSetEncoding stdout utf8
+  getContents >>= (putStrLn . toMarkdown)
 
