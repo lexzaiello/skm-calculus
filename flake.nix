@@ -27,12 +27,15 @@
           src = ./.;
           buildPhase = ''
             find SkLean -type f -name "*.lean" | while read -r file; do
+              echo $file
               ${packages.md}/bin/md < $file > $file.md
             done
           '';
           installPhase = ''
             mkdir -p $out/
-            mv *.md $out
+            find SkLean -type f -name "*.md" | while read -r file; do
+              mv $file $out
+            done
           '';
         };
       });
