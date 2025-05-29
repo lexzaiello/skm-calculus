@@ -17,13 +17,16 @@ partial def type_of_unsafe (ctx : Ctx) : SkExpr → Option SkExpr
   | s => ty_s
   | fall bind_ty body => type_of_unsafe (bind_ty :: ctx) body
   | call lhs rhs => do
-    let t_lhs <- lhs.substitute ⟨0⟩ rhs |> type_of_unsafe []
-    pure $ t_lhs
+    let t_lhs <- type_of_unsafe ctx lhs
+    pure $ (t_lhs.substitute ⟨0⟩ rhs).body
 
 #eval ty_k
 #eval ty_s
 #eval (type_of_unsafe [] SK[K]) == ty_k
-#eval (type_of_unsafe [] SK[((((K ty_k) ty_k) K) K)]) == ty_k
+#eval (type_of_unsafe [] SK[(K ty_k)]) == SK[∀ β : Type 0, ∀ x : ty_k, ∀ y : #β, ty_k]
+#eval (type_of_unsafe [] SK[((K ty_k) ty_k)])
+#eval (type_of_unsafe [] SK[((K ty_k) ty_k)]) == SK[∀ x : ty_k, ∀ y : ty_k, ty_k]
+#eval (type_of_unsafe [] SK[(K K)])
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
@@ -37,7 +40,7 @@ inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
   | s ctx e t (h_is_s : match e with | SkExpr.s => true | _ => false) :
     t = ty_s → valid_judgement ctx e t
   | call ctx e t (lhs : SkExpr) (rhs : SkExpr) (t_lhs : SkExpr) (t_rhs : SkExpr) (h_is_call : match e with | call lhs' rhs' => lhs' = lhs ∧ rhs' = rhs | _ => false) :
-    valid_judgement ctx lhs t_lhs → valid_judgement ctx rhs t_rhs → t = (lhs.substitute ⟨0⟩ rhs) → valid_judgement ctx e t
+    valid_judgement ctx lhs t_lhs → valid_judgement ctx rhs t_rhs → t = (t_lhs.substitute ⟨0⟩ rhs).body → valid_judgement ctx e t
   | fall ctx e t bind_ty body t_body (h_is_fall : match e with | fall _ _ => true | _ => false) :
     valid_judgement (bind_ty :: ctx) body t_body →
     e = fall bind_ty body →
