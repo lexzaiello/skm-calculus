@@ -6,10 +6,25 @@ open SkExpr
 
 abbrev Ctx := List SkExpr
 
-abbrev ty_k := SK[∀ α : Type 0, ∀ β : Type 0, α → β → α]
-abbrev ty_s := SK[∀ α : Type 0, ∀ β : Type 0, ∀ γ : Type 0, (α → β → γ) → (α → β) → α → γ]
+def ty_k := SK[∀ α : Type 0, ∀ β : Type 0, #α → #β → #α]
+def ty_s := SK[∀ α : Type 0, ∀ β : Type 0, ∀ γ : Type 0, (#α → #β → #γ) → (#α → #β) → #α → #γ]
 
-#eval SK[∀ α : Type 0, ∀ β : Type 0, α → β → α]
+partial def type_of_unsafe (ctx : Ctx) : SkExpr → Option SkExpr
+  | ty n => some $ ty n.succ
+  | var n => ctx[n.toNat - 1]?
+  | prp => ty 0
+  | k => ty_k
+  | s => ty_s
+  | fall bind_ty body => type_of_unsafe (bind_ty :: ctx) body
+  | call lhs rhs => do
+    let t_lhs <- type_of_unsafe ctx lhs
+    let t_rhs <- type_of_unsafe ctx rhs
+    pure $ (t_lhs.substitute ⟨0⟩ rhs).body
+
+#eval ty_k
+#eval ty_s
+#eval (type_of_unsafe [] SK[K]) == ty_k
+#eval (type_of_unsafe [] SK[(K ty_k)])
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂

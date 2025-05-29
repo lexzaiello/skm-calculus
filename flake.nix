@@ -26,7 +26,7 @@
           name = "book-md";
           src = ./.;
           buildPhase = ''
-            find . -type f -name "*.lean" | while read -r file; do
+            find SkLean -type f -name "*.lean" | while read -r file; do
               ${packages.md}/bin/md < $file > $file.md
             done
           '';
