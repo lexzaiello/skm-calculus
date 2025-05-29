@@ -47,6 +47,7 @@
 .mtc
 build/
 result/
+result
 minima/
 
 *.aux
