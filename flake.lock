@@ -18,22 +18,6 @@
         "type": "github"
       }
     },
-    "lean-formatter": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1675429968,
-        "narHash": "sha256-bSN62tk9v84giqEEXFr5EhFQnq8gbjG3ELYIzyuzTug=",
-        "owner": "leanprover-community",
-        "repo": "format_lean",
-        "rev": "b8a1eff6922b78185596c4500504fa7edd9b2242",
-        "type": "github"
-      },
-      "original": {
-        "owner": "leanprover-community",
-        "repo": "format_lean",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1735563628,
@@ -53,7 +37,6 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "lean-formatter": "lean-formatter",
         "nixpkgs": "nixpkgs"
       }
     },
