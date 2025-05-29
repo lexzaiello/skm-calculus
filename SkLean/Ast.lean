@@ -29,6 +29,10 @@ def substitute (in_expr : SkExpr) (n : BindId) (with_expr : SkExpr) : SkExpr :=
     | var n' => if n == n' then with_expr else var $ ⟨n.toNat - 1⟩
     | x => x
 
+def body : SkExpr → SkExpr
+  | fall _ body => body
+  | x => x
+
 def eval_once : SkExpr → SkExpr
   | call (call k x) _ => x
   | call (call (call s x) y) z => call (call x z) (call y z)

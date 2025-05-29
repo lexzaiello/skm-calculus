@@ -12,17 +12,28 @@
   outputs = { self, nixpkgs, flake-utils, lean-formatter }:
     flake-utils.lib.eachDefaultSystem (system:
       let pkgs = import nixpkgs { inherit system; };
+      in with pkgs.python3Packages;
+      let deps = [ regex jinja2 mistletoe toml fire beautifulsoup4 pygments ];
       in rec {
-        packages.formatter = pkgs.python3Packages.buildPythonPackage {
+        packages.formatter = buildPythonApplication {
           name = "lean-format";
           src = lean-formatter;
-          propogatedBuildInputs = with pkgs.python312Packages; [
-            jinja2
-            regex
-            mistletoe
-            beautifulsoup4
-          ];
+          format = "pyproject";
+          nativeBuildInputs = [ setuptools wheel ] ++ deps;
+          propagatedBuildInputs = deps;
         };
-        devShells.default = pkgs.mkShell { packages = [ packages.formatter ]; };
+        apps.format = let
+          format_all = pkgs.writeShellScriptBin "format_all" ''
+            find . -type f -name "*.lean" | while read -r file; do
+              ${packages.formatter}/bin/format_lean $file
+            done
+          '';
+        in {
+          type = "app";
+          program = "${format_all}/bin/format_all";
+        };
+        devShells.default = pkgs.mkShell {
+          packages = with pkgs.python3Packages; [ packages.formatter ] ++ deps;
+        };
       });
 }
