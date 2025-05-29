@@ -98,9 +98,9 @@ def body : SkExpr → SkExpr
   | fall _ body => body
   | x => x
 
-def eval_once : SkExpr → Option SkExpr
+def eval_once : SkExpr → SkExpr
   | (call (call (call (call k _) _) x) _) => x
   | call (call (call (call (call (call s _) _) _) x) y) z => call (call x z) (call y z)
-  | _ => none
+  | x => x
 
 end SkExpr
