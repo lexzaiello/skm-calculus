@@ -3,11 +3,11 @@ import System.IO
 import System.Environment
 
 toMarkdown :: String -> String
-toMarkdown = unlines . snd . foldl step (True, ([] :: [String])) . lines
+toMarkdown = unlines . snd . foldl step (True, (["```lean"] :: [String])) . lines
   where
     step (isLean, acc) line
-      | take 3 line == "--/" = (True, acc ++ ["```lean", drop 3 line])
-      | take 3 line == "/--" = (False, acc ++ [drop 3 line, "```"])
+      | take 3 line == "--/" = (True, acc ++ ["```lean"])
+      | take 3 line == "/--" = (False, acc ++ ["```"])
       | otherwise            = (isLean, acc ++ [line])
 
 main :: IO ()
