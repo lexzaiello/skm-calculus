@@ -56,7 +56,8 @@ macro_rules
   | `(⟪ $var:ident ⟫)       => `(NamedSkExpr.e $var)
   | `(⟪ $e₁:skexpr → $e₂:skexpr ⟫) => `(⟪ ∀ x : $e₁, $e₂ ⟫)
   | `(⟪ ∀ $var:ident : $e_ty:skexpr , $body:skexpr ⟫) =>
-    `(NamedSkExpr.fall $(Lean.quote var.getId.toString) (⟪ $e_ty ⟫.with_indices_plus ⟨1⟩) (⟪ $body ⟫.with_indices_plus ⟨1⟩))
+    -- TODO: figure out if we need to increment free indices here, can we even do this in a macro?
+    `(NamedSkExpr.fall $(Lean.quote var.getId.toString) (⟪ $e_ty ⟫) (⟪ $body ⟫))
   | `(⟪ ($e₁:skexpr $e₂:skexpr )⟫) => `(NamedSkExpr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
 
 syntax "SK[ " skexpr " ] " : term

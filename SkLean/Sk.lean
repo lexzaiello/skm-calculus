@@ -21,13 +21,12 @@ partial def type_of_unsafe (ctx : Ctx) : SkExpr → Option SkExpr
     pure $ (t_lhs.substitute ⟨0⟩ rhs).body
 
 #eval ty_k
+#eval ty_k.substitute ⟨0⟩ ty_k
 #eval ty_s
 #eval (type_of_unsafe [] SK[K]) == ty_k
-#eval (type_of_unsafe [] SK[(K ty_k)])
+#eval (type_of_unsafe [] SK[K])
 #eval (type_of_unsafe [] SK[(K ty_k)]) == SK[∀ β : Type 0, ∀ x : ty_k, ∀ y : #β, ty_k]
-#eval (type_of_unsafe [] SK[((K ty_k) ty_k)])
 #eval (type_of_unsafe [] SK[((K ty_k) ty_k)]) == SK[∀ x : ty_k, ∀ y : ty_k, ty_k]
-#eval (type_of_unsafe [] SK[(K K)])
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
