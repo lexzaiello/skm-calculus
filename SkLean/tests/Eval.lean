@@ -1,5 +1,5 @@
 import SkLean.Ast
-import SkLean.Sk
+import SkLean.Typing
 import SkLean.Dsl
 
 open SkExpr
