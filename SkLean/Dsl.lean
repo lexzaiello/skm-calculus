@@ -64,9 +64,3 @@ syntax "SK[ " skexpr " ] " : term
 
 macro_rules
   | `(SK[ $e:skexpr ]) => `(NamedSkExpr.to_sk_expr [] ⟪ $e ⟫)
-
-#eval SK[K]
-#eval SK[S]
-#eval SK[∀ x : Prop, (∀ y : #x, Prop)]
-#eval SK[∀ α : #α, (∀ β : #β, (∀ x : #α, (∀ y : #β, #α)))]
-#eval SK[Prop → Prop]
