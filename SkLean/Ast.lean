@@ -30,27 +30,69 @@ deriving BEq, Repr
 namespace SkExpr
 
 -- TODO: Lemma about index shifting
-def with_indices_succ (idx : BindId) (in_expr : SkExpr) : SkExpr :=
+def with_indices_plus (in_expr : SkExpr) (shift_by : BindId) : SkExpr :=
   match in_expr with
     | fall bind_ty body =>
-      fall (bind_ty.with_indices_succ idx.succ) (body.with_indices_succ idx.succ)
+      fall (bind_ty.with_indices_plus shift_by.succ) (body.with_indices_plus shift_by.succ)
     | var n =>
-      if n > idx then
-        var n.succ
+      if n > shift_by then
+        var ⟨n.toNat + shift_by.toNat⟩
       else
         var n
     | call lhs rhs =>
-      call (lhs.with_indices_succ idx) (rhs.with_indices_succ idx)
+      call (lhs.with_indices_plus shift_by) (rhs.with_indices_plus shift_by)
     | x => x
 
 def substitute (in_expr : SkExpr) (n : BindId) (with_expr : SkExpr) : SkExpr :=
-  let rec substitute' (in_expr : SkExpr) (n : BindId) (with_expr : SkExpr) : SkExpr :=
-    match in_expr with
-      | fall bind_ty body =>
-        fall (substitute' bind_ty n.succ with_expr) (substitute' body n.succ with_expr)
-      | var n' => if n == n' then with_expr  else var n'
-      | x => x
-   substitute' in_expr n (with_indices_succ ⟨1⟩ with_expr)
+  match in_expr with
+    | fall bind_ty body =>
+      fall (bind_ty.substitute n.succ with_expr) (body.substitute n.succ with_expr)
+    | var n' => if n == n' then with_expr.with_indices_plus n else var n'
+    | x => x
+
+example : (fall (ty 0) (var ⟨2⟩)).with_indices_plus ⟨1⟩ = (fall (ty 0) (var ⟨2⟩)) := by
+  repeat unfold with_indices_plus
+  simp
+  intro h
+  unfold BindId.succ
+  simp
+  contradiction
+
+example : (fall (ty 0) (var ⟨1⟩)).substitute ⟨0⟩ (var ⟨2⟩) = (fall (ty 0) (var ⟨3⟩)) := by
+  unfold substitute
+  simp
+  repeat unfold substitute
+  simp
+  split
+  repeat unfold with_indices_plus
+  simp
+  split
+  simp
+  unfold BindId.succ
+  simp
+  contradiction
+  simp_all
+  repeat unfold BindId.succ at *
+  simp_all
+  contradiction
+
+example : (fall (ty 0) (var ⟨1⟩)).substitute ⟨0⟩ (fall (ty 0) (var ⟨4⟩)) = (fall (ty 0) ((fall (ty 0) (var ⟨6⟩)))) := by
+  unfold substitute
+  simp
+  repeat unfold substitute
+  simp
+  split
+  case isTrue h =>
+    repeat unfold with_indices_plus
+    simp
+    repeat unfold BindId.succ at *
+    simp_all
+    unfold LT.lt
+    unfold BindId.instLT
+    simp
+  case isFalse h =>
+    simp_all
+    contradiction
 
 def body : SkExpr → SkExpr
   | fall _ body => body

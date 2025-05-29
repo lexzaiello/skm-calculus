@@ -23,6 +23,7 @@ partial def type_of_unsafe (ctx : Ctx) : SkExpr → Option SkExpr
 #eval ty_k
 #eval ty_s
 #eval (type_of_unsafe [] SK[K]) == ty_k
+#eval (type_of_unsafe [] SK[(K ty_k)])
 #eval (type_of_unsafe [] SK[(K ty_k)]) == SK[∀ β : Type 0, ∀ x : ty_k, ∀ y : #β, ty_k]
 #eval (type_of_unsafe [] SK[((K ty_k) ty_k)])
 #eval (type_of_unsafe [] SK[((K ty_k) ty_k)]) == SK[∀ x : ty_k, ∀ y : ty_k, ty_k]

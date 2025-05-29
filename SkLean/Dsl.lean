@@ -12,6 +12,11 @@ inductive NamedSkExpr where
 
 namespace NamedSkExpr
 
+def with_indices_plus (in_expr : NamedSkExpr) (n : BindId) : NamedSkExpr :=
+  match in_expr with
+    | .e e' => .e $ e'.with_indices_plus n
+    | x => x
+
 def to_sk_expr (names : List String) : NamedSkExpr → SkExpr
   | .k => .k
   | .e e' => e'
@@ -51,7 +56,7 @@ macro_rules
   | `(⟪ $var:ident ⟫)       => `(NamedSkExpr.e $var)
   | `(⟪ $e₁:skexpr → $e₂:skexpr ⟫) => `(⟪ ∀ x : $e₁, $e₂ ⟫)
   | `(⟪ ∀ $var:ident : $e_ty:skexpr , $body:skexpr ⟫) =>
-    `(NamedSkExpr.fall $(Lean.quote var.getId.toString) ⟪ $e_ty ⟫ ⟪ $body ⟫)
+    `(NamedSkExpr.fall $(Lean.quote var.getId.toString) (⟪ $e_ty ⟫.with_indices_plus ⟨1⟩) (⟪ $body ⟫.with_indices_plus ⟨1⟩))
   | `(⟪ ($e₁:skexpr $e₂:skexpr )⟫) => `(NamedSkExpr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
 
 syntax "SK[ " skexpr " ] " : term
