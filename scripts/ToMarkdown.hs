@@ -11,6 +11,5 @@ toMarkdown = unlines . snd . foldl step (False, ([] :: [String])) . lines
       | otherwise            = (isLean, acc ++ [line])
 
 main :: IO ()
-main = getArgs >>= (\a -> case a of
-    pat:_ -> readFile pat >>= (\cts -> putStrLn $ toMarkdown cts)
-    [] -> hPutStrLn stderr "Please input a file to generate markdown for.")
+main = getContents >>= (putStrLn . toMarkdown)
+
