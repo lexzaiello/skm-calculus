@@ -15,6 +15,7 @@
 
           [output.html]
           mathjax-support = true
+          additional-js = ["highlight.js"]
         '';
         md = with pkgs.haskellPackages;
           pkgs.stdenv.mkDerivation {
@@ -63,6 +64,7 @@
             mkdir src
             mv *.md src/
             cp ${./README.md} src/
+            cp ${./scripts/highlight.js} highlight.js
             echo '${booktoml}' > book.toml
             echo '${summarymd}' > src/SUMMARY.md
             ${pkgs.mdbook}/bin/mdbook build
@@ -74,7 +76,7 @@
         };
         apps.book-serve = let
           serve-bin = pkgs.writeShellScriptBin "serve"
-            "${pkgs.http-server}/bin/http-server ${packages.book-site}";
+            "${pkgs.http-server}/bin/http-server ${packages.book-site} -c-1";
         in {
           name = "book-serve";
           type = "app";
