@@ -56,7 +56,7 @@
             [Introduction](./README.md)
 
             # Background
-            - [Typed and Untyped Lambda Calculus](./Lc.lean)
+            - [Typed and Untyped Lambda Calculus](./Lc.lean.md)
 
             # Type Discipline
             - [Dependently-Typed SK Combinators: AST](./Ast.lean.md)
