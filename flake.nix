@@ -7,9 +7,13 @@
   };
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
-      let pkgs = import nixpkgs { inherit system; };
-      in rec {
-        packages.md = with pkgs.haskellPackages;
+      let
+        pkgs = import nixpkgs { inherit system; };
+        booktoml = ''
+          [book]
+          title = "Strong Normalization of the Dependently-Typed SK Combinators in Lean"
+        '';
+        md = with pkgs.haskellPackages;
           pkgs.stdenv.mkDerivation {
             name = "md";
             buildInputs = [ ghc ];
@@ -22,13 +26,13 @@
               cp md $out/bin
             '';
           };
-        packages.book-md = pkgs.stdenv.mkDerivation {
+        book-md = pkgs.stdenv.mkDerivation {
           name = "book-md";
           src = ./.;
           buildPhase = ''
             find SkLean -type f -name "*.lean" | while read -r file; do
               echo $file
-              ${packages.md}/bin/md < $file > $file.md
+              ${md}/bin/md < $file > $file.md
             done
           '';
           installPhase = ''
@@ -37,6 +41,39 @@
               mv $file $out
             done
           '';
+        };
+      in rec {
+        packages.md = md;
+        packages.book-md = book-md;
+        packages.book-site = let
+          summarymd = ''
+            # Summary
+
+            [Introduction](./README.md)
+
+            - [SK Combinators & AST](./Ast.lean.md)
+          '';
+        in pkgs.stdenv.mkDerivation {
+          name = "book-html";
+          src = ./.;
+          buildPhase = ''
+            mkdir src
+            cp -r ${book-md}/* src/
+            cp ${./README.md} src/
+            echo '${booktoml}' > book.toml
+            echo '${summarymd}' > src/SUMMARY.md
+            ${pkgs.mdbook}/bin/mdbook build
+          '';
+          installPhase = ''
+            mkdir $out
+            mv ./book/* $out
+          '';
+        };
+        apps.book-serve = {
+          name = "book-serve";
+          type = "app";
+          program =
+            "${pkgs.simple-http-server}/bin/simple-http-server ${packages.book-site}";
         };
       });
 }
