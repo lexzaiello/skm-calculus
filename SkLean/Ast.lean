@@ -1,3 +1,18 @@
+/-
+# Strong Normalization of the Dependently-Typed SK Combinators
+
+## Background
+
+The lambda calculus is a widely-known model of computation based on variable substitution within anonymous functions.
+
+A lambda expression is defined by the grammar:
+
+$$
+e ::= (\lambda x.e)\ |\ e\ e\ |\ x
+$$
+
+-/
+
 import Mathlib.Data.Nat.Notation
 
 structure BindId where
