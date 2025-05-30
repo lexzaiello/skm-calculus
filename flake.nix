@@ -77,7 +77,7 @@
           type = "app";
           program = "${serve-bin}/bin/serve";
         };
-        apps.book-serve-live = let
+        apps.serve-live = let
           serve-live = pkgs.writeShellScriptBin "serve-live" ''
             ${pkgs.watchexec}/bin/watchexec -e lean,md --restart -- nix run .#book-serve"
           '';
