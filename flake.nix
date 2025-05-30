@@ -59,6 +59,7 @@
             - [Typed and Untyped Lambda Calculus](./Lc.lean.md)
             - [Strong Normalization](./SnLc.lean.md)
             - [Dependent Typing](./CocLcExplainer.lean.md)
+            - [SK Combinators](./SkRaw.lean.md)
 
             # Type Discipline
             - [Dependently-Typed SK Combinators: AST](./Ast.lean.md)

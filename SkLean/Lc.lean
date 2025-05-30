@@ -20,7 +20,7 @@ A variable is said to be "bound" if a corresponding binder in a lambda abstracti
 We can encode a lambda expression in Lean like so:
 -/
 
-import Mathlib.Data.Nat.Notation
+import Mathlib.Tactic
 
 inductive Expr where
   | var : String → Expr
@@ -154,6 +154,7 @@ We can then encode typed lambda expressions in Lean like so:
 -/
 
 inductive Base where
+  | int : Base
   | nat : Base
 deriving DecidableEq, BEq, Repr
 
@@ -185,10 +186,12 @@ We will also define a mapping from constant values to types:
 
 inductive Cnst where
   | num : ℕ → Cnst
+  | int : ℤ → Cnst
 deriving DecidableEq, BEq, Repr
 
 def type_of_cnst : Cnst → Base
   | .num _ => .nat
+  | .int _ => .int
 
 /-
 We will extend `Expr` to include our constant values and binder (\\(x : \alpha\\)) typings.
