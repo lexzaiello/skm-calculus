@@ -4,18 +4,22 @@ import System.Environment
 import Data.List
 import Data.Maybe
 
+blockstart = "```lean"
+blockend   = "```"
+mkfooter s = s ++ ["Made by [<b>Dowland Aiello</b>](https://github.com/dowlandaiello)."]
+
+step ::[String] -> [String]
+step [] = []
+step s
+  | otherwise = let lean = ((takeWhile (/= "-/")) . (takeWhile (/= "/-"))) s; md = drop (length lean) s; in
+      if md == s then
+        let md = ((dropWhile (== "/-")) . (takeWhile (/= "-/"))) s; lean = drop ((length md) + 1) s in
+          md ++ step lean
+      else
+        [blockstart] ++ lean ++ [blockend] ++ step md
+
 toMarkdown :: String -> String
-toMarkdown = unlines . stripPrefixD . foldl step ([blockstart] :: [String]) . lines
-  where
-    stripPrefixD s =
-      let s' = stripPrefix [blockstart, blockend] s in
-        fromMaybe s s'
-    blockstart = "```lean"
-    blockend   = "```"
-    step acc line
-      | take 2 line == "-/" = acc ++ [blockstart]
-      | take 2 line == "/-" = acc ++ [blockend]
-      | otherwise           = acc ++ [line]
+toMarkdown = unlines . mkfooter . step . lines
 
 main :: IO ()
 main = do

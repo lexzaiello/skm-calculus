@@ -1,4 +1,5 @@
 /-
+
 # Strong Normalization of the Dependently-Typed SK Combinators
 
 ## Background
@@ -119,3 +120,7 @@ def eval_once : SkExpr → SkExpr
   | x => x
 
 end SkExpr
+
+/-
+bruh
+-/
