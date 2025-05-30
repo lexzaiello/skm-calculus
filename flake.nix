@@ -55,7 +55,8 @@
 
             [Introduction](./README.md)
 
-            - [SK Combinators & AST](./Ast.lean.md)
+            # Type Discipline
+            - [Typed and Untyped Calculi & AST](./Ast.lean.md)
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";
@@ -63,7 +64,7 @@
           buildPhase = ''
             mkdir src
             mv *.md src/
-            cp ${./README.md} src/
+            cp ${./README.md} src/README.md
             cp ${./scripts/highlight.js} highlight.js
             echo '${booktoml}' > book.toml
             echo '${summarymd}' > src/SUMMARY.md
@@ -84,7 +85,7 @@
         };
         apps.serve-live = let
           serve-live = pkgs.writeShellScriptBin "serve-live" ''
-            ${pkgs.watchexec}/bin/watchexec -e lean,md --restart -- nix run .#book-serve
+            ${pkgs.watchexec}/bin/watchexec -e lean,md,nix --restart -- nix run .#book-serve
           '';
         in {
           type = "app";
