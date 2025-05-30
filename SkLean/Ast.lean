@@ -1,35 +1,5 @@
 /-
-
-# Typed and Untyped Calculi & AST
-
-## Background
-
-### Untyped Lambda Calculus
-
-The [lambda calculus](https://en.wikipedia.org/wiki/Lambda_calculus) is a widely-known model of computation based on variable substitution within anonymous functions.
-
-A lambda expression is defined by the grammar:
-
-$$
-e ::= (\lambda x.e)\ |\ e\ e\ |\ x
-$$
-
-\\(\lambda x.e\\) represents an anonymous function with body \\(e\\) and a bound variable \\(x\\). \\(e\ e\\) represents function application. \\(x\\) represents a variable.
-
-An expression can be evaluated using the "beta reduction rule:"
-
-$$
-((\lambda x.M)\ N) =_{\beta} M[x := N]
-$$
-
-This rule denotes that a function application is "beta equivalent" to the body of the function being called, with \\(N\\) substituted in for every instance of \\(x\\) within \\(M\\).
-
-This system of computation is powerful, and known to be turing-complete. However, expressing infinitely reducible expressions is quite easy:
-
-$$
-(\lambda x.x\ x)(\lambda x.x\ x)
-$$
-
+# Dependently-Typed SK Combinators
 -/
 
 import Mathlib.Data.Nat.Notation

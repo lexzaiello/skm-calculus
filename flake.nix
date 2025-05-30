@@ -55,8 +55,11 @@
 
             [Introduction](./README.md)
 
+            # Background
+            - [Typed and Untyped Lambda Calculus](./Lc.lean)
+
             # Type Discipline
-            - [Typed and Untyped Calculi & AST](./Ast.lean.md)
+            - [Dependently-Typed SK Combinators: AST](./Ast.lean.md)
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";
