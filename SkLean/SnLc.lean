@@ -177,4 +177,15 @@ lemma sn_imp_exists_steps : ∀ e, Sn e → ∃ n_steps, (eval''' e n_steps).isS
   case h e' a =>
     simp [a]
 
+/-
+## Termination Proof
 
+We have shown that every strongly normalizing expression terminates. Obviously, not all lambda calculus expressions are strongly normalizing (e.g., \\((\lambda x.x\ x)(\lambda x.x\ x)\\). However, it has been extensively demonstrated that *welll-typed* expressions in the simply-typed lambda calculus (STLC) are strongly normalizing, and thus, terminate.
+
+If we can prove that all expressions that are well-typed, given our inference rules in [chapter 1](./Lc.lean.md), are strongly normalizing, then we have successfully proven that all well-typed expressions terminate. Using our lemmas, we can extract a value for `steps`, and run our evaluation function successfully.
+
+Termination proofs have been exhaustively enumerated for the STLC in the literature, even in Lean. However, proofs of strong normalization of other typed lambda calculi are currently of interest.
+
+In this paper, I will be considering a particular class of type systems based on, "dependent types." The [next chapter](./CocLcExplainer.lean.md) details this subject.
+
+-/
