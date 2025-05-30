@@ -181,7 +181,7 @@ We will follow these judgement rules:
 - If a lambda abstraction's binder is of type \\(t\\) and its body of type \\(t'\\), it is of type \\(t \rightarrow t'\\).
 - In an application \\(e_{1}\ e_{2}\\), the left hand side expression must be of a type of the form \\(\alpha \rightarrow \beta\\). The application argument \\(e_{2}\\) must have type \\(\alpha\\). The entire expression is of type \\(\beta\\).
 
-Given we have defined typings for our constant values, we can define a `type_of` function on `Expr` as such:
+We will also define a mapping from constant values to types:
 -/
 
 inductive Cnst where
@@ -192,7 +192,7 @@ def type_of_cnst : Cnst → Base
   | .num _ => .nat
 
 /-
-We will extend `Expr` to include our constant values and binder typing.
+We will extend `Expr` to include our constant values and binder (\\(x : \alpha\\)) typings.
 -/
 
 inductive Expr'' where
@@ -203,15 +203,19 @@ inductive Expr'' where
 deriving BEq, Repr
 
 /-
-In order to represent the types of variables, we will maintain a stack of types of the nearest abstraction binders (e.g., \\(\lambda x : \alpha.x\\). We can determine the type of a variable by looking up its type in this "context."
+In order to represent the types of variables, we will maintain a stack of types of the nearest abstraction binders (e.g., \\(\lambda x : \alpha.x\\)). We can determine the type of a variable by looking up its type in this "context."
 -/
 
+-- Indexed relative to de bruijn index of variable being type-checked
 abbrev Ctx := List Ty
 
 def type_of (ctx : Ctx) : Expr'' → Option Ty
   | .cnst c => some (.base (type_of_cnst c))
+  -- Expression variables are 1-indxed, list is zero-indxed
   | .var (n + 1) => ctx[n]?
   | .var _ => none
+  -- Lhs must eventually evaluate to an abstraction
+  -- and rhs must eventually evaluate to the type of the bound variable in lhs
   | .app lhs rhs => do
     let t_lhs ← type_of ctx lhs
     let t_rhs ← type_of ctx rhs
@@ -230,13 +234,17 @@ def type_of (ctx : Ctx) : Expr'' → Option Ty
 
 /-
 Let's try out or type inference function for a few functions:
+
+1. Identity function for nats: \\(\lambda x : \mathbb{N}.x\\)
 -/
 
--- Identity function for nats: λx:ℕ.x
 #eval type_of [] (.abstraction (.base .nat) (.var 1))
 -- => some (Ty.arrow (Ty.base (Base.nat)) (Ty.base (Base.nat)))
 
--- Application of identity function with a nat: (λx:ℕ.x) 1 => 1
+/-
+2. Application of identity function with a nat: \\((\lambda x : \mathbb{N}.x) 1\\) => 1
+-/
+
 #eval type_of [] (.app (.abstraction (.base .nat) (.var 1)) (.cnst (.num 1)))
 -- => some (Ty.base (Base.nat))
 
