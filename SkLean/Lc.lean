@@ -4,6 +4,8 @@
 
 ## Untyped Lambda Calculus
 
+### Expressions
+
 The [lambda calculus](https://en.wikipedia.org/wiki/Lambda_calculus) is a widely-known model of computation based on variable substitution within anonymous functions.
 
 A lambda expression is defined by the grammar:
@@ -28,6 +30,8 @@ inductive Expr where
 deriving Repr
 
 /-
+### Evaluation
+
 An expression can be evaluated using the "beta reduction" rule:
 
 $$
@@ -70,6 +74,8 @@ Our substitution function appears to work as expected.
 
 However, we will run into issues with substitution in functions where variable names collide. [De Bruijn indices](https://en.wikipedia.org/wiki/De_Bruijn_index) provide a natural solution to this problem.
 
+#### De Bruijn Indices
+
 De Bruijn indices prevent variables from being shadowed by referring to bound varaibles by their position relative to the binder. For example, the identity function:
 
 $$
@@ -86,7 +92,11 @@ inductive Expr' where
 deriving Repr
 
 /-
-We will also have to update substitute to reflect this change. A simple algorithm for variable substitution in De Bruijn-indexed expressions simply increments a "depth" counter until it reaches a variable with \\(n = \text{depth}\\), then replaces the value. However, free variables need to be accounted for. In the case of the expression being substituted in, for every deeper level in the tree which it is inserted in, its free variables msut be incremented by 1. The inverse is true of free variables in the expression being substituted into.
+We will also have to update substitute to reflect this change.
+A simple algorithm for variable substitution in De Bruijn-indexed expressions simply increments a "depth" counter until it reaches a variable with \\(n = \text{depth}\\), then replaces the value.
+However, free variables need to be accounted for.
+In the case of the expression being substituted in, for every deeper level in the tree which it is inserted in, its free variables msut be incremented by 1.
+The inverse is true of free variables in the expression being substituted into.
 -/
 
 def with_indices_plus (in_expr : Expr') (shift_by : ℕ) : Expr' :=
@@ -121,9 +131,9 @@ partial def eval (e : Expr') : Expr' :=
     | x => x
 
 /-
-## Simply-Typed Lambda Calculus and Strong Normalization
+## Simply-Typed Lambda Calculus
 
-The simply-typed lambda calculus prevents infinitely reducing expressions from being expressed by assigning types to lamabda abstractions:
+The simply-typed lambda calculus prevents infinitely reducing expressions from being expressed by assigning types to expressions:
 
 $$
 \tau ::= \tau \rightarrow \tau\ |\ T
@@ -132,25 +142,103 @@ $$
 where \\(T\\) is the type of a constant value (a "base type"), and \\(\alpha \rightarrow \beta\\) is the type of a function with a bound variable of type \\(\alpha\\) and a body of type \\(\beta\\). We can then type the bound variable of a lambda abstraction like so:
 
 $$
-(\lambda x : Nat.x + 1)
+(\lambda x : \text{Nat}.x + 1)
 $$
 
-We can naively encode a lambda expression and our types in Lean like so:
+We can then encode typed lambda expressions in Lean like so:
 -/
 
 inductive Base where
   | nat : Base
+deriving BEq, Repr
 
 inductive Ty where
-  | base : Base → Ty
-  | arrow : Ty  → Ty → Ty
+  | base  : Base → Ty
+  | arrow : Ty   → Ty → Ty
+deriving BEq, Repr
 
 open Base
 open Ty
 
 /-
-For example, the type of the function (λx : Nat.x + 1) would be Nat → Nat, or:
+For example, the type of the function \\((\lambda x : \text{Nat}.x + 1)\\) would be `Nat → Nat`, or:
 -/
 
 #check arrow (base nat) (base nat)
 
+/-
+In order to prevent ill-formed expressions from being inputted, we can define typing judgement rules that verify the correctness of a typing.
+
+We will follow these judgement rules:
+- If a variable is bound by an abstraction with a binder of type \\(\alpha\\), then the variable is of type \\(\alpha\\).
+- If a constant \\(c\\) is of type \\(T\\), it is of type \\(T\\).
+- If a lambda abstraction's binder is of type \\(t\\) and its body of type \\(t'\\), it is of type \\(t \rightarrow t'\\).
+- In an application \\(e_{1}\ e_{2}\\), the left hand side expression must be of a type of the form \\(\alpha \rightarrow \beta\\). The application argument \\(e_{2}\\) must have type \\(\alpha\\). The entire expression is of type \\(\beta\\).
+
+Given we have defined typings for our constant values, we can define a `type_of` function on `Expr` as such:
+-/
+
+inductive Cnst where
+  | num : ℕ → Cnst
+deriving BEq, Repr
+
+def type_of_cnst : Cnst → Base
+  | .num _ => .nat
+
+/-
+We will extend `Expr` to include our constant values and binder typing.
+-/
+
+inductive Expr'' where
+  | cnst : Cnst      → Expr''
+  | var : ℕ          → Expr''
+  | app : Expr''     → Expr'' → Expr''
+  | abstraction : Ty → Expr''  → Expr''
+deriving BEq, Repr
+
+/-
+In order to represent the types of variables, we will maintain a stack of types of the nearest abstraction binders (e.g., \\(\lambda x : \alpha.x\\). We can determine the type of a variable by looking up its type in this "context."
+-/
+
+abbrev Ctx := List Ty
+
+def type_of (ctx : Ctx) : Expr'' → Option Ty
+  | .cnst c => some (.base (type_of_cnst c))
+  | .var (n + 1) => ctx[n]?
+  | .var _ => none
+  | .app lhs rhs => do
+    let t_lhs ← type_of ctx lhs
+    let t_rhs ← type_of ctx rhs
+
+    match t_lhs with
+      | arrow in_t out_t =>
+        if in_t != t_rhs then
+          none
+        else
+          pure (out_t)
+      | _ => none
+  | .abstraction bind_ty body => do
+    let ctx' := bind_ty :: ctx
+
+    some (.arrow bind_ty (← type_of ctx' body))
+
+/-
+Let's try out or type inference function for a few functions:
+-/
+
+-- Identity function for nats: λx:ℕ.x
+#eval type_of [] (.abstraction (.base .nat) (.var 1))
+-- => some (Ty.arrow (Ty.base (Base.nat)) (Ty.base (Base.nat)))
+
+-- Application of identity function with a nat: (λx:ℕ.x) 1 => 1
+#eval type_of [] (.app (.abstraction (.base .nat) (.var 1)) (.cnst (.num 1)))
+-- => some (Ty.base (Base.nat))
+
+/-
+Nice.
+
+Now that our expressions are typed, we may be able to rewrite our `eval` function in a verifiably terminating way that Lean likes. In doing so, we must prove **strong normalization** of our simply-typed lambda calculus.
+
+In the [next chapter](./SnLc.lean.md), I elaborate more on strong normalization.
+
+-/
