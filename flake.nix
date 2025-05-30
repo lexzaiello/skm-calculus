@@ -69,11 +69,18 @@
             mv ./book/* $out
           '';
         };
-        apps.book-serve = {
+        apps.book-serve = let
+          serve-bin = pkgs.writeShellScriptBin "serve"
+            "${pkgs.simple-http-server}/bin/simple-http-server ${packages.book-site} --index";
+        in {
           name = "book-serve";
           type = "app";
-          program =
-            "${pkgs.simple-http-server}/bin/simple-http-server ${packages.book-site}";
+          program = "${serve-bin}/bin/serve";
         };
+        apps.book-serve-live = let
+          serve-live = pkgs.writeShellScriptBin "serve-live" ''
+            ${pkgs.watchexec}/bin/watchexec -e lean,md --restart -- nix run .#book-serve"
+          '';
+        in { program = "${serve-live}/bin/serve-live"; };
       });
 }
