@@ -70,7 +70,7 @@ This is fine for some hand-written functions, like \\((\lambda x : \mathbb{N}.x)
 #eval eval''' (.app (.abstraction (.base .nat) (.var 1)) (.cnst (.num 1))) 2
 
 /-
-However, with even simple expressions, we're limited to guessing and checking. We can do better.
+However, even with simple expressions, we're limited to guessing and checking. We can do better.
 
 ## Definition of Strong Normalization
 
@@ -113,7 +113,7 @@ lemma eval_rfl_imp_sn_iff : ∀ e, eval_once e = e → (Sn (eval_once e) ↔ Sn 
 
 /-
 Otherwise, `e ≠ eval_once e`, but clearly in all cases besides application, `eval_once e = e`.
-In the application case, we do induction on each side of the bijection. `Sn (eval_once e) → Sn e` is trivially true per the .hard constructor of `Sn`.
+In the application case, we do induction on each side of the bijection. `Sn (eval_once e) → Sn e` is trivially true per the `.hard` constructor of `Sn`.
 `Sn e → Sn (eval_once e)` can be proven by pattern matching on `Sn e`.
 -/
 
