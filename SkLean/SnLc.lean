@@ -154,7 +154,7 @@ lemma sn_bidirectional : ∀ (e : Expr''), Sn (eval_once e) ↔ Sn e := by
 
 /-
 Using the fact that `Sn` is bidirectional (3), we can prove that strong normalization implies termination (2).
-We simply obtain n_steps - 1 via induction given (3), and use its successor.
+We simply obtain `n_steps - 1` via induction given (3), and use its successor.
 -/
 
 lemma sn_imp_exists_steps : ∀ e, Sn e → ∃ n_steps, (eval''' e n_steps).isSome := by
