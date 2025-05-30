@@ -79,8 +79,11 @@
         };
         apps.serve-live = let
           serve-live = pkgs.writeShellScriptBin "serve-live" ''
-            ${pkgs.watchexec}/bin/watchexec -e lean,md --restart -- nix run .#book-serve"
+            ${pkgs.watchexec}/bin/watchexec -e lean,md --restart -- nix run .#book-serve
           '';
-        in { program = "${serve-live}/bin/serve-live"; };
+        in {
+          type = "app";
+          program = "${serve-live}/bin/serve-live";
+        };
       });
 }
