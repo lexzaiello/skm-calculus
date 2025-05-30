@@ -6,7 +6,7 @@ import Data.Maybe
 
 blockstart = "```lean"
 blockend   = "```"
-mkfooter s = s ++ ["Made by [<b>Dowland Aiello</b>](https://github.com/dowlandaiello)."]
+mkfooter s = s ++ "/-\nMade by [<b>Dowland Aiello</b>](https://github.com/dowlandaiello).\n-/"
 
 step ::[String] -> [String]
 step [] = []
@@ -19,7 +19,7 @@ step s
         [blockstart] ++ lean ++ [blockend] ++ step md
 
 toMarkdown :: String -> String
-toMarkdown = unlines . mkfooter . step . lines
+toMarkdown = unlines . step . lines . mkfooter
 
 main :: IO ()
 main = do

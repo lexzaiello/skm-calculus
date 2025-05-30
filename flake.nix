@@ -12,6 +12,9 @@
         booktoml = ''
           [book]
           title = "Strong Normalization of the Dependently-Typed SK Combinators in Lean"
+
+          [output.html]
+          mathjax-support = true
         '';
         md = with pkgs.haskellPackages;
           pkgs.stdenv.mkDerivation {
@@ -55,10 +58,10 @@
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";
-          src = ./.;
+          src = book-md;
           buildPhase = ''
             mkdir src
-            cp -r ${book-md}/* src/
+            mv *.md src/
             cp ${./README.md} src/
             echo '${booktoml}' > book.toml
             echo '${summarymd}' > src/SUMMARY.md
@@ -71,7 +74,7 @@
         };
         apps.book-serve = let
           serve-bin = pkgs.writeShellScriptBin "serve"
-            "${pkgs.simple-http-server}/bin/simple-http-server ${packages.book-site} --index";
+            "${pkgs.http-server}/bin/http-server ${packages.book-site}";
         in {
           name = "book-serve";
           type = "app";
