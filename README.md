@@ -4,3 +4,9 @@ In this repository, I define a dependent typing for the SK combinators, and prov
 
 See the [book](https://dowlandaiello.com/sk-lean) for more.
 
+## Table of Contents
+
+I aim for this repository to be relatively accessible to anyone who knows Lean or functional programming. A such, I assume little theoretical background knowledge. My hope is that this book gives you a good understanding of what strong normalization is, how it's proven, and how I've proven it for the dependently typed SK combinators–all in Lean.
+
+1. Background - provides an overview on typing, lambda calculus, and strong normalization
+2. Type Discipline - in-depth technical details of how I represent dependent typings for the SK combinators
