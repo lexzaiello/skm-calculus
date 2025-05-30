@@ -1,14 +1,21 @@
 import Text.Printf (printf)
 import System.IO
 import System.Environment
+import Data.List
+import Data.Maybe
 
 toMarkdown :: String -> String
-toMarkdown = unlines . snd . foldl step (True, (["```lean"] :: [String])) . lines
+toMarkdown = unlines . stripPrefixD . foldl step ([blockstart] :: [String]) . lines
   where
-    step (isLean, acc) line
-      | take 2 line == "-/" = (True, acc ++ ["```lean"])
-      | take 2 line == "/-" = (False, acc ++ ["```"])
-      | otherwise            = (isLean, acc ++ [line])
+    stripPrefixD s =
+      let s' = stripPrefix [blockstart, blockend] s in
+        fromMaybe s s'
+    blockstart = "```lean"
+    blockend   = "```"
+    step acc line
+      | take 2 line == "-/" = acc ++ [blockstart]
+      | take 2 line == "/-" = acc ++ [blockend]
+      | otherwise           = acc ++ [line]
 
 main :: IO ()
 main = do
