@@ -1,5 +1,7 @@
 /.lake
 
+scripts/ToMarkdown
+
 *.acn
 *.acr
 *.alg
