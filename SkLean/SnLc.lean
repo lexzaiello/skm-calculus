@@ -66,7 +66,7 @@ def eval''' (e : Expr'') (steps : ℕ) : Option Expr'' :=
 /-
 This is fine for some hand-written functions, like \\((\lambda x : \mathbb{N}.x) 1\\).
 -/
-n
+
 #eval eval''' (.app (.abstraction (.base .nat) (.var 1)) (.cnst (.num 1))) 2
 
 /-
