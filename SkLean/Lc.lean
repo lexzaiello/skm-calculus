@@ -93,12 +93,14 @@ deriving Repr
 
 /-
 We will also have to update substitute to reflect this change.
+
 A simple algorithm for variable substitution in De Bruijn-indexed expressions simply increments a "depth" counter until it reaches a variable with \\(n = \text{depth}\\), then replaces the value.
 However, free variables need to be accounted for.
 In the case of the expression being substituted in, for every deeper level in the tree which it is inserted in, its free variables msut be incremented by 1.
-The inverse is true of free variables in the expression being substituted into.
 -/
 
+-- Shifts free variable de bruijn indices by the specified amount
+-- each layer deeper, the shift becomes larger
 def with_indices_plus (in_expr : Expr') (shift_by : ℕ) : Expr' :=
   match in_expr with
     | .abstraction body =>
@@ -119,7 +121,9 @@ def substitute' (in_expr : Expr') (n : ℕ) (with_expr : Expr') : Expr' :=
     | x => x
 
 /-
-We may now attempt to write an evaluation function. Evaluation should continaully perform substitution until no function applications remain at the outermost layer of the expression. This will not compile without the keyword "partial" in Lean, as it could potentially run forever (i.e., uses unfounded recursion).
+#### `partial` Evaluation with Unfounded Recursion
+
+We may now attempt to write an evaluation function. Evaluation should continually perform substitution until no function applications remain at the outermost layer of the expression.
 -/
 
 partial def eval (e : Expr') : Expr' :=
@@ -131,6 +135,8 @@ partial def eval (e : Expr') : Expr' :=
     | x => x
 
 /-
+Unfortunately, this will not compile without the keyword "partial" in Lean, as it could potentially run forever (i.e., uses unfounded recursion). As a result, proving properties about this function is impossible in Lean, as it cannot reason about the function in a manner consistent with its type system.
+
 ## Simply-Typed Lambda Calculus
 
 The simply-typed lambda calculus prevents infinitely reducing expressions from being expressed by assigning types to expressions:
