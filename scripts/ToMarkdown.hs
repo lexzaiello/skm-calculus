@@ -6,8 +6,8 @@ toMarkdown :: String -> String
 toMarkdown = unlines . snd . foldl step (True, (["```lean"] :: [String])) . lines
   where
     step (isLean, acc) line
-      | take 3 line == "--/" = (True, acc ++ ["```lean"])
-      | take 3 line == "/--" = (False, acc ++ ["```"])
+      | take 2 line == "-/" = (True, acc ++ ["```lean"])
+      | take 2 line == "/-" = (False, acc ++ ["```"])
       | otherwise            = (isLean, acc ++ [line])
 
 main :: IO ()
