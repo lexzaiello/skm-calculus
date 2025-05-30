@@ -1,5 +1,4 @@
 /-
-
 # Typed and Untyped Lambda Calculus
 
 ## Untyped Lambda Calculus
@@ -156,12 +155,12 @@ We can then encode typed lambda expressions in Lean like so:
 
 inductive Base where
   | nat : Base
-deriving BEq, Repr
+deriving DecidableEq, BEq, Repr
 
 inductive Ty where
   | base  : Base → Ty
   | arrow : Ty   → Ty → Ty
-deriving BEq, Repr
+deriving DecidableEq, BEq, Repr
 
 open Base
 open Ty
@@ -186,7 +185,7 @@ We will also define a mapping from constant values to types:
 
 inductive Cnst where
   | num : ℕ → Cnst
-deriving BEq, Repr
+deriving DecidableEq, BEq, Repr
 
 def type_of_cnst : Cnst → Base
   | .num _ => .nat
@@ -200,7 +199,7 @@ inductive Expr'' where
   | var : ℕ          → Expr''
   | app : Expr''     → Expr'' → Expr''
   | abstraction : Ty → Expr''  → Expr''
-deriving BEq, Repr
+deriving BEq, Repr, DecidableEq
 
 /-
 In order to represent the types of variables, we will maintain a stack of types of the nearest abstraction binders (e.g., \\(\lambda x : \alpha.x\\)). We can determine the type of a variable by looking up its type in this "context."
