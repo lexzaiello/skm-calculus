@@ -37,7 +37,7 @@ inductive beta_eq : SkExpr → SkExpr → Prop
 - **`∀ x : bindty.body`** expression: `t` is a valid judgement if `t_body` is a valid judgement for `body` and `t = t_body`.
 - **`Type n`** expression: `t` is a valid judgement if `t = ty (n + 1)`.
 - **`Prop`** expression: `t` is a valid judgement if `t = ty 0`
-- **`var n` expression: `t` isa  valid judgement if the the nth nearest-bound variable in the context is of type `t`.
+- **`var n`** expression: `t` isa  valid judgement if the the nth nearest-bound variable in the context is of type `t`.
 - `t` is a valid judgement for `e` if some `t'` is beta equivalent to it, and `t'` is a valid judgement for `e`.
 -/
 
