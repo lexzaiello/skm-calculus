@@ -81,7 +81,7 @@
           buildPhase = ''
             mkdir src
             mv *.md src/
-            cp ${./README.md} src/README.md
+            cp ${./README.org.md} src/README.org.md
             cp ${./scripts/highlight.js} highlight.js
             echo '${booktoml}' > book.toml
             echo '${summarymd}' > src/SUMMARY.md
