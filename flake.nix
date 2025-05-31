@@ -38,13 +38,12 @@
               ${md}/bin/md < $file > $file.md
             done
             find . -type f -name "*.org" | while read -r file; do
-              echo $name
-              ${pkgs.pandoc}/bin/pandoc -s $file -o $file.md
+              ${pkgs.pandoc}/bin/pandoc --from=org --to=gfm $file > $file.md
             done
           '';
           installPhase = ''
             mkdir -p $out/
-            find SkLean -type f -name "*.md" | while read -r file; do
+            find . -type f -name "*.md" | while read -r file; do
               mv $file $out
             done
           '';
@@ -81,7 +80,6 @@
           buildPhase = ''
             mkdir src
             mv *.md src/
-            cp ${./README.org.md} src/README.org.md
             cp ${./scripts/highlight.js} highlight.js
             echo '${booktoml}' > book.toml
             echo '${summarymd}' > src/SUMMARY.md
