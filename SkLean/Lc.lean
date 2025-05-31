@@ -88,7 +88,7 @@ inductive Expr' where
   | var : ℕ     → Expr'
   | app : Expr' → Expr' → Expr'
   | abstraction : Expr' → Expr'
-deriving Repr
+deriving Repr, BEq, DecidableEq
 
 /-
 We will also have to update substitute to reflect this change.
@@ -159,7 +159,7 @@ inductive Base where
 deriving DecidableEq, BEq, Repr
 
 inductive Ty where
-  | base  : base → Ty
+  | base  : Base → Ty
   | arrow : Ty   → Ty → Ty
 deriving DecidableEq, BEq, Repr
 
@@ -201,7 +201,7 @@ inductive Expr'' where
   | cnst : Cnst      → Expr''
   | var : ℕ          → Expr''
   | app : Expr''     → Expr'' → Expr''
-  | abstraction : ty → Expr''  → Expr''
+  | abstraction : Ty → Expr''  → Expr''
 deriving BEq, Repr, DecidableEq
 
 /-
