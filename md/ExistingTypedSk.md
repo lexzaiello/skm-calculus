@@ -49,4 +49,4 @@
 
 As of yet, it remains to be explored whether the dependent \\(SK\\) combinators are provably strongly normalizing.
 Furthermore, mechanizing such a proof in a language like Lean is of particular interest.
-In this paper, I do so, building off existing dependent typings of the SK combinators, and Girard's reducibility candidates.
+In this paper, I do so, building off existing dependent typings of the SK combinators and Girard's reducibility candidates.
