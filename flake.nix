@@ -15,7 +15,7 @@
 
           [output.html]
           mathjax-support = true
-          additional-js = ["highlight.js"]
+          additional-js = ["highlight.js", "mathjaxconfig.js"]
         '';
         md = with pkgs.haskellPackages;
           pkgs.stdenv.mkDerivation {
@@ -81,6 +81,7 @@
             mkdir src
             mv *.md src/
             cp ${./scripts/highlight.js} highlight.js
+            cp ${./scripts/mathjaxconfig.js} mathjaxconfig.js
             echo '${booktoml}' > book.toml
             echo '${summarymd}' > src/SUMMARY.md
             ${pkgs.mdbook}/bin/mdbook build
