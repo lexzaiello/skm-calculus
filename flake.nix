@@ -38,7 +38,7 @@
               ${md}/bin/md < $file > $file.md
             done
             find . -type f -name "*.org" | while read -r file; do
-              ${pkgs.pandoc}/bin/pandoc --from=org --to=gfm $file > $file.md
+              ${pkgs.pandoc}/bin/pandoc -s $file -o $file.md
             done
           '';
           installPhase = ''

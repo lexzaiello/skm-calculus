@@ -10,8 +10,8 @@ mkfooter s = s ++ "/-\nMade by [<b>Dowland Aiello</b>](https://github.com/dowlan
 
 step ::[String] -> [String]
 step [] = []
-step s
-  | otherwise = let lean = ((takeWhile (/= "-/")) . (takeWhile (/= "/-"))) s; md = drop (length lean) s; in
+step s =
+  let lean = ((takeWhile (/= "-/")) . (takeWhile (/= "/-"))) s; md = drop (length lean) s; in
       if md == s then
         let md = ((dropWhile (== "/-")) . (takeWhile (/= "-/"))) s; lean = drop ((length md) + 1) s in
           md ++ step lean

@@ -1,2 +1,15 @@
-# Existing Work: Typed SK Combinators
+* Existing Work: Typed SK Combinators
+
+** Definition of the SK Combinators
+
+1. [On the building blocks of mathematical logic](https://content.wolfram.com/sites/43/2020/12/Schonfinkel-OnTheBuildingBlocksOfMathematicalLogic.pdf)
+- Schonfinkel demonstrates that the \\(I\\) combiantor (\\(I x\\) = x\\)) can be constructed using only \\(K\\) (or by the name \\(C\\)) and \\(S\\).
+- 
+
+** Strong Normalization of the SK Combinators
+
+
+
+** Common Dependent Typings of the Combinators
+
 
