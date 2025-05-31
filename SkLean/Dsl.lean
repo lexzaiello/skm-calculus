@@ -50,6 +50,7 @@ syntax "K"                                         : skexpr
 syntax "S"                                         : skexpr
 syntax "Prop"                                      : skexpr
 syntax "Type" num                                  : skexpr
+syntax "Type" ident                                : skexpr
 syntax "∀"  ident ":" skexpr "," skexpr  : skexpr
 syntax "(" skexpr skexpr ")"                       : skexpr
 syntax "(" skexpr ")"                              : skexpr
@@ -65,6 +66,7 @@ macro_rules
   | `(⟪ S ⟫)              => `(NamedSkExpr.s)
   | `(⟪ Prop ⟫)           => `(NamedSkExpr.prp)
   | `(⟪ Type $n:num ⟫)    => `(NamedSkExpr.ty $n)
+  | `(⟪ Type $v:ident ⟫)    => `(NamedSkExpr.ty $v)
   | `(⟪ #$var:ident ⟫)       =>
     `(NamedSkExpr.var $(Lean.quote var.getId.toString))
   | `(⟪ $var:ident ⟫)       => `(NamedSkExpr.e $var)

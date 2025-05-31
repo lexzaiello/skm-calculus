@@ -1,5 +1,8 @@
 /-
 Type judgements are relatively obvious, except in the case of application, and the \\(\forall\\) expresion.
+
+I make use of a De Bruijn-indexed context corresponding to the bound type of a variable \\(n\\) in an expression.
+Indexes are offset by one. `BindId` 1 refers to the current \\(\forall\\) expression, while `ctx[0]` refers to the most recent bound variable's type.
 -/
 
 import SkLean.Ast
@@ -8,29 +11,14 @@ import Mathlib.Tactic
 
 open SkExpr
 
-/-
-I make use of a De Bruijn-indexed context corresponding to the bound type of a variable \\(n\\) in an expression.
-Indexes are offset by one. BindId 1 refers to the current \\(\forall\\) expression, while ctx[0] refers to the most recent bound variable's type.
--/
-
 abbrev Ctx := List SkExpr
 
 /-
-I make use of a DSL for convenience and legibility. See [DSL](./Dsl.lean.md) for more.
+I make use of a DSL for convenience and legibility. See [DSL](./Dsl.lean.md) for more. The types of K and S are fixed, although they are dependent on a universe level provided at the meta-level.
 -/
-def ty_k := SK[∀ α : Type 0, ∀ β : Type 0, #α → #β → #α]
-def ty_s := SK[∀ α : Type 0, ∀ β : Type 0, ∀ γ : Type 0, (#α → #β → #γ) → (#α → #β) → #α → #γ]
 
-partial def type_of_unsafe (ctx : Ctx) : SkExpr → Option SkExpr
-  | ty n => some $ ty n.succ
-  | var n => ctx[n.toNat - 1]?
-  | prp => ty 0
-  | k => ty_k
-  | s => ty_s
-  | fall bind_ty body => type_of_unsafe (bind_ty :: ctx) body
-  | call lhs rhs => do
-    let t_lhs <- type_of_unsafe ctx lhs
-    pure $ (t_lhs.substitute ⟨0⟩ rhs).body
+def ty_k {m n : ℕ} := SK[∀ α : Type m, ∀ β : Type n, #α → #β → #α]
+def ty_s {m n o : ℕ} := SK[∀ α : Type m, ∀ β : Type n, ∀ γ : Type o, (#α → #β → #γ) → (#α → #β) → #α → #γ]
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
@@ -39,10 +27,10 @@ inductive beta_eq : SkExpr → SkExpr → Prop
   | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
 
 inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
-  | k ctx e t (h_is_k : match e with | SkExpr.k => true | _ => false) :
-    t = ty_k → valid_judgement ctx e t
-  | s ctx e t (h_is_s : match e with | SkExpr.s => true | _ => false) :
-    t = ty_s → valid_judgement ctx e t
+  | k ctx e t m n (h_is_k : match e with | SkExpr.k => true | _ => false) :
+    t = @ty_k m n → valid_judgement ctx e t
+  | s ctx e t m n o (h_is_s : match e with | SkExpr.s => true | _ => false) :
+    t = @ty_s m n o → valid_judgement ctx e t
   | call ctx e t (lhs : SkExpr) (rhs : SkExpr) (t_lhs : SkExpr) (t_rhs : SkExpr) (h_is_call : match e with | call lhs' rhs' => lhs' = lhs ∧ rhs' = rhs | _ => false) :
     valid_judgement ctx lhs t_lhs → valid_judgement ctx rhs t_rhs → t = (t_lhs.substitute ⟨0⟩ rhs).body → valid_judgement ctx e t
   | fall ctx e t bind_ty body t_body (h_is_fall : match e with | fall _ _ => true | _ => false) :
@@ -51,3 +39,19 @@ inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
     t = t_body → valid_judgement ctx e t
   | obvious ctx e t : (match e with | ty n => t = ty n.succ | prp => t = ty 0 | var ⟨n + 1⟩ => ctx[n]? = some t | _ => false) → valid_judgement ctx e t
   | beta_eq ctx e e₂ t : beta_eq e e₂ → valid_judgement ctx e₂ t → valid_judgement ctx e t
+
+/-
+For testing purposes, I encode my type inference rules in an unsafe "partial" function:
+-/
+
+partial def type_of_unsafe {m n o : ℕ} (ctx : Ctx) : SkExpr → Option SkExpr
+  | ty n => some $ ty n.succ
+  | var n => ctx[n.toNat - 1]?
+  | prp => ty 0
+  | k => @ty_k m n
+  | s => @ty_s m n o
+  | fall bind_ty body => @type_of_unsafe m n o (bind_ty :: ctx) body
+  | call lhs rhs => do
+    let t_lhs <- @type_of_unsafe m n o ctx lhs
+    pure $ (t_lhs.substitute ⟨0⟩ rhs).body
+
