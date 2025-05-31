@@ -1,18 +1,81 @@
+/-
+I define strong normalization inductively as:
+
+- Termination in one step of evaluation
+- Strong normalization of the next step of evaluation
+-/
+
 import SkLean.Ast
 import SkLean.Dsl
 import SkLean.Typing
 
 open SkExpr
 
-inductive sn : SkExpr → Prop
-  | trivial e : eval_once e = e    → sn e
-  | hard    e : (sn ∘ eval_once) e → sn e
+inductive Sn : SkExpr → Prop
+  | trivial e : eval_once e = e    → Sn e
+  | hard    e : (Sn ∘ eval_once) e → Sn e
 
-inductive in_r : Ctx → SkExpr → SkExpr → Prop
-  | k ctx e t α β (h_t : t = SK[α → β → α]) : ∀ arg₁ arg₂,
-    valid_judgement ctx e t →
-    in_r ctx α arg₁ →
-    in_r ctx (eval_once (call (call (call (call k α) β) arg₁) arg₂)) α →
-    in_r ctx e t
-  | s ctx e t (α : SkExpr) (β : SkExpr) (γ : SkExpr) (h_t : t = SK[(α → β → γ) → (α → β) → α → γ]) : ∀ arg₁ arg₂ arg₃, sorry → in_r ctx e t
-  | obvious ctx e t (h_is_obv : match e with | ty _ => true | fall _ _ => true | _ => false) : valid_judgement ctx e t → in_r ctx e t
+/-
+I reuse the [previous lemmas](./SnLc.lean.md) about SN bidirectionality.
+-/
+
+lemma eval_rfl_imp_sn_iff : ∀ e, eval_once e = e → (Sn (eval_once e) ↔ Sn e) := by
+  intro e h_eq
+  constructor
+  rw [h_eq]
+  simp
+  rw [h_eq]
+  simp
+
+lemma sn_bidirectional : ∀ (e : SkExpr), Sn (eval_once e) ↔ Sn e := by
+  intro e
+  match e with
+    | .var n =>
+      have h : eval_once (.var n) = (.var n) := by
+        unfold eval_once
+        simp
+      apply eval_rfl_imp_sn_iff
+      exact h
+    | .call lhs rhs =>
+      constructor
+      intro h
+      apply Sn.hard
+      exact h
+      intro h
+      cases h
+      case mpr.trivial a =>
+        rw [a]
+        apply Sn.trivial
+        exact a
+      case mpr.hard a =>
+        exact a
+    | .k =>
+      have h : eval_once k = k := by
+        unfold eval_once
+        simp
+      apply eval_rfl_imp_sn_iff
+      exact h
+    | .s =>
+      have h : eval_once s = s := by
+        unfold eval_once
+        simp
+      apply eval_rfl_imp_sn_iff
+      exact h
+    | .fall a b =>
+      have h : eval_once (fall a b) = fall a b := by
+        unfold eval_once
+        simp
+      apply eval_rfl_imp_sn_iff
+      exact h
+    | .prp =>
+      have h : eval_once prp = prp := by
+        unfold eval_once
+        simp
+      apply eval_rfl_imp_sn_iff
+      exact h
+    | .ty n =>
+      have h : eval_once (ty n) = ty n := by
+        unfold eval_once
+        simp
+      apply eval_rfl_imp_sn_iff
+      exact h

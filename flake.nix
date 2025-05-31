@@ -65,6 +65,9 @@
             - [AST](./Ast.lean.md)
             - [DSL](./Dsl.lean.md)
             - [Type Inference](./Typing.lean.md)
+
+            # Strong Normaliztaion Proof
+            - [Definitions](./Sn.lean.md)
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";
