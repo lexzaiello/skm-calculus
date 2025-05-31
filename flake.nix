@@ -15,7 +15,7 @@
 
           [output.html]
           mathjax-support = true
-          additional-js = ["highlight.js", "mathjaxconfig.js"]
+          additional-js = ["highlight.js"]
         '';
         md = with pkgs.haskellPackages;
           pkgs.stdenv.mkDerivation {
@@ -38,7 +38,7 @@
               ${md}/bin/md < $file > $file.md
             done
             find . -type f -name "*.org" | while read -r file; do
-              ${pkgs.pandoc}/bin/pandoc -s $file -o $file.md
+              ${pkgs.pandoc}/bin/pandoc --lua-filter=${./scripts/fixinlinelatexorg.lua} -s $file -o $file.md
             done
           '';
           installPhase = ''
@@ -64,7 +64,7 @@
             - [SK Combinators](./SkRaw.lean.md)
 
             # Existing Work
-            - [Typed SK Combinators](./ExistingTypedSk.org.md)
+            - [Typed SK Combinators](./ExistingTypedSk.md)
 
             # Type Discipline
             - [AST](./Ast.lean.md)
@@ -81,7 +81,6 @@
             mkdir src
             mv *.md src/
             cp ${./scripts/highlight.js} highlight.js
-            cp ${./scripts/mathjaxconfig.js} mathjaxconfig.js
             echo '${booktoml}' > book.toml
             echo '${summarymd}' > src/SUMMARY.md
             ${pkgs.mdbook}/bin/mdbook build
