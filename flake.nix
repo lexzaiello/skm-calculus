@@ -35,8 +35,10 @@
           src = ./.;
           buildPhase = ''
             find SkLean -type f -name "*.lean" -not -path "SkLean/tests/*" | while read -r file; do
-              echo $file
               ${md}/bin/md < $file > $file.md
+            done
+            find SkLean -type f -name "*.org" | while read -r file; do
+              ${pkgs.pandoc} -s $file -o $file.md
             done
           '';
           installPhase = ''
@@ -62,7 +64,7 @@
             - [SK Combinators](./SkRaw.lean.md)
 
             # Existing Work
-            - [Typed SK Combinators](./existing_typed_sk.md)
+            - [Typed SK Combinators](./ExistingTypedSk.org.md)
 
             # Type Discipline
             - [AST](./Ast.lean.md)
@@ -99,7 +101,7 @@
         };
         apps.serve-live = let
           serve-live = pkgs.writeShellScriptBin "serve-live" ''
-            ${pkgs.watchexec}/bin/watchexec -e lean,md,nix --restart -- nix run .#book-serve
+            ${pkgs.watchexec}/bin/watchexec -e lean,md,nix,org --restart -- nix run .#book-serve
           '';
         in {
           type = "app";
