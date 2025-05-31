@@ -37,8 +37,9 @@
             find SkLean -type f -name "*.lean" -not -path "SkLean/tests/*" | while read -r file; do
               ${md}/bin/md < $file > $file.md
             done
-            find SkLean -type f -name "*.org" | while read -r file; do
-              ${pkgs.pandoc} -s $file -o $file.md
+            find . -type f -name "*.org" | while read -r file; do
+              echo $name
+              ${pkgs.pandoc}/bin/pandoc -s $file -o $file.md
             done
           '';
           installPhase = ''
@@ -55,7 +56,7 @@
           summarymd = ''
             # Summary
 
-            [Introduction](./README.md)
+            [Introduction](./README.org.md)
 
             # Background
             - [Typed and Untyped Lambda Calculus](./Lc.lean.md)
