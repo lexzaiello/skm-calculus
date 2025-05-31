@@ -45,20 +45,20 @@ inductive beta_eq : SkExpr → SkExpr → Prop
 
 inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
   | k ctx k t m n :
-    t = @ty_k m n → valid_judgement ctx (.k e) t
-  | s ctx e t m n o :
-    t = @ty_s m n o → valid_judgement ctx (.s e) t
+    t = @ty_k m n → valid_judgement ctx (.k k) t
+  | s ctx s t m n o :
+    t = @ty_s m n o → valid_judgement ctx (.s s) t
   | call ctx (call : Call) t
-    (t_lhs : SkExpr) (t_rhs : SkExpr) :
-      valid_judgement ctx call.lhs t_lhs →
-      valid_judgement ctx call.rhs t_rhs →
-      some t = (t_lhs.substitute ⟨0⟩ call.rhs).body →
-      valid_judgement ctx e t
-  | fall ctx e t bind_ty body t_body (h_is_fall : match e with | fall _ _ => true | _ => false) :
-    valid_judgement (bind_ty :: ctx) body t_body →
-    e = fall bind_ty body →
-    t = t_body → valid_judgement ctx e t
-  | obvious ctx e t : (match e with | ty n => t = ty n.succ | prp => t = ty 0 | var ⟨n + 1⟩ => ctx[n]? = some t | _ => false) → valid_judgement ctx e t
+    (t_lhs : Fall) (t_rhs : Fall) :
+      valid_judgement ctx call.lhs (.fall t_lhs) →
+      valid_judgement ctx call.rhs (.fall t_rhs) →
+      some t = (t_lhs.substitute call.rhs).body →
+      valid_judgement ctx (.call call) t
+  | fall ctx (fall : Fall) t bind_ty t_body :
+    valid_judgement (bind_ty :: ctx) fall.body t_body →
+    t = t_body → valid_judgement ctx (.fall fall) t
+  | ty ctx (ty_e : Ty) (t : Ty) : t.n = ty_e.n.succ → valid_judgement ctx (.ty ty_e) (.ty t)
+  | prp ctx (prp : Prp) (t : Ty) : t = .mk 0 → valid_judgement ctx (.prp prp) (.ty t)
   | beta_eq ctx e t t₂ : beta_eq t t₂ → valid_judgement ctx e t₂ → valid_judgement ctx e t
 
 /-
@@ -66,13 +66,16 @@ For testing purposes, I also encode my type inference rules in an unsafe "partia
 -/
 
 partial def type_of_unsafe {m n o : ℕ} (ctx : Ctx) : SkExpr → Option SkExpr
-  | ty n => some $ ty n.succ
-  | var n => ctx[n.toNat - 1]?
-  | prp => ty 0
-  | k => @ty_k m n
-  | s => @ty_s m n o
-  | fall bind_ty body => @type_of_unsafe m n o (bind_ty :: ctx) body
-  | call lhs rhs => do
+  | ty (.mk n) => some $ .ty (.mk n.succ)
+  | var (.mk n) => ctx[n.toNat - 1]?
+  | prp _ => ty (.mk 0)
+  | k _ => @ty_k m n
+  | s _ => @ty_s m n o
+  | fall (.mk bind_ty body) => @type_of_unsafe m n o (bind_ty :: ctx) body
+  | call (.mk lhs rhs) => do
     let t_lhs <- @type_of_unsafe m n o ctx lhs
-    (t_lhs.substitute ⟨0⟩ rhs).body
+    match t_lhs with
+      | .fall f =>
+        pure $ (f.substitute rhs).body
+      | _ => none
 

@@ -55,25 +55,30 @@ An expression is one of: \\(K\\), \\(S\\), \\(\text{Prop}\\), \\(\text{Ty}\ n\\)
 For convenience and legibility, I create a separate definition of each expression:
 -/
 
-mutual
-
 inductive K where
   | mk : K
+deriving BEq, Repr
 
 inductive S where
   | mk : S
+deriving BEq, Repr
 
 inductive Prp where
   | mk : Prp
+deriving BEq, Repr
 
 /-
 Stratified type universes.
 -/
 inductive Ty where
   | mk : ℕ → Ty
+deriving BEq, Repr
+
+mutual
 
 inductive Call where
   | mk : SkExpr → SkExpr → Call
+deriving BEq, Repr
 
 /-
 Var uses a 1-indexed De Bruijn position.
@@ -81,6 +86,7 @@ Var uses a 1-indexed De Bruijn position.
 
 inductive Var where
   | mk : BindId → Var
+deriving BEq, Repr
 
 /-
 \\(\forall\\) takes a type of its binder \\(x : t\\), and has a body containing \\(e\\).
@@ -99,6 +105,17 @@ inductive SkExpr where
 deriving BEq, Repr
 
 end
+
+/-
+Some convenience accessor methods:
+-/
+
+namespace Ty
+
+def n : Ty → ℕ
+  | .mk n => n
+
+end Ty
 
 namespace Call
 
