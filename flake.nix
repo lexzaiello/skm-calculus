@@ -34,7 +34,7 @@
           name = "book-md";
           src = ./.;
           buildPhase = ''
-            find SkLean -type f -name "*.lean" | while read -r file; do
+            find SkLean -type f -name "*.lean" -not -path "SkLean/tests/*" | while read -r file; do
               echo $file
               ${md}/bin/md < $file > $file.md
             done
@@ -62,7 +62,9 @@
             - [SK Combinators](./SkRaw.lean.md)
 
             # Type Discipline
-            - [Dependently-Typed SK Combinators: AST](./Ast.lean.md)
+            - [AST](./Ast.lean.md)
+            - [DSL](./Dsl.lean.md)
+            - [Type Inference](./Typing.lean.md)
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";

@@ -1,11 +1,23 @@
+/-
+Type judgements are relatively obvious, except in the case of application, and the \\(\forall\\) expresion.
+-/
+
 import SkLean.Ast
 import SkLean.Dsl
 import Mathlib.Tactic
 
 open SkExpr
 
+/-
+I make use of a De Bruijn-indexed context corresponding to the bound type of a variable \\(n\\) in an expression.
+Indexes are offset by one. BindId 1 refers to the current \\(\forall\\) expression, while ctx[0] refers to the most recent bound variable's type.
+-/
+
 abbrev Ctx := List SkExpr
 
+/-
+I make use of a DSL for convenience and legibility. See [DSL](./Dsl.lean.md) for more.
+-/
 def ty_k := SK[∀ α : Type 0, ∀ β : Type 0, #α → #β → #α]
 def ty_s := SK[∀ α : Type 0, ∀ β : Type 0, ∀ γ : Type 0, (#α → #β → #γ) → (#α → #β) → #α → #γ]
 

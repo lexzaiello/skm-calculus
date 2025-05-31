@@ -1,9 +1,32 @@
 /-
 # Dependently-Typed SK Combinators
+
+I interpret the SK combinators as dependently typed functions of the form:
+
+$$
+K\ (\alpha : \text{Type}\ m)\ (\beta : \text{Type}\ n) : \alpha \rightarrow \beta \rightarrow \alpha \\\\
+S\ (\alpha : \text{Type}\ m)\ (\beta : \text{Type}\ n)\ (\gamma : \text{Type}\ o) : (\alpha \rightarrow \beta \rightarrow \gamma) \rightarrow (\alpha \rightarrow \beta) \rightarrow \alpha \rightarrow \gamma
+$$
+
+where \\(K\ \mathbb{N}\ \mathbb{R}\\) produces a function of type \\(\mathbb{N} \rightarrow \mathbb{R} \rightarrow \mathbb{N}\\).
+
+Borrowing from the calculus of constructions, the types of \\(K\\) and \\(S\\) are explicitly given by the \\(\forall\\) expression:
+
+$$
+K : (\forall \alpha : \text{Type}\ m, \beta : \text{Type}\ n, x : \alpha\ y : \beta . \alpha) \\\\
+S : (\forall \alpha : \text{Type}\ m, \beta : \text{Type}\ n, \gamma : \text{Type}\ o, x : (\forall x : \alpha, y : \beta, z : \gamma . \gamma), y : (\forall x : \alpha, y : \beta . \alpha), z : \alpha . \gamma)
+$$
+
+Typing judgements on function application are derived from substitution on \\(\forall\\). For example, the type of \\(K\ \mathbb{N}\\) is derived from substitution of \\(\mathbb{N}\\) into the type of \\(K\\). That is, \\(\alpha\\) is replaced with \\(\mathbb{N}\\), and the type of the expression is said to be equal to the body of the \\(\forall\\) in which the value was substituted.
+
+The K and S combinators can be encoded in AST form in Lean using De Bruijn indices like such:
 -/
 
 import Mathlib.Data.Nat.Notation
 
+/-
+A `BindId n` refers to the value of the variable binder in the nth-up \\(\forall\\) expression.
+-/
 structure BindId where
   toNat : ℕ
 deriving BEq, Repr
@@ -21,6 +44,12 @@ instance : DecidableRel (@LT.lt BindId _) :=
 
 end BindId
 
+/-
+For example, the expression \\(\forall x : \alpha.x\\) can be rewritten using De Bruijn indices to \\(\forall \alpha.1\\).
+
+An expression is one of: \\(K\\), \\(S\\), \\(\text{Prop}\\), \\(\text{Ty}\ n\\), \\((\forall e_{1}.e_{2})\\), \\(e_{1}\ e_{2}\\), or a variable \\(n\\).
+-/
+
 inductive SkExpr where
   | k    : SkExpr
   | s    : SkExpr
@@ -33,7 +62,10 @@ deriving BEq, Repr
 
 namespace SkExpr
 
--- TODO: Lemma about index shifting
+/-
+Whenever a value is substituted in to a \\(\forall\\) expression, all its free variables must be incremented by 1 in order to prevent shadowing from the new surrounding expression.
+-/
+
 def with_indices_plus (in_expr : SkExpr) (shift_by : BindId) : SkExpr :=
   match in_expr with
     | fall bind_ty body =>
@@ -53,6 +85,10 @@ def substitute (in_expr : SkExpr) (n : BindId) (with_expr : SkExpr) : SkExpr :=
       fall (bind_ty.substitute n.succ with_expr) (body.substitute n.succ with_expr)
     | var n' => if n == n' then with_expr.with_indices_plus n else var n'
     | x => x
+
+/-
+I give a few test cases of index shifting:
+-/
 
 example : (fall (ty 0) (var ⟨2⟩)).with_indices_plus ⟨1⟩ = (fall (ty 0) (var ⟨2⟩)) := by
   repeat unfold with_indices_plus
@@ -98,9 +134,17 @@ example : (fall (ty 0) (var ⟨1⟩)).substitute ⟨0⟩ (fall (ty 0) (var ⟨4�
     simp_all
     contradiction
 
+/-
+When inferring the type of a function application, the rhs of the application is substituted in to the left hand side's type (\\(\forall\\)). The type of the application is said to be equivalent to the body of the substituted \\(\forall\\). See [type inference rules](./Typing.lean.md) for more.
+-/
+
 def body : SkExpr → SkExpr
   | fall _ body => body
   | x => x
+
+/-
+One-step evaluation is only defined for \\(K\ \alpha\ \beta\ x\ y\\) and \\(S\ \alpha\ \beta\ \gamma\ x\ y\ z\\).
+-/
 
 def eval_once : SkExpr → SkExpr
   | (call (call (call (call k _) _) x) _) => x

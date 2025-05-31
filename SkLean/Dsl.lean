@@ -1,22 +1,28 @@
+/-
+I define a DSL to convert human-readable input with named variable to De Bruijn indexed AST expressions.
+-/
+
 import SkLean.Ast
+
+/-
+De Bruijn and "named variable" expresions are mixed in the same tree.
+-/
 
 inductive NamedSkExpr where
   | k    : NamedSkExpr
   | s    : NamedSkExpr
   | prp  : NamedSkExpr
-  | ty   : ℕ      → NamedSkExpr
-  | fall : String → NamedSkExpr → NamedSkExpr → NamedSkExpr
+  | ty   : ℕ           → NamedSkExpr
+  | fall : String      → NamedSkExpr → NamedSkExpr → NamedSkExpr
   | call : NamedSkExpr → NamedSkExpr → NamedSkExpr
-  | var  : String → NamedSkExpr
-  | e    : SkExpr → NamedSkExpr
+  | var  : String      → NamedSkExpr
+  | e    : SkExpr      → NamedSkExpr
 
 namespace NamedSkExpr
 
-def with_indices_plus (in_expr : NamedSkExpr) (n : BindId) : NamedSkExpr :=
-  match in_expr with
-    | .e e' => .e $ e'.with_indices_plus n
-    | x => x
-
+/-
+De Bruijn indices are assigned eagerly based on the location of the nearest bound matching variable.
+-/
 def to_sk_expr (names : List String) : NamedSkExpr → SkExpr
   | .k => .k
   | .e e' => e'
@@ -31,6 +37,14 @@ def to_sk_expr (names : List String) : NamedSkExpr → SkExpr
 
 end NamedSkExpr
 
+/-
+Use like:
+
+SK[K]
+SK[(K (Type 0))]
+SK[∀ α : Type 0, ∀ β : Type 0, ∀ x : α, ∀ y : β, α]
+-/
+
 declare_syntax_cat skexpr
 syntax "K"                                         : skexpr
 syntax "S"                                         : skexpr
@@ -40,7 +54,7 @@ syntax "∀"  ident ":" skexpr "," skexpr  : skexpr
 syntax "(" skexpr skexpr ")"                       : skexpr
 syntax "(" skexpr ")"                              : skexpr
 syntax ident                                       : skexpr
-syntax "#" ident                                       : skexpr
+syntax "#" ident                                   : skexpr
 syntax skexpr "→" skexpr                           : skexpr
 
 syntax " ⟪ " skexpr " ⟫ " : term
@@ -64,3 +78,8 @@ syntax "SK[ " skexpr " ] " : term
 
 macro_rules
   | `(SK[ $e:skexpr ]) => `(NamedSkExpr.to_sk_expr [] ⟪ $e ⟫)
+
+/-
+Variables in body position must be prefixed with #.
+-/
+#eval SK[∀ α : Type 0, ∀ β : Type 0, ∀ x : #α, ∀ y : #β, #α]
