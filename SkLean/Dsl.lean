@@ -40,9 +40,11 @@ end NamedSkExpr
 /-
 Use like:
 
+```lean
 SK[K]
 SK[(K (Type 0))]
 SK[∀ α : Type 0, ∀ β : Type 0, ∀ x : α, ∀ y : β, α]
+```
 -/
 
 declare_syntax_cat skexpr
