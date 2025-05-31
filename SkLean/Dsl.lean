@@ -1,4 +1,6 @@
 /-
+# Dsl
+
 I define a DSL to convert human-readable input with named variable to De Bruijn indexed AST expressions.
 -/
 

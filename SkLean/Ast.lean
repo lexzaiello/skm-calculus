@@ -1,5 +1,5 @@
 /-
-# Dependently-Typed SK Combinators
+# AST
 
 I interpret the SK combinators as dependently typed functions of the form:
 
@@ -22,7 +22,7 @@ Typing judgements on function application are derived from substitution on \\(\f
 The K and S combinators can be encoded in AST form in Lean using De Bruijn indices like such:
 -/
 
-import Mathlib.Data.Nat.Notation
+import Mathlib.Tactic
 
 /-
 A `BindId n` refers to the value of the variable binder in the nth-up \\(\forall\\) expression.

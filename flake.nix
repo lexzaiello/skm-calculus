@@ -61,6 +61,9 @@
             - [Dependent Typing](./CocLcExplainer.lean.md)
             - [SK Combinators](./SkRaw.lean.md)
 
+            # Existing Work
+            - [Typed SK Combinators](./existing_typed_sk.md)
+
             # Type Discipline
             - [AST](./Ast.lean.md)
             - [DSL](./Dsl.lean.md)

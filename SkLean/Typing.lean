@@ -1,4 +1,6 @@
 /-
+# Type Inference
+
 Type judgements are relatively obvious, except in the case of application, and the \\(\forall\\) expresion.
 
 I make use of a De Bruijn-indexed context corresponding to the bound type of a variable \\(n\\) in an expression.
@@ -41,7 +43,7 @@ inductive beta_eq : SkExpr → SkExpr → Prop
 - `t` is a valid judgement for `e` if some `t'` is beta equivalent to it, and `t'` is a valid judgement for `e`.
 -/
 
-inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
+ valid_judgement : Ctx → SkExpr → SkExpr → Prop
   | k ctx e t m n (h_is_k : match e with | SkExpr.k => true | _ => false) :
     t = @ty_k m n → valid_judgement ctx e t
   | s ctx e t m n o (h_is_s : match e with | SkExpr.s => true | _ => false) :

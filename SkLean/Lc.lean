@@ -159,7 +159,7 @@ inductive Base where
 deriving DecidableEq, BEq, Repr
 
 inductive Ty where
-  | base  : Base → Ty
+  | base  : base → Ty
   | arrow : Ty   → Ty → Ty
 deriving DecidableEq, BEq, Repr
 
@@ -201,7 +201,7 @@ inductive Expr'' where
   | cnst : Cnst      → Expr''
   | var : ℕ          → Expr''
   | app : Expr''     → Expr'' → Expr''
-  | abstraction : Ty → Expr''  → Expr''
+  | abstraction : ty → Expr''  → Expr''
 deriving BEq, Repr, DecidableEq
 
 /-

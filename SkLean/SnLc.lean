@@ -51,28 +51,7 @@ def eval_once (e : Expr'') : Expr'' :=
     .app (eval_once lhs) rhs
   | x => x
 
-def eval''' (e : Expr'') (steps : ℕ) : Option Expr'' :=
-  match steps with
-    | 0 =>
-      none
-    | .succ n =>
-      let e' := eval_once e
-
-      if e' = e then
-        some e'
-      else
-        eval''' e' n
-
-/-
-This is fine for some hand-written functions, like \\((\lambda x : \mathbb{N}.x) 1\\).
--/
-
-#eval eval''' (.app (.abstraction (.base .nat) (.var 1)) (.cnst (.num 1))) 2
-
-/-
-However, even with simple expressions, we're limited to guessing and checking. We can do better.
-
-## Definition of Strong Normalization
+def eval''' (e : zntyzzjzzzbhjzbhjzbhjbhzbhjzzzbhjdzbhjgdgddbhjddvation
 
 Assume that evaluation of a given expression \\(e\\) terminates. This is only true if there is some value for `steps` which can be provided to `eval'''`. Thus, we can say that:
 -/
