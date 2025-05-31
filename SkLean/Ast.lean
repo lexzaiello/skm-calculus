@@ -138,9 +138,9 @@ example : (fall (ty 0) (var ⟨1⟩)).substitute ⟨0⟩ (fall (ty 0) (var ⟨4�
 When inferring the type of a function application, the rhs of the application is substituted in to the left hand side's type (\\(\forall\\)). The type of the application is said to be equivalent to the body of the substituted \\(\forall\\). See [type inference rules](./Typing.lean.md) for more.
 -/
 
-def body : SkExpr → SkExpr
-  | fall _ body => body
-  | x => x
+def body : SkExpr → Option SkExpr
+  | fall _ body => some body
+  | _ => none
 
 /-
 One-step evaluation is only defined for \\(K\ \alpha\ \beta\ x\ y\\) and \\(S\ \alpha\ \beta\ \gamma\ x\ y\ z\\).

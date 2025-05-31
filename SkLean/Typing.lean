@@ -20,19 +20,36 @@ I make use of a DSL for convenience and legibility. See [DSL](./Dsl.lean.md) for
 def ty_k {m n : ℕ} := SK[∀ α : Type m, ∀ β : Type n, #α → #β → #α]
 def ty_s {m n o : ℕ} := SK[∀ α : Type m, ∀ β : Type n, ∀ γ : Type o, (#α → #β → #γ) → (#α → #β) → #α → #γ]
 
+/-
+Beta equivalence is defined as equality after some sequence of evaluations. Expressions are certainly \\(=_{\beta}\\) if they are definitionally equivalent. An expression is beta equivalent to another if its one-step redux is equivalent ot the other expression. I assume symmetry and transitivity.
+-/
+
 inductive beta_eq : SkExpr → SkExpr → Prop
   | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
   | hard    e₁ e₂    : beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
   | symm    e₁ e₂    : beta_eq e₂ e₁ → beta_eq e₁ e₂
   | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
 
+/-
+- **K** expression: `t` is a valid judgement if it is equivalent to `ty_k` at the same universe level.
+- **S** expression: `t` is a valid judgement if it is equivalent to `ty_s` at the same universe level.
+- **e₁ e₂** expression: `t` is a valid judgement if `t_rhs` is a valid judgement for the right hand side, `t_lhs` is a valid judgement for the left hand side of the form `∀ x : t_rhs, b`, and \\(t = b[x := rhs]\\).
+- **`∀ x : bindty.body`** expression: `t` is a valid judgement if `t_body` is a valid judgement for `body` and `t = t_body`.
+-/
+
 inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
   | k ctx e t m n (h_is_k : match e with | SkExpr.k => true | _ => false) :
     t = @ty_k m n → valid_judgement ctx e t
   | s ctx e t m n o (h_is_s : match e with | SkExpr.s => true | _ => false) :
     t = @ty_s m n o → valid_judgement ctx e t
-  | call ctx e t (lhs : SkExpr) (rhs : SkExpr) (t_lhs : SkExpr) (t_rhs : SkExpr) (h_is_call : match e with | call lhs' rhs' => lhs' = lhs ∧ rhs' = rhs | _ => false) :
-    valid_judgement ctx lhs t_lhs → valid_judgement ctx rhs t_rhs → t = (t_lhs.substitute ⟨0⟩ rhs).body → valid_judgement ctx e t
+  | call ctx e t
+    (lhs : SkExpr) (rhs : SkExpr)
+    (t_lhs : SkExpr) (t_rhs : SkExpr)
+    (h_is_call : match e with | call lhs' rhs' => lhs' = lhs ∧ rhs' = rhs | _ => false) :
+      valid_judgement ctx lhs t_lhs →
+      valid_judgement ctx rhs t_rhs →
+      some t = (t_lhs.substitute ⟨0⟩ rhs).body →
+      valid_judgement ctx e t
   | fall ctx e t bind_ty body t_body (h_is_fall : match e with | fall _ _ => true | _ => false) :
     valid_judgement (bind_ty :: ctx) body t_body →
     e = fall bind_ty body →
@@ -41,7 +58,7 @@ inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
   | beta_eq ctx e e₂ t : beta_eq e e₂ → valid_judgement ctx e₂ t → valid_judgement ctx e t
 
 /-
-For testing purposes, I encode my type inference rules in an unsafe "partial" function:
+For testing purposes, I also encode my type inference rules in an unsafe "partial" function:
 -/
 
 partial def type_of_unsafe {m n o : ℕ} (ctx : Ctx) : SkExpr → Option SkExpr
