@@ -8,7 +8,7 @@ However, our type system is terse and inflexible. "Polymorphism" is a common fea
 For example, to create a generic identity function that works with \\(\mathbb{R}\\) and \\(\mathbb{N}\\), we would have to duplicate the function:
 -/
 
-import Lc.SkLean
+import SkLean.Lc
 import SkLean.SnLc
 
 open Expr''
