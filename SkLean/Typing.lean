@@ -28,7 +28,7 @@ Beta equivalence is defined as equality after some sequence of evaluations. Expr
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
-  | hard    e₁ e₂    : beta_eq e₁ (eval_once e₂) → beta_eq e₁ e₂
+  | hard    e₁ e₂    : beta_eq e₁ (eval_once e₂) → beta_eq e₁ (.call e₂)
   | symm    e₁ e₂    : beta_eq e₂ e₁ → beta_eq e₁ e₂
   | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
 
@@ -43,18 +43,16 @@ inductive beta_eq : SkExpr → SkExpr → Prop
 - `t` is a valid judgement for `e` if some `t'` is beta equivalent to it, and `t'` is a valid judgement for `e`.
 -/
 
- valid_judgement : Ctx → SkExpr → SkExpr → Prop
-  | k ctx e t m n (h_is_k : match e with | SkExpr.k => true | _ => false) :
-    t = @ty_k m n → valid_judgement ctx e t
-  | s ctx e t m n o (h_is_s : match e with | SkExpr.s => true | _ => false) :
-    t = @ty_s m n o → valid_judgement ctx e t
-  | call ctx e t
-    (lhs : SkExpr) (rhs : SkExpr)
-    (t_lhs : SkExpr) (t_rhs : SkExpr)
-    (h_is_call : match e with | call lhs' rhs' => lhs' = lhs ∧ rhs' = rhs | _ => false) :
-      valid_judgement ctx lhs t_lhs →
-      valid_judgement ctx rhs t_rhs →
-      some t = (t_lhs.substitute ⟨0⟩ rhs).body →
+inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
+  | k ctx k t m n :
+    t = @ty_k m n → valid_judgement ctx (.k e) t
+  | s ctx e t m n o :
+    t = @ty_s m n o → valid_judgement ctx (.s e) t
+  | call ctx (call : Call) t
+    (t_lhs : SkExpr) (t_rhs : SkExpr) :
+      valid_judgement ctx call.lhs t_lhs →
+      valid_judgement ctx call.rhs t_rhs →
+      some t = (t_lhs.substitute ⟨0⟩ call.rhs).body →
       valid_judgement ctx e t
   | fall ctx e t bind_ty body t_body (h_is_fall : match e with | fall _ _ => true | _ => false) :
     valid_judgement (bind_ty :: ctx) body t_body →

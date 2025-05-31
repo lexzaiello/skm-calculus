@@ -26,16 +26,16 @@ namespace NamedSkExpr
 De Bruijn indices are assigned eagerly based on the location of the nearest bound matching variable.
 -/
 def to_sk_expr (names : List String) : NamedSkExpr → SkExpr
-  | .k => .k
+  | .k => .k .mk
   | .e e' => e'
-  | .s => .s
-  | .prp => .prp
-  | .ty n => .ty n
-  | .call lhs rhs => .call (to_sk_expr names lhs) (to_sk_expr names rhs)
-  | .var name => .var $ ⟨Nat.succ <| (names.findIdx? (. = name)).getD 0⟩
-  | .fall name bind_ty body => .fall
+  | .s => .s .mk
+  | .prp => .prp .mk
+  | .ty n => .ty (.mk n)
+  | .call lhs rhs => .call (.mk (to_sk_expr names lhs) (to_sk_expr names rhs))
+  | .var name => .var $ (.mk ⟨Nat.succ <| (names.findIdx? (. = name)).getD 0⟩)
+  | .fall name bind_ty body => .fall (.mk
       (to_sk_expr (name :: names) bind_ty)
-      (to_sk_expr (name :: names) body)
+      (to_sk_expr (name :: names) body))
 
 end NamedSkExpr
 
