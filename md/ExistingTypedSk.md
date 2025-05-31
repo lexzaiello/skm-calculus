@@ -1,4 +1,4 @@
-# Existing Work: Typed SK Combinators
+# Typed SK Combinators & Strong Normalization
 
 ## Definition of the SK Combinators
 

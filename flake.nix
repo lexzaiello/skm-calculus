@@ -64,7 +64,7 @@
             - [SK Combinators](./SkRaw.lean.md)
 
             # Existing Work
-            - [Typed SK Combinators](./ExistingTypedSk.md)
+            - [Typed SK Combinators & Strong Normalization](./ExistingTypedSk.md)
 
             # Type Discipline
             - [AST](./Ast.lean.md)
