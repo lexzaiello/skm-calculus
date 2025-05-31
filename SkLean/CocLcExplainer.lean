@@ -52,6 +52,6 @@ The type inference rules for the CoC are informally given by:
 - \\(\lambda x : tx.b\\) is of type \\(\forall x : tx.tb\\) where \\(tb\\) is the type of \\(b\\)
 - \\(e\\) is of type \\(t'\\) if \\(e\\) is of type \\(t\\) and \\(t'\\) is beta-equivalent to \\(t\\)
 
-The [next chapter]
+In the [next chapter](./SkRaw.lean.md), I define the SK combinators.
 
 -/
