@@ -74,5 +74,5 @@ partial def type_of_unsafe {m n o : ℕ} (ctx : Ctx) : SkExpr → Option SkExpr
   | fall bind_ty body => @type_of_unsafe m n o (bind_ty :: ctx) body
   | call lhs rhs => do
     let t_lhs <- @type_of_unsafe m n o ctx lhs
-    pure $ (t_lhs.substitute ⟨0⟩ rhs).body
+    (t_lhs.substitute ⟨0⟩ rhs).body
 
