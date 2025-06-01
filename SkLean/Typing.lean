@@ -20,6 +20,11 @@ I make use of a DSL for convenience and legibility. See [DSL](./Dsl.lean.md) for
 -/
 
 def ty_k {m n : ℕ} := SK[∀ α : Type m, ∀ β : Type n, #α → #β → #α]
+def ty_k_fall {m n : ℕ} := (Fall.mk (.ty (.mk m)) (.fall (Fall.mk (.ty (.mk n)) (.fall (Fall.mk (.var (.mk ⟨3⟩)) (.fall (Fall.mk (.var (.mk ⟨3⟩)) (.var (.mk ⟨4⟩)))))))))
+
+lemma ty_k_def_eq {m n : ℕ} : @ty_k m n = (.fall (@ty_k_fall m n)) :=
+  rfl
+
 def ty_s {m n o : ℕ} := SK[∀ α : Type m, ∀ β : Type n, ∀ γ : Type o, (#α → #β → #γ) → (#α → #β) → #α → #γ]
 
 /-

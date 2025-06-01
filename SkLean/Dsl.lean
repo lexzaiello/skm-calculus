@@ -40,7 +40,7 @@ def to_sk_expr (names : List String) : NamedSkExpr → SkExpr
 end NamedSkExpr
 
 /-
-Use like:
+Used like so:
 
 ```lean
 SK[K]
@@ -55,7 +55,7 @@ syntax "S"                                         : skexpr
 syntax "Prop"                                      : skexpr
 syntax "Type" num                                  : skexpr
 syntax "Type" ident                                : skexpr
-syntax "∀"  ident ":" skexpr "," skexpr  : skexpr
+syntax "∀"  ident ":" skexpr "," skexpr            : skexpr
 syntax "(" skexpr skexpr ")"                       : skexpr
 syntax "(" skexpr ")"                              : skexpr
 syntax ident                                       : skexpr
@@ -77,7 +77,7 @@ macro_rules
   | `(⟪ $e₁:skexpr → $e₂:skexpr ⟫) => `(⟪ ∀ x : $e₁, $e₂ ⟫)
   | `(⟪ ∀ $var:ident : $e_ty:skexpr , $body:skexpr ⟫) =>
     `(NamedSkExpr.fall $(Lean.quote var.getId.toString) (⟪ $e_ty ⟫) (⟪ $body ⟫))
-  | `(⟪ ($e₁:skexpr $e₂:skexpr )⟫) => `(NamedSkExpr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
+  | `(⟪ ($e₁:skexpr $e₂:skexpr)⟫) => `(NamedSkExpr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
 
 syntax "SK[ " skexpr " ] " : term
 

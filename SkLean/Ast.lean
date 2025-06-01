@@ -213,7 +213,7 @@ One-step evaluation is only defined for \\(K\ \alpha\ \beta\ x\ y\\) and \\(S\ \
 namespace Call
 
 def eval_once : Call → SkExpr
-  | (.mk (.call (.mk (.call (.mk (.call (.mk (.call (.mk (.k .mk) _)) _)) _)) x)) _) => x
+  | (.mk (.call (.mk (.call (.mk (.call (.mk (.k .mk) _)) _)) x)) _) => x
   | (.mk (.call (.mk (.call (.mk (.call (.mk (.call (.mk (.call (.mk (.s .mk)  _)) _)) _)) x)) y)) z) => .call (.mk (.call (.mk x z)) (.call (.mk y z)))
   | (.mk x y) => (.call (.mk x y))
 
