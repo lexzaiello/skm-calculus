@@ -74,6 +74,7 @@
             # Strong Normaliztaion Proof
             - [Definitions](./Sn.lean.md)
             - [Reducibility Candidates](./Candidates.lean.md)
+            - [Preservation](./Preservation.lean.md)
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";

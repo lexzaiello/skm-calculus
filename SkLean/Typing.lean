@@ -28,7 +28,7 @@ Beta equivalence is defined as equality after some sequence of evaluations. Expr
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | trivial e₁ e₂    : e₁ = e₂ → beta_eq e₁ e₂
-  | hard    e₁ e₂    : beta_eq e₁ (eval_once e₂) → beta_eq e₁ (.call e₂)
+  | hard    e₁ e₂    : beta_eq e₁ (e₂.eval_once) → beta_eq e₁ (.call e₂)
   | symm    e₁ e₂    : beta_eq e₂ e₁ → beta_eq e₁ e₂
   | trans   e₁ e₂ e₃ : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
 
@@ -43,19 +43,20 @@ inductive beta_eq : SkExpr → SkExpr → Prop
 - `t` is a valid judgement for `e` if some `t'` is beta equivalent to it, and `t'` is a valid judgement for `e`.
 -/
 
+-- valid_judgement e t
 inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
   | k ctx k t m n :
     t = @ty_k m n → valid_judgement ctx (.k k) t
   | s ctx s t m n o :
     t = @ty_s m n o → valid_judgement ctx (.s s) t
   | call ctx (call : Call) t
-    (t_lhs : Fall) (t_rhs : Fall) :
+    (t_lhs : Fall) :
       valid_judgement ctx call.lhs (.fall t_lhs) →
-      valid_judgement ctx call.rhs (.fall t_rhs) →
-      some t = (t_lhs.substitute call.rhs).body →
+      valid_judgement ctx call.rhs (t_lhs.bind_ty) →
+      t = (t_lhs.substitute call.rhs).body →
       valid_judgement ctx (.call call) t
-  | fall ctx (fall : Fall) t bind_ty t_body :
-    valid_judgement (bind_ty :: ctx) fall.body t_body →
+  | fall ctx (fall : Fall) t t_body :
+    valid_judgement (fall.bind_ty :: ctx) fall.body t_body →
     t = t_body → valid_judgement ctx (.fall fall) t
   | ty ctx (ty_e : Ty) (t : Ty) : t.n = ty_e.n.succ → valid_judgement ctx (.ty ty_e) (.ty t)
   | prp ctx (prp : Prp) (t : Ty) : t = .mk 0 → valid_judgement ctx (.prp prp) (.ty t)

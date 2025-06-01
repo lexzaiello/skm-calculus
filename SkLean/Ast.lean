@@ -150,6 +150,9 @@ end SkExpr
 
 namespace Fall
 
+def bind_ty : Fall → SkExpr
+  | .mk bind_ty _ => bind_ty
+
 def body : Fall → SkExpr
   | .mk _ body => body
 
@@ -207,11 +210,11 @@ example : (Fall.mk (.ty (.mk 0)) (.var (.mk ⟨1⟩))).substitute (.fall (.mk (.
 One-step evaluation is only defined for \\(K\ \alpha\ \beta\ x\ y\\) and \\(S\ \alpha\ \beta\ \gamma\ x\ y\ z\\).
 -/
 
-namespace SkExpr
+namespace Call
 
 def eval_once : Call → SkExpr
   | (.mk (.call (.mk (.call (.mk (.call (.mk (.call (.mk (.k .mk) _)) _)) _)) x)) _) => x
   | (.mk (.call (.mk (.call (.mk (.call (.mk (.call (.mk (.call (.mk (.s .mk)  _)) _)) _)) x)) y)) z) => .call (.mk (.call (.mk x z)) (.call (.mk y z)))
   | (.mk x y) => (.call (.mk x y))
 
-end SkExpr
+end Call
