@@ -60,58 +60,30 @@ lemma substitute_bound_1 : ∀ rhs, Fall.substitute.substitute_e (.var (.mk ⟨1
 
 /-
 
-## K evaluation type preservation
+## Combinator evaluation type preservation
 
 Now, I prove that `valid_judgement SK[K α β x y] α → valid_judgement SK[K α β x y].eval_once α`.
 -/
 
-lemma type_k_def_eq {m n : ℕ} (ctx : Ctx) : ∀ α β x y, valid_judgement ctx α (.ty (.mk m)) → valid_judgement ctx β (.ty (.mk n)) → valid_judgement ctx x α → valid_judgement ctx y β → valid_judgement ctx SK[((((K α) β) x) y)] α := by
-  intro α β x y h_t_α h_t_β h_t_x h_t_y
+lemma k_eval_def_eq : ∀ α β x y, (Call.mk SK[(((K α) β) x)] y).eval_once = x := by
+  intro α β x y
+  unfold Call.eval_once
   repeat unfold NamedSkExpr.to_sk_expr
-  apply valid_judgement.call ctx (Call.mk SK[(((K α) β) x)] y) α (Fall.mk β α)
-  unfold Call.lhs
   simp
-  apply valid_judgement.call ctx (Call.mk SK[((K α) β)] x) (SkExpr.fall (Fall.mk β α)) (Fall.mk α SK[∀ y : β, α])
-  repeat unfold NamedSkExpr.to_sk_expr
-  unfold Call.lhs
-  simp
-  apply valid_judgement.call ctx (Call.mk SK[(K α)] β) SK[∀ x : α, ∀ y : β, α] (Fall.mk (.ty (.mk n)) SK[∀ x : α, ∀ y : β, α])
-  unfold Call.lhs
-  simp
-  apply valid_judgement.call ctx (Call.mk (.k .mk) α) SK[∀ β : (Type n), ∀ x : α, ∀ y : β, α] (@ty_k_fall m n)
-  unfold Call.lhs
-  simp
-  rw [← ty_k_def_eq]
-  exact valid_judgement.k ctx (.mk) ty_k m n (rfl)
-  unfold Call.rhs
-  simp
-  unfold ty_k_fall
-  unfold Fall.bind_ty
-  simp
-  exact h_t_α
-  unfold ty_k_fall
-  unfold Fall.body
+
+lemma k_x_judgement_holds_eval_once (ctx : Ctx) : ∀ α β x y, valid_judgement ctx x α → valid_judgement ctx (Call.mk SK[(((K α) β) x)] y).eval_once α := by
+  intro α β x y t
+  rw [k_eval_def_eq α β x y]
+  exact t
+
+lemma k_judgement_x_imp_judgement_call (ctx : Ctx) : ∀ α β x y, valid_judgement ctx x α → valid_judgement ctx SK[((((K α) β) x) y)] α := by
+  intro α β x y t_x
   
   sorry
 
-lemma type_s_def_eq (ctx : Ctx
-
-lemma k_judgement_holds_eval_once (ctx : Ctx) : ∀ α β x y t, valid_judgement ctx SK[((((K α) β) x) y)] t → valid_judgement ctx (Call.mk SK[(((K α) β) x)] y).eval_once t := by
-  intro α β x y t h_t_holds
-  repeat unfold NamedSkExpr.to_sk_expr at *
-  unfold Call.eval_once
-  simp
-  cases h_t_holds
-  case call t_lhs h_t_lhs h_t_rhs h_t =>
-    unfold Call.lhs at *
-    simp_all
-    unfold Fall.substitute at *
-    cases t_lhs
-    case mk =>
-    simp_all
-    
-    sorry
-  sorry
+/-
+I do the same for S
+-/
 
 lemma judgement_holds_eval_once (ctx : Ctx) : ∀ (call : Call) (t : SkExpr), valid_judgement ctx (.call call) t ↔ valid_judgement ctx call.eval_once t := by
   intro c t
