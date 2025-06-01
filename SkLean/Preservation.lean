@@ -17,7 +17,7 @@ import Mathlib.Tactic
 
 For unevaluable expressions, the judgement is trivially held. The judgement is also trivially held for application of the \\(K\\) combinator.
 
-I set up some convenience lemmas to prove prservation. Type equivalence of a well-typed `K α β x y` call with the type α and its evaluation are established using these lemmas: if `(K α β x y) : α` and `(K α β x y).eval_once : α`, then the typing α is preserved.
+I set up some convenience lemmas to prove prservation. Type equivalence of a well-typed `K α β x y` call with the type `α` and its evaluation are established using these lemmas: if `(K α β x y) : α` and `(K α β x y).eval_once : α`, then the typing `α` is preserved.
 -/
 
 lemma k_def_eq : ∀ α β x y, (Call.mk SK[(((K α) β) x)] y).eval_once = x := by
@@ -46,17 +46,57 @@ lemma type_k_eval_def_eq (ctx : Ctx) : ∀ α β x y, valid_judgement ctx x α �
 This lemma becomes tricky once substitution is required. I prove that all substitutions of `(var n) rhs` where `n ≠ 1` are noops. I also prove that all substitutions of `(var 1) rhs) = rhs`.
 -/
 
-lemma substitute_free_noop : ∀ rhs n, n > 1 → Fall.substitute.substitute_e (.var (.mk ⟨n⟩)) ⟨1⟩ rhs = (.var (.mk ⟨n⟩)) := by
+lemma substitute_free_noop : ∀ rhs v n, (Var.mk n) ≠ v → Fall.substitute.substitute_e (.var v) n rhs = (.var v) := by
   intro rhs n h_n_gt_1
   unfold Fall.substitute.substitute_e
   simp
   intro h
   simp_all
+  match h : SkExpr.var n with
+    | .var (Var.mk n') =>
+      simp_all
+    | .k _ => contradiction
+    | .s _ => contradiction
+    | .prp _ => contradiction
+    | .ty _ => contradiction
+    | .fall _ => contradiction
+    | .call _ => contradiction
 
 lemma substitute_bound_1 : ∀ rhs, Fall.substitute.substitute_e (.var (.mk ⟨1⟩)) ⟨1⟩ rhs = rhs.with_indices_plus (.mk 1) := by
   intro rhs
   unfold Fall.substitute.substitute_e
   simp
+
+lemma substitute_prp_noop : ∀ e rhs n, e = SkExpr.prp (.mk) → Fall.substitute.substitute_e e n rhs = e := by
+  intro e rhs n h_e_not_var
+  unfold Fall.substitute.substitute_e
+  rw [h_e_not_var]
+
+lemma substitute_ty_noop : ∀ u e rhs n, e = SkExpr.ty (.mk u) → Fall.substitute.substitute_e e n rhs = e := by
+  intro u e rhs n h_e_not_var
+  unfold Fall.substitute.substitute_e
+  rw [h_e_not_var]
+
+lemma substitute_k_noop : ∀ e rhs n, e = SkExpr.k (.mk) → Fall.substitute.substitute_e e n rhs = e := by
+  intro e rhs n h_e_not_var
+  unfold Fall.substitute.substitute_e
+  rw [h_e_not_var]
+
+lemma substitute_s_noop : ∀ e rhs n, e = SkExpr.s (.mk) → Fall.substitute.substitute_e e n rhs = e := by
+  intro e rhs n h_e_not_var
+  unfold Fall.substitute.substitute_e
+  rw [h_e_not_var]
+
+/-
+I generalize this lemma to all bound variables.
+-/
+
+lemma n_eq_imp_bound_rhs : ∀ v n rhs, (.mk n) = v → Fall.substitute.substitute_e (.var v) n rhs = rhs.with_indices_plus n  := by
+  intro v n rhs h_v_n_eq
+  unfold Fall.substitute.substitute_e
+  match v with
+    | .mk n' =>
+      simp_all
 
 /-
 
@@ -76,8 +116,52 @@ lemma k_x_judgement_holds_eval_once (ctx : Ctx) : ∀ α β x y, valid_judgement
   rw [k_eval_def_eq α β x y]
   exact t
 
-lemma k_judgement_x_imp_judgement_call (ctx : Ctx) : ∀ α β x y, valid_judgement ctx x α → valid_judgement ctx SK[((((K α) β) x) y)] α := by
-  intro α β x y t_x
+lemma k_judgement_x_imp_judgement_call {m n : ℕ} (ctx : Ctx) : ∀ α β x y, valid_judgement ctx α SK[Type m] → valid_judgement ctx β SK[Type n] → valid_judgement (β :: α :: ctx) x α → valid_judgement ctx SK[((((K α) β) x) y)] α := by
+  intro α β x y t_α t_β t_x
+  unfold NamedSkExpr.to_sk_expr at t_α
+  unfold NamedSkExpr.to_sk_expr at t_β
+  apply valid_judgement.call ctx (Call.mk SK[(((K α) β) x)] y) α (.mk β α)
+  unfold Call.lhs
+  simp
+  apply valid_judgement.call ctx (Call.mk SK[((K α) β)] x) SK[∀ y : β, α] (.mk α SK[∀ y : β, α])
+  unfold Call.lhs
+  simp
+  apply valid_judgement.call ctx (Call.mk SK[(K α)] β) SK[∀ x : α, ∀ y : β, α] (.mk SK[Type n] SK[∀ x : α, ∀ y : β, α])
+  unfold Call.lhs
+  simp
+  apply valid_judgement.call ctx (Call.mk SK[K] α) SK[∀ β : (Type n), ∀ x : α, ∀ y : β, α] ty_k_fall
+  unfold Call.lhs
+  simp
+  rw [← ty_k_def_eq]
+  exact valid_judgement.k ctx .mk (ty_k) m n rfl
+  unfold Fall.bind_ty
+  unfold ty_k_fall
+  simp
+  unfold Call.rhs
+  simp
+  exact t_α
+  repeat unfold NamedSkExpr.to_sk_expr
+  unfold Fall.substitute
+  unfold ty_k_fall
+  simp
+  simp [substitute_ty_noop]
+  unfold Fall.substitute.substitute_e
+  simp [substitute_ty_noop]
+  unfold Fall.substitute.substitute_e
+  unfold BindId.succ
+  simp
+  simp [n_eq_imp_bound_rhs]
+  unfold Fall.substitute.substitute_e
+  unfold BindId.succ
+  simp
+  simp [n_eq_imp_bound_rhs]
+  simp [substitute_free_noop]
+  unfold Call.rhs
+  simp
+  unfold SkExpr.with_indices_plus
+  simp
+  unfold Fall.body
+  simp
   
   sorry
 

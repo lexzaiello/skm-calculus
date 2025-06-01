@@ -42,8 +42,33 @@ instance : LT BindId where
   lt (slf : BindId) (other : BindId) : Prop :=
     slf.toNat < other.toNat
 
+instance : LE BindId where
+  le (slf : BindId) (other : BindId) : Prop :=
+    slf.toNat ≤ other.toNat
+
 instance : DecidableRel (@LT.lt BindId _) :=
   fun a b => inferInstanceAs (Decidable (a.toNat < b.toNat))
+
+instance : Preorder BindId where
+  le_refl (slf : BindId) : slf ≤ slf := by
+    unfold LE.le
+    unfold instLE
+    simp
+  le_trans (a b c : BindId) : a ≤ b → b ≤ c → a ≤ c := by
+    intro a b
+    unfold LE.le at *
+    unfold instLE at *
+    simp_all
+    linarith
+  lt_iff_le_not_le (a b : BindId) : a < b ↔ a ≤ b ∧ ¬b ≤ a := by
+    unfold LE.le
+    unfold LT.lt
+    unfold instLT
+    unfold instLE
+    simp
+    intro a
+    unfold toNat at *
+    linarith
 
 end BindId
 
@@ -57,28 +82,28 @@ For convenience and legibility, I create a separate definition of each expressio
 
 inductive K where
   | mk : K
-deriving BEq, Repr
+deriving DecidableEq, BEq, Repr
 
 inductive S where
   | mk : S
-deriving BEq, Repr
+deriving DecidableEq, BEq, Repr
 
 inductive Prp where
   | mk : Prp
-deriving BEq, Repr
+deriving DecidableEq, BEq, Repr
 
 /-
 Stratified type universes.
 -/
 inductive Ty where
   | mk : ℕ → Ty
-deriving BEq, Repr
+deriving DecidableEq, BEq, Repr
 
 mutual
 
 inductive Call where
   | mk : SkExpr → SkExpr → Call
-deriving BEq, Repr
+deriving DecidableEq, BEq, Repr
 
 /-
 Var uses a 1-indexed De Bruijn position.
@@ -86,7 +111,7 @@ Var uses a 1-indexed De Bruijn position.
 
 inductive Var where
   | mk : BindId → Var
-deriving BEq, Repr
+deriving DecidableEq, BEq, Repr
 
 /-
 \\(\forall\\) takes a type of its binder \\(x : t\\), and has a body containing \\(e\\).
@@ -102,7 +127,7 @@ inductive SkExpr where
   | fall : Fall → SkExpr
   | call : Call → SkExpr
   | var  : Var  → SkExpr
-deriving BEq, Repr
+deriving DecidableEq, BEq, Repr
 
 end
 
@@ -177,9 +202,6 @@ example : (SkExpr.fall (.mk (.ty (.mk 0)) (.var (.mk ⟨2⟩)))).with_indices_pl
   repeat unfold SkExpr.with_indices_plus
   simp
   unfold BindId.succ
-  simp
-  unfold LT.lt
-  unfold BindId.instLT
   simp
 
 example : ((Fall.mk (.ty (.mk 0)) (.var (.mk ⟨1⟩)))).substitute (.var (.mk ⟨2⟩)) = (Fall.mk (.ty (.mk 0)) (.var (.mk ⟨3⟩))) := by
