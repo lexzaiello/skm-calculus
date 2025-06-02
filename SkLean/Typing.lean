@@ -40,7 +40,7 @@ inductive beta_eq : SkExpr → SkExpr → Prop
 /-
 - **K** expression: `t` is a valid judgement if it is equivalent to `ty_k` at the same universe level.
 - **S** expression: `t` is a valid judgement if it is equivalent to `ty_s` at the same universe level.
-- **e₁ e₂** expression: `t` is a valid judgement if `t_rhs` is a valid judgement for the right hand side, `t_lhs` is a valid judgement for the left hand side of the form `∀ x : t_rhs, b`, and \\(t = b[x := rhs]\\).
+- **e₁ e₂** expression: `t` is a valid judgement if `t_rhs` is a valid judgement for the right hand side, `t_lhs` is a valid judgement for the left hand side of the form `∀ x : t_rhs, b`, and \\(t = b[x := rhs]\\) under some context.
 - **`∀ x : bindty.body`** expression: `t` is a valid judgement if `t_body` is a valid judgement for `body` and `t = t_body`.
 - **`Type n`** expression: `t` is a valid judgement if `t = ty (n + 1)`.
 - **`Prop`** expression: `t` is a valid judgement if `t = ty 0`
@@ -66,6 +66,7 @@ inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
   | ty ctx (ty_e : Ty) (t : Ty) : t.n = ty_e.n.succ → valid_judgement ctx (.ty ty_e) (.ty t)
   | prp ctx (prp : Prp) (t : Ty) : t = .mk 0 → valid_judgement ctx (.prp prp) (.ty t)
   | beta_eq ctx e t t₂ : beta_eq t t₂ → valid_judgement ctx e t₂ → valid_judgement ctx e t
+  | var ctx n t : ctx[n.toNat - 1]? = some t → valid_judgement ctx (.var (.mk n)) t
 
 /-
 For testing purposes, I also encode my type inference rules in an unsafe "partial" function:
