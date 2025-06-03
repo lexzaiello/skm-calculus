@@ -344,9 +344,11 @@ Using the fact that all variables that are well-typed are bound, we can say that
 It should be noted that the judgement `(K α β x y).eval_once : α` is obviously true, as evaluation of the `K` combinator requires no substitution, and leaves `α` unaltered. However, `(K α β x y) : α` can potentially perform substitution, if `α` contains free variables. However, **`K` and `S` are closed and contain no free variables.**
 
 Closed expressions do not contain free variables, and as a result, are well-typed at their roots with the same type under any context.
+
+TODO: Clean this lemma up a ton.
 -/
 
-lemma judgement_holds_closed_any : ∀ ctx ctxxs e t, valid_judgement [ctx] e t  ↔ valid_judgement (ctx :: ctxxs) e t := by
+lemma judgement_holds_closed_any : ∀ ctx ctxxs e t, valid_judgement ctx e t  ↔ valid_judgement (ctx ++ ctxxs) e t := by
   intro ctx ctxxs e t
   constructor
   intro h_closed
@@ -378,12 +380,12 @@ lemma judgement_holds_closed_any : ∀ ctx ctxxs e t, valid_judgement [ctx] e t 
         case fall t_bind_ty h_t_bind_ty h_t_body =>
           simp [Fall.body] at *
           simp [Fall.bind_ty] at *
-          apply valid_judgement.fall (ctx :: ctxxs) (.mk bind_ty body) t_bind_ty t
-          have h := (judgement_holds_closed_any (Fall.mk bind_ty body).bind_ty [ctx] (Fall.mk bind_ty body).bind_ty t_bind_ty).mpr h_t_bind_ty
-          have h := (judgement_holds_closed_any (Fall.mk bind_ty body).bind_ty (ctx :: ctxxs) (Fall.mk bind_ty body).bind_ty t_bind_ty).mp h
+          apply valid_judgement.fall (ctx ++ ctxxs) (.mk bind_ty body) t_bind_ty t
+          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] ctx (Fall.mk bind_ty body).bind_ty t_bind_ty).mpr h_t_bind_ty
+          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] (ctx ++ ctxxs) (Fall.mk bind_ty body).bind_ty t_bind_ty).mp h
           exact h
-          have h := (judgement_holds_closed_any (Fall.mk bind_ty body).bind_ty [ctx] (Fall.mk bind_ty body).body t).mpr h_t_body
-          have h := (judgement_holds_closed_any (Fall.mk bind_ty body).bind_ty (ctx :: ctxxs) (Fall.mk bind_ty body).body t).mp h
+          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] ctx (Fall.mk bind_ty body).body t).mpr h_t_body
+          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] (ctx ++ ctxxs) (Fall.mk bind_ty body).body t).mp h
           exact h
         case beta_eq => sorry
   case call c =>
@@ -391,7 +393,7 @@ lemma judgement_holds_closed_any : ∀ ctx ctxxs e t, valid_judgement [ctx] e t 
       | .mk lhs rhs =>
         cases h_closed
         case call t_lhs h_t_lhs h_t_rhs =>
-          apply valid_judgement.call (ctx :: ctxxs) (.mk lhs rhs) t_lhs
+          apply valid_judgement.call (ctx ++ ctxxs) (.mk lhs rhs) t_lhs
           simp [Call.lhs] at *
           have h := (judgement_holds_closed_any ctx ctxxs lhs (SkExpr.fall t_lhs)).mp h_t_lhs
           exact h
@@ -426,12 +428,12 @@ lemma judgement_holds_closed_any : ∀ ctx ctxxs e t, valid_judgement [ctx] e t 
       | .mk bind_ty body =>
         cases h_closed
         case fall t_bind_ty h_t_bind_ty h_t_body =>
-          apply valid_judgement.fall [ctx] (.mk bind_ty body) t_bind_ty t
-          have h := (judgement_holds_closed_any (Fall.mk bind_ty body).bind_ty (ctx :: ctxxs) (Fall.mk bind_ty body).bind_ty t_bind_ty).mpr h_t_bind_ty
-          have h := (judgement_holds_closed_any (Fall.mk bind_ty body).bind_ty ([ctx]) (Fall.mk bind_ty body).bind_ty t_bind_ty).mp h
+          apply valid_judgement.fall ctx (.mk bind_ty body) t_bind_ty t
+          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] (ctx ++ ctxxs) (Fall.mk bind_ty body).bind_ty t_bind_ty).mpr h_t_bind_ty
+          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] (ctx) (Fall.mk bind_ty body).bind_ty t_bind_ty).mp h
           exact h
-          have h := (judgement_holds_closed_any (Fall.mk bind_ty body).bind_ty (ctx :: ctxxs) (Fall.mk bind_ty body).body t).mpr h_t_body
-          have h := (judgement_holds_closed_any (Fall.mk bind_ty body).bind_ty ([ctx]) (Fall.mk bind_ty body).body t).mp h
+          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] (ctx ++ ctxxs) (Fall.mk bind_ty body).body t).mpr h_t_body
+          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] ctx (Fall.mk bind_ty body).body t).mp h
           exact h
         case beta_eq => sorry
   case call c =>
@@ -439,7 +441,7 @@ lemma judgement_holds_closed_any : ∀ ctx ctxxs e t, valid_judgement [ctx] e t 
       | .mk lhs rhs =>
         cases h_closed
         case call t_lhs h_t_lhs h_t_rhs =>
-          apply valid_judgement.call [ctx] (.mk lhs rhs) t_lhs
+          apply valid_judgement.call ctx (.mk lhs rhs) t_lhs
           simp [Call.lhs] at *
           have h := (judgement_holds_closed_any ctx ctxxs lhs (SkExpr.fall t_lhs)).mpr h_t_lhs
           exact h
@@ -469,7 +471,7 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
         simp [substitute_ty_noop]
         simp [Call.rhs]
         simp [Fall.body]
-        have h := substitute_bound_noop [SK[Type m]] α (β.with_indices_plus { toNat := 1 } 0) (by simp [NamedSkExpr.to_sk_expr]; apply all_well_typed_e_bound_iff; use SK[Type m]; simp [NamedSkExpr.to_sk_expr]; exact judgement_holds_closed_any [SK[Type m]] α SK[Type m] t_α)
+        have h := substitute_bound_noop [SK[Type m]] α (β.with_indices_plus { toNat := 1 } 0) (by simp [NamedSkExpr.to_sk_expr]; apply all_well_typed_e_bound_iff; use SK[Type m]; simp [NamedSkExpr.to_sk_expr]; exact (judgement_holds_closed_any SK[Type m] List.nil α SK[Type m]).mp (by simp [t_α]))
         simp at h
         simp [h]
         have h := all_e_well_typed_bound_shift_noop [SK[Type n], α, SK[Type m]] β SK[Type n] ⟨1⟩ (by simp [NamedSkExpr.to_sk_expr]; exact judgement_holds_closed_any [SkExpr.ty (Ty.mk n), α, SkExpr.ty (Ty.mk m)] β SK[Type n] t_β)
