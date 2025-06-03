@@ -159,6 +159,64 @@ lemma all_well_typed_var_bound_iff (ctx : Ctx) : ∀ (n : BindId), (∃ t, valid
     simp [BindId.instLT]
     simp_all
 
+lemma all_well_typed_e_bound_iff (ctx : Ctx) : ∀ e, (∃ t, valid_judgement ctx e t) → is_bound ctx e := by
+  intro e h_typed
+  cases e
+  case k =>
+    simp [is_bound.k]
+  case s =>
+    simp [is_bound.s]
+  case prp =>
+    simp [is_bound.prp]
+  case ty =>
+    simp [is_bound.ty]
+  case fall f =>
+    obtain ⟨t, h_valid_t⟩ := h_typed
+    match f with
+      | .mk bind_ty body =>
+        cases h_valid_t
+        case fall t_bind_ty h_bind_ty h_body =>
+          simp [Fall.bind_ty] at h_bind_ty
+          simp [Fall.body] at h_body
+          apply is_bound.fall
+          apply all_well_typed_e_bound_iff
+          use t_bind_ty
+          simp [Fall.bind_ty]
+          exact h_bind_ty
+          apply all_well_typed_e_bound_iff
+          use t
+          simp [Fall.body]
+          exact h_body
+        case beta_eq => sorry
+  case call c =>
+    obtain ⟨t, h_valid_t⟩ := h_typed
+    match c with
+      | .mk lhs rhs =>
+        cases h_valid_t
+        case call t_lhs h_t_lhs h_t_rhs  =>
+          simp [Call.lhs] at h_t_lhs
+          simp [Call.rhs] at h_t_rhs
+          apply is_bound.app
+          apply all_well_typed_e_bound_iff
+          use (.fall t_lhs)
+          exact h_t_lhs
+          apply all_well_typed_e_bound_iff
+          use t_lhs.bind_ty
+          exact h_t_rhs
+        case beta_eq => sorry
+  case var v =>
+    obtain ⟨t, h_valid_t⟩ := h_typed
+    match v with
+      | .mk n =>
+        cases h_valid_t
+        case var h_pos h_bound  =>
+          apply is_bound.var
+          simp [GT.gt] at h_pos
+          rw [LT.lt] at h_pos
+          simp [BindId.instLT] at h_pos
+          exact h_pos
+        case beta_eq => sorry
+
 lemma shift_indices_bound_noop : ∀ v_n shift_by (depth : ℕ), v_n.toNat ≤ depth → (SkExpr.var (.mk v_n)).with_indices_plus shift_by depth = (SkExpr.var (.mk v_n)) := by
   intro v_n shift_by depth h_is_bound
   simp [SkExpr.with_indices_plus]
@@ -287,7 +345,7 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
   simp [NamedSkExpr.to_sk_expr] at *
   simp [Fall.substitute] at h
   simp [Fall.body] at h
-  have h_sub_alpha_noop := substitute_bound_noop [β] α (y.with_indices_plus { toNat := 1 } 0) (by
+  have h_sub_alpha_noop := substitute_bound_noop [] α (y.with_indices_plus { toNat := 1 } 0) (by
     cases α
     case k =>
       simp [is_bound.k]
@@ -316,7 +374,7 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
   )
   simp at h_sub_alpha_noop
   simp [h_sub_alpha_noop] at h
-  sorry
+  exact h
 
 /-
 I do the same for \\(S\\).
