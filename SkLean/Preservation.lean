@@ -381,10 +381,18 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
             use (SkExpr.ty (Ty.mk m))
           case beta_eq =>
             sorry
-    case call =>
-      sorry
-    case var =>
-      sorry
+    case call c =>
+      match h_c : c with
+        | .mk lhs rhs =>
+          -- call lhs rhs is surely of type Ty n
+          -- this implies lhs's type is of the form ∀
+          apply all_well_typed_e_bound_iff
+          use (.ty (Ty.mk m))
+    case var v =>
+      match v with
+        | .mk n =>
+          apply (all_well_typed_var_bound_iff [] n).mp
+          use (.ty (Ty.mk m))
   )
   simp at h_sub_alpha_noop
   simp [h_sub_alpha_noop] at h
