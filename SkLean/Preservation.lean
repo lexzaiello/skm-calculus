@@ -203,9 +203,11 @@ lemma all_e_well_typed_bound_shift_noop (ctx : Ctx) : ∀ (e : SkExpr) t shift_b
         have h_bound := (all_well_typed_var_bound_iff ctx n).mp (by
           use ctx[n.toNat - 1]
         )
-        unfold is_bound_v at h_bound
-        simp at h_bound
-        exact shift_indices_bound_noop n shift_by ctx.length (by simp_all)
+        cases h_bound
+        case var h_pos h_bound =>
+          rw [LT.lt] at h_bound
+          simp [BindId.instLT] at h_bound
+          exact shift_indices_bound_noop n shift_by ctx.length (by rw [← Nat.pred_eq_sub_one] at h_bound; exact Nat.le_of_pred_lt h_bound)
 
 lemma substitute_bound_noop (ctx : Ctx) : ∀ e with_expr, is_bound ctx e → Fall.substitute.substitute_e e ⟨ctx.length⟩ with_expr = e := by
   intro e with_expr h_bound
@@ -241,8 +243,10 @@ lemma substitute_bound_noop (ctx : Ctx) : ∀ e with_expr, is_bound ctx e → Fa
       | .mk n =>
         cases h_bound
         case var h_bound =>
-          simp at h_bound
           unfold Fall.substitute.substitute_e
+          
+          simp at h_bound
+          
           simp [NamedSkExpr.to_sk_expr]
           intro h
           simp_all
