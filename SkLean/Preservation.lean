@@ -384,7 +384,7 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
               unfold ty_k_fall
               simp [Fall.bind_ty]
               exact t_α
-            have h := valid_judgement.call [] (.mk (SkExpr.k «K».mk) α) (@ty_k_fall m n) (by simp [Call.lhs]; rw [← ty_k_def_eq]; simp [valid_judgement.k]) sorry
+            have h := valid_judgement.call [] (.mk (SkExpr.k «K».mk) α) (@ty_k_fall m n) (by simp [Call.lhs]; rw [← ty_k_def_eq]; simp [valid_judgement.k]) (by simp [Call.rhs, ty_k_fall, Fall.bind_ty]; sorry)
             simp at h
             unfold ty_k_fall at h
             simp [Fall.body] at h
