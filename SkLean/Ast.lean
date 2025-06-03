@@ -195,7 +195,8 @@ def substitute (in_fall : Fall) (with_expr : SkExpr) : Fall :=
 end Fall
 
 /-
-I give a few test cases of index shifting:
+I give a few test cases of index shifting.
+See the [preservation](./Preservation.lean.md) chapter for more complicated, rigorous lemmas.
 -/
 
 example : ((Fall.mk (.ty (.mk 0)) (.var (.mk ⟨1⟩)))).substitute (.var (.mk ⟨2⟩)) = (Fall.mk (.ty (.mk 0)) (.var (.mk ⟨3⟩))) := by

@@ -122,7 +122,7 @@ A variable is bound if `ctx[(var n).n - 1] = some t`.
 
 def is_bound (ctx : Ctx) (v : Var) :=
   match v with
-    | .mk n => n.toNat > 0 ∧ n.toNat ≤ ctx.length
+    | .mk n => n.toNat > 0 ∧ n.toNat≤ ctx.length
 
 lemma all_well_typed_var_bound_iff (ctx : Ctx) : ∀ (n : BindId), (∃ t, valid_judgement ctx (.var (.mk n)) t) ↔ is_bound ctx (.mk n) := by
   intro v
@@ -150,13 +150,16 @@ lemma all_well_typed_var_bound_iff (ctx : Ctx) : ∀ (n : BindId), (∃ t, valid
   obtain ⟨h_n_pos, h₂⟩ := h_is_bound
   exact valid_judgement.var ctx v ctx[v.toNat - 1] (by simp [GT.gt]; unfold LT.lt; simp [BindId.instLT]; exact h_n_pos) (by simp)
 
-lemma shift_indices_bound_noop (ctx : Ctx) : ∀ v_n shift_by, is_bound ctx (.mk v_n) → (SkExpr.var (.mk v_n)).with_indices_plus shift_by (ctx.length) = (SkExpr.var (.mk v_n)) := by
-  intro v_n shift_by h_is_bound
-  simp [SkExpr.with_indices_plus]
-  intro h_is_bound'
-  sorry
+lemma shift_indices_bound_noop (ctx : Ctx) : ∀ v_n shift_by depth, depth > ctx.length → is_bound ctx (.mk v_n) → (SkExpr.var (.mk v_n)).with_indices_plus shift_by depth = (SkExpr.var (.mk v_n)) := by
+  intro v_n shift_by depth h_not_in_binding h_is_bound
+  simp [is_bound] at h_is_bound
+  obtain ⟨n_pos, n_bound⟩ := h_is_bound
+  unfold SkExpr.with_indices_plus
+  have h : depth > v_n.toNat := by
+    linarith
+  simp_all
 
-lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by depth, depth = ctx.length → valid_judgement ctx e t → e.with_indices_plus shift_by depth = e := by
+lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by depth, depth > ctx.length → valid_judgement ctx e t → e.with_indices_plus shift_by depth = e := by
   intro e t shift_by depth h_depth_valid h_judgement_t
   match h : e with
     | .k _ =>
@@ -174,11 +177,8 @@ lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by depth, de
       case fall t_bind_ty t_body h_t_bind_ty h_t_body h_t_rfl =>
         simp [Fall.bind_ty] at h_t_bind_ty
         simp [Fall.body] at h_t_body
-        have h_depth : depth + 1 = (bind_ty :: ctx).length := by
-          simp [h_depth_valid]
-        constructor
-        simp [all_e_well_typed_bound (bind_ty :: ctx) bind_ty t_bind_ty shift_by (depth + 1) h_depth h_t_bind_ty]
-        simp [all_e_well_typed_bound (bind_ty :: ctx) body t_body shift_by (depth + 1) h_depth h_t_body]
+        simp [all_e_well_typed_bound (bind_ty :: ctx) bind_ty t_bind_ty shift_by (depth + 1) (by simp_all) h_t_bind_ty]
+        simp [all_e_well_typed_bound (bind_ty :: ctx) body t_body shift_by (depth + 1) (by simp_all) h_t_body]
       case beta_eq => sorry
     | .call (.mk lhs rhs) =>
       unfold SkExpr.with_indices_plus
@@ -198,8 +198,7 @@ lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by depth, de
         )
         unfold is_bound at h_bound
         simp at h_bound
-        rw [h_depth_valid]
-        exact shift_indices_bound_noop n shift_by (ctx.length) (by sorry)
+        exact shift_indices_bound_noop ctx n shift_by depth h_depth_valid h_bound
 
 /-
 Using the fact that all variables that are well-typed are bound, we can say that with_indices_plus preserves the values of the variable. This concludes our lemma of preservation of `K α β x y : α`.
