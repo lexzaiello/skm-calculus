@@ -44,7 +44,7 @@ inductive beta_eq : SkExpr → SkExpr → Prop
 - **`∀ x : bindty.body`** expression: `t` is a valid judgement if `t_body` is a valid judgement for `body` and `t = t_body`.
 - **`Type n`** expression: `t` is a valid judgement if `t = ty (n + 1)`.
 - **`Prop`** expression: `t` is a valid judgement if `t = ty 0`
-- **`var n`** expression: `t` isa  valid judgement if the the nth nearest-bound variable in the context is of type `t`.
+- **`var n`** expression: `t` is a  valid judgement if the the nth nearest-bound variable in the context is of type `t`.
 - `t` is a valid judgement for `e` if some `t'` is beta equivalent to it, and `t'` is a valid judgement for `e`.
 -/
 
@@ -60,13 +60,14 @@ inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
       valid_judgement ctx call.rhs (t_lhs.bind_ty) →
       t = (t_lhs.substitute call.rhs).body →
       valid_judgement ctx (.call call) t
-  | fall ctx (fall : Fall) t t_body :
+  | fall ctx (fall : Fall) t t_bind_ty t_body :
+    valid_judgement (fall.bind_ty :: ctx) fall.bind_ty t_bind_ty →
     valid_judgement (fall.bind_ty :: ctx) fall.body t_body →
     t = t_body → valid_judgement ctx (.fall fall) t
   | ty ctx (ty_e : Ty) (t : Ty) : t.n = ty_e.n.succ → valid_judgement ctx (.ty ty_e) (.ty t)
   | prp ctx (prp : Prp) (t : Ty) : t = .mk 0 → valid_judgement ctx (.prp prp) (.ty t)
   | beta_eq ctx e t t₂ : beta_eq t t₂ → valid_judgement ctx e t₂ → valid_judgement ctx e t
-  | var ctx n t : ctx[n.toNat - 1]? = some t → valid_judgement ctx (.var (.mk n)) t
+  | var ctx n t : n > ⟨0⟩ → ctx[n.toNat - 1]? = some t → valid_judgement ctx (.var (.mk n)) t
 
 /-
 For testing purposes, I also encode my type inference rules in an unsafe "partial" function:

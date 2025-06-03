@@ -155,20 +155,20 @@ end Call
 namespace SkExpr
 
 /-
-Whenever a value is substituted in to a \\(\forall\\) expression, all its free variables must be incremented by 1 in order to prevent shadowing from the new surrounding expression.
+Whenever a value is substituted in to a \\(\lambda\\) expression, all its free variables must be incremented by 1 in order to prevent shadowing from the new surrounding expression.
 -/
 
-def with_indices_plus (in_expr : SkExpr) (shift_by : BindId) : SkExpr :=
+def with_indices_plus (in_expr : SkExpr) (shift_by : BindId) (at_depth : ℕ) : SkExpr :=
   match in_expr with
     | .fall (.mk bind_ty body) =>
-      .fall (.mk (bind_ty.with_indices_plus shift_by.succ) (body.with_indices_plus shift_by.succ))
+      .fall (.mk (bind_ty.with_indices_plus shift_by at_depth.succ) (body.with_indices_plus shift_by at_depth.succ))
     | .var (.mk n) =>
-      if n > shift_by then
+      if n.toNat ≥ at_depth then
         var (.mk ⟨n.toNat + shift_by.toNat⟩)
       else
         var (.mk n)
     | .call (.mk lhs rhs) =>
-      call (.mk (lhs.with_indices_plus shift_by) (rhs.with_indices_plus shift_by))
+      call (.mk (lhs.with_indices_plus shift_by at_depth) (rhs.with_indices_plus shift_by at_depth))
     | x => x
 
 end SkExpr
@@ -186,11 +186,11 @@ def substitute (in_fall : Fall) (with_expr : SkExpr) : Fall :=
     match in_expr with
       | .fall (.mk bind_ty body) =>
         .fall (.mk (substitute_e bind_ty n.succ with_expr) (substitute_e body n.succ with_expr))
-      | .var (.mk n') => if n = n' then with_expr.with_indices_plus n else .var (.mk n')
+      | .var (.mk n') => if n = n' then with_expr else .var (.mk n')
       | x => x
     match in_fall with
       | .mk bind_ty body =>
-        .mk (substitute_e bind_ty ⟨1⟩ with_expr) (substitute_e body ⟨1⟩ with_expr)
+        .mk (substitute_e bind_ty ⟨1⟩ (with_expr.with_indices_plus ⟨1⟩ 0)) (substitute_e body ⟨1⟩ (with_expr.with_indices_plus ⟨1⟩ 0))
 
 end Fall
 
@@ -198,35 +198,16 @@ end Fall
 I give a few test cases of index shifting:
 -/
 
-example : (SkExpr.fall (.mk (.ty (.mk 0)) (.var (.mk ⟨2⟩)))).with_indices_plus ⟨1⟩ = (SkExpr.fall (.mk (.ty (.mk 0)) (.var (.mk ⟨2⟩)))) := by
-  repeat unfold SkExpr.with_indices_plus
-  simp
-  unfold BindId.succ
-  simp
-
 example : ((Fall.mk (.ty (.mk 0)) (.var (.mk ⟨1⟩)))).substitute (.var (.mk ⟨2⟩)) = (Fall.mk (.ty (.mk 0)) (.var (.mk ⟨3⟩))) := by
-  unfold Fall.substitute
-  simp
-  repeat unfold Fall.substitute.substitute_e
-  simp
-  repeat unfold SkExpr.with_indices_plus
-  simp
-  unfold LT.lt
-  unfold BindId.instLT
-  simp
+  simp [Fall.substitute]
+  simp [Fall.substitute.substitute_e]
+  simp [SkExpr.with_indices_plus]
 
-example : (Fall.mk (.ty (.mk 0)) (.var (.mk ⟨1⟩))).substitute (.fall (.mk (.ty (.mk 0)) (.var (.mk ⟨4⟩)))) = (Fall.mk (.ty (.mk 0)) ((.fall (.mk (.ty (.mk 0)) (.var (.mk ⟨6⟩)))))) := by
-  unfold Fall.substitute
-  simp
-  repeat unfold Fall.substitute.substitute_e
-  simp
-  repeat unfold SkExpr.with_indices_plus
-  simp
-  split
-  simp
-  repeat unfold BindId.succ
-  simp
-  contradiction
+
+example : (Fall.mk (.ty (.mk 0)) (.var (.mk ⟨1⟩))).substitute (.fall (.mk (.ty (.mk 0)) (.var (.mk ⟨4⟩)))) = (Fall.mk (.ty (.mk 0)) ((.fall (.mk (.ty (.mk 0)) (.var (.mk ⟨5⟩)))))) := by
+  simp [Fall.substitute]
+  simp [Fall.substitute.substitute_e]
+  simp [SkExpr.with_indices_plus]
 
 /-
 One-step evaluation is only defined for \\(K\ \alpha\ \beta\ x\ y\\) and \\(S\ \alpha\ \beta\ \gamma\ x\ y\ z\\).
