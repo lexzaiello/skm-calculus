@@ -113,7 +113,9 @@ lemma n_eq_imp_bound_rhs : ∀ v n rhs, (.mk n) = v → Fall.substitute.substitu
 
 Now, I prove that `valid_judgement SK[K α β x y] α → valid_judgement SK[K α β x y].eval_once α` by proving the call is well-typed with type `α`.
 
-Judgements of function application are determined to be true or false by substitution of the `∀` type of the left-hand side of the function call. This would seem to complicate the lemma once an argument to `K` like `ty_k` is provided. `ty_k` is dependent, and contains variables. However, all arguments to `K` are well-typed. This implies all variables that could show up in arguments are typed in the context. This implies all variables within the scope of an argument are bound. We can use this fact in our larger lemma.
+Judgements of function application are determined to be true or false by substitution of the `∀` type of the left-hand side of the function call. This would seem to complicate the lemma once an argument to `K` like `ty_k` is provided. `ty_k` is dependent, and contains variables. However, all arguments to `K` are well-typed. Furthermore, free variables cannot be well-typed at a root expression. This implies all well-typed variable arguments are bound, typed variables in the context.
+
+We can use this fact in our larger lemma.
 
 However, the judgement rule allowing `beta_eq t t' → valid_judgement e t → valid_judgement e t` further complicates matters. We defer to the later `SN` proof with `sorry` for most lemmas.
 
@@ -122,7 +124,7 @@ A variable is bound if `ctx[(var n).n - 1] = some t`.
 
 def is_bound (ctx : Ctx) (v : Var) :=
   match v with
-    | .mk n => n.toNat > 0 ∧ n.toNat≤ ctx.length
+    | .mk n => n.toNat > 0 ∧ n.toNat ≤ ctx.length
 
 lemma all_well_typed_var_bound_iff (ctx : Ctx) : ∀ (n : BindId), (∃ t, valid_judgement ctx (.var (.mk n)) t) ↔ is_bound ctx (.mk n) := by
   intro v
@@ -150,17 +152,13 @@ lemma all_well_typed_var_bound_iff (ctx : Ctx) : ∀ (n : BindId), (∃ t, valid
   obtain ⟨h_n_pos, h₂⟩ := h_is_bound
   exact valid_judgement.var ctx v ctx[v.toNat - 1] (by simp [GT.gt]; unfold LT.lt; simp [BindId.instLT]; exact h_n_pos) (by simp)
 
-lemma shift_indices_bound_noop (ctx : Ctx) : ∀ v_n shift_by depth, depth > ctx.length → is_bound ctx (.mk v_n) → (SkExpr.var (.mk v_n)).with_indices_plus shift_by depth = (SkExpr.var (.mk v_n)) := by
-  intro v_n shift_by depth h_not_in_binding h_is_bound
-  simp [is_bound] at h_is_bound
-  obtain ⟨n_pos, n_bound⟩ := h_is_bound
-  unfold SkExpr.with_indices_plus
-  have h : depth > v_n.toNat := by
-    linarith
+lemma shift_indices_bound_noop : ∀ v_n shift_by (depth : ℕ), v_n.toNat ≤ depth → (SkExpr.var (.mk v_n)).with_indices_plus shift_by depth = (SkExpr.var (.mk v_n)) := by
+  intro v_n shift_by depth h_is_bound
+  simp [SkExpr.with_indices_plus]
   simp_all
 
-lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by depth, depth > ctx.length → valid_judgement ctx e t → e.with_indices_plus shift_by depth = e := by
-  intro e t shift_by depth h_depth_valid h_judgement_t
+lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by, valid_judgement ctx e t → e.with_indices_plus shift_by ctx.length = e := by
+  intro e t shift_by h_judgement_t
   match h : e with
     | .k _ =>
       simp [SkExpr.with_indices_plus]
@@ -177,16 +175,18 @@ lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by depth, de
       case fall t_bind_ty t_body h_t_bind_ty h_t_body h_t_rfl =>
         simp [Fall.bind_ty] at h_t_bind_ty
         simp [Fall.body] at h_t_body
-        simp [all_e_well_typed_bound (bind_ty :: ctx) bind_ty t_bind_ty shift_by (depth + 1) (by simp_all) h_t_bind_ty]
-        simp [all_e_well_typed_bound (bind_ty :: ctx) body t_body shift_by (depth + 1) (by simp_all) h_t_body]
+        have h := all_e_well_typed_bound (bind_ty :: ctx) bind_ty t_bind_ty shift_by h_t_bind_ty
+        simp_all
+        have h := all_e_well_typed_bound (bind_ty :: ctx) body t_body shift_by h_t_body
+        simp_all
       case beta_eq => sorry
     | .call (.mk lhs rhs) =>
       unfold SkExpr.with_indices_plus
       simp
       cases h_judgement_t
       case call t_lhs h_t_lhs h_t_rhs h_t_eq =>
-        simp [all_e_well_typed_bound ctx lhs (.fall t_lhs) shift_by (depth) h_depth_valid h_t_lhs]
-        simp [all_e_well_typed_bound ctx rhs t_lhs.bind_ty shift_by (depth) h_depth_valid h_t_rhs]
+        simp [all_e_well_typed_bound ctx lhs (.fall t_lhs) shift_by h_t_lhs]
+        simp [all_e_well_typed_bound ctx rhs t_lhs.bind_ty shift_by h_t_rhs]
       case beta_eq => sorry
     | .var (.mk n) =>
       have h₀ := h_judgement_t
@@ -198,7 +198,7 @@ lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by depth, de
         )
         unfold is_bound at h_bound
         simp at h_bound
-        exact shift_indices_bound_noop ctx n shift_by depth h_depth_valid h_bound
+        exact shift_indices_bound_noop n shift_by ctx.length (by simp_all)
 
 /-
 Using the fact that all variables that are well-typed are bound, we can say that with_indices_plus preserves the values of the variable. This concludes our lemma of preservation of `K α β x y : α`.
@@ -208,7 +208,7 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} (ctx : Ctx) : ∀ α β x y, 
   intro α β x y t_α t_β t_x
   simp [NamedSkExpr.to_sk_expr] at t_α
   simp [NamedSkExpr.to_sk_expr] at t_β
-  apply valid_judgement.call ctx (Call.mk SK[(((K α) β) x)] y) α (.mk β α)
+  apply valid_judgement.call ctx (Call.mk SK[(((K α) β) x)] y) (.mk β α)
   simp [Call.lhs]
   apply valid_judgement.call ctx (Call.mk SK[((K α) β)] x) SK[∀ y : β, α] (.mk α SK[∀ y : β, α])
   simp [Call.lhs]
@@ -229,19 +229,26 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} (ctx : Ctx) : ∀ α β x y, 
   simp [Fall.substitute]
   simp [Fall.substitute.substitute_e]
   simp [BindId.succ]
-  simp [shift_indices_bound_noop]
-  sorry
-  simp [Call.rhs]
-  simp [NamedSkExpr.to_sk_expr]
-  simp [Fall.bind_ty]
-  exact t_β
-  simp [NamedSkExpr.to_sk_expr]
-  simp [Call.rhs]
-  simp [Fall.substitute]
-  simp [Fall.substitute.substitute_e]
-  simp [BindId.succ]
-  simp [Fall.body]
-  
+  have h := all_e_well_typed_bound [] α SK[Type m] ⟨1⟩
+  cases α
+  case a.a.a.a.k =>
+    simp [SkExpr.with_indices_plus]
+  case a.a.a.a.s =>
+    simp [SkExpr.with_indices_plus]
+  case a.a.a.a.prp =>
+    simp [SkExpr.with_indices_plus]
+  case a.a.a.a.ty =>
+    simp [SkExpr.with_indices_plus]
+  case a.a.a.a.fall f =>
+    cases t_α
+    case fall =>
+      
+      sorry
+    case beta_eq =>
+      sorry
+  case a.a.a.a.call =>
+    sorry
+  case a.a.a.a.var => sorry
   sorry
   sorry
   sorry

@@ -163,7 +163,7 @@ def with_indices_plus (in_expr : SkExpr) (shift_by : BindId) (at_depth : ℕ) : 
     | .fall (.mk bind_ty body) =>
       .fall (.mk (bind_ty.with_indices_plus shift_by at_depth.succ) (body.with_indices_plus shift_by at_depth.succ))
     | .var (.mk n) =>
-      if n.toNat ≥ at_depth then
+      if n.toNat > at_depth then
         var (.mk ⟨n.toNat + shift_by.toNat⟩)
       else
         var (.mk n)

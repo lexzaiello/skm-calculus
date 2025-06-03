@@ -50,24 +50,21 @@ inductive beta_eq : SkExpr → SkExpr → Prop
 
 -- valid_judgement e t
 inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
-  | k ctx k t m n :
-    t = @ty_k m n → valid_judgement ctx (.k k) t
-  | s ctx s t m n o :
-    t = @ty_s m n o → valid_judgement ctx (.s s) t
-  | call ctx (call : Call) t
+  | k ctx k m n : valid_judgement ctx (.k k) (@ty_k m n)
+  | s ctx s m n o : valid_judgement ctx (.s s) (@ty_s m n o)
+  | call ctx (call : Call)
     (t_lhs : Fall) :
       valid_judgement ctx call.lhs (.fall t_lhs) →
       valid_judgement ctx call.rhs (t_lhs.bind_ty) →
-      t = (t_lhs.substitute call.rhs).body →
-      valid_judgement ctx (.call call) t
-  | fall ctx (fall : Fall) t t_bind_ty t_body :
+      valid_judgement ctx (.call call) (t_lhs.substitute call.rhs).body
+  | fall ctx (fall : Fall) t_bind_ty t_body :
     valid_judgement (fall.bind_ty :: ctx) fall.bind_ty t_bind_ty →
     valid_judgement (fall.bind_ty :: ctx) fall.body t_body →
-    t = t_body → valid_judgement ctx (.fall fall) t
-  | ty ctx (ty_e : Ty) (t : Ty) : t.n = ty_e.n.succ → valid_judgement ctx (.ty ty_e) (.ty t)
-  | prp ctx (prp : Prp) (t : Ty) : t = .mk 0 → valid_judgement ctx (.prp prp) (.ty t)
+    valid_judgement ctx (.fall fall) t_body
+  | ty ctx (ty_e : Ty) : valid_judgement ctx (.ty ty_e) (.ty (.mk ty_e.n.succ))
+  | prp ctx (prp : Prp) : valid_judgement ctx (.prp prp) (.ty (.mk 0))
   | beta_eq ctx e t t₂ : beta_eq t t₂ → valid_judgement ctx e t₂ → valid_judgement ctx e t
-  | var ctx n t : n > ⟨0⟩ → ctx[n.toNat - 1]? = some t → valid_judgement ctx (.var (.mk n)) t
+  | var ctx n (h_pos : n > ⟨0⟩) (h_in_bounds : (n.toNat - 1) < ctx.length) : valid_judgement ctx (.var (.mk n)) (ctx[n.toNat - 1])
 
 /-
 For testing purposes, I also encode my type inference rules in an unsafe "partial" function:
