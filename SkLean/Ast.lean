@@ -187,6 +187,7 @@ def substitute (in_fall : Fall) (with_expr : SkExpr) : Fall :=
       | .fall (.mk bind_ty body) =>
         .fall (.mk (substitute_e bind_ty n.succ with_expr) (substitute_e body n.succ with_expr))
       | .var (.mk n') => if n = n' then with_expr else .var (.mk n')
+      | .call (.mk lhs rhs) => .call (.mk (substitute_e lhs n with_expr) (substitute_e rhs n with_expr))
       | x => x
     match in_fall with
       | .mk bind_ty body =>

@@ -28,6 +28,11 @@ lemma ty_k_def_eq {m n : ℕ} : @ty_k m n = (.fall (@ty_k_fall m n)) :=
 def ty_s {m n o : ℕ} := SK[∀ α : Type m, ∀ β : Type n, ∀ γ : Type o, (#α → #β → #γ) → (#α → #β) → #α → #γ]
 
 /-
+
+## Closedness
+
+Note that this typing of the \\(S\\) and \\(K\\) combinators implies that **free variables are inexpressible in this calculus**. This simplifies typing judgements significantly. I prove this in the [preservation chapter](./Preservation.lean.md). I still make use of a context for a natural typing judgement.
+
 Beta equivalence is defined as equality after some sequence of evaluations. Expressions are certainly \\(=_{\beta}\\) if they are definitionally equivalent. An expression is beta equivalent to another if its one-step redux is equivalent ot the other expression. I assume symmetry and transitivity.
 -/
 
@@ -57,10 +62,10 @@ inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
       valid_judgement ctx call.lhs (.fall t_lhs) →
       valid_judgement ctx call.rhs (t_lhs.bind_ty) →
       valid_judgement ctx (.call call) (t_lhs.substitute call.rhs).body
-  | fall ctx (fall : Fall) t t_bind_ty t_body :
+  | fall ctx (fall : Fall) t_bind_ty t_body :
     valid_judgement (fall.bind_ty :: ctx) fall.bind_ty t_bind_ty →
     valid_judgement (fall.bind_ty :: ctx) fall.body t_body →
-    valid_judgement ctx (.fall fall) t
+    valid_judgement ctx (.fall fall) t_body
   | ty ctx (ty_e : Ty) : valid_judgement ctx (.ty ty_e) (.ty (.mk ty_e.n.succ))
   | prp ctx (prp : Prp) : valid_judgement ctx (.prp prp) (.ty (.mk 0))
   | beta_eq ctx e t t₂ : beta_eq t t₂ → valid_judgement ctx e t₂ → valid_judgement ctx e t

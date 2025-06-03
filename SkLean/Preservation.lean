@@ -40,7 +40,7 @@ lemma s_def_eq : ∀ α β γ x y z, (Call.mk SK[(((((S α) β) γ) x) y)] z).ev
 Assuming `x : α` is the easy case, but does not prove preservation alone.
 -/
 
-lemma k_x_judgement_holds_eval_once (ctx : Ctx) : ∀ α β x y, valid_judgement ctx x α → valid_judgement ctx (Call.mk SK[(((K α) β) x)] y).eval_once α := by
+lemma k_x_judgement_holds_eval_once : ∀ α β x y, valid_judgement [] x α → valid_judgement [] (Call.mk SK[(((K α) β) x)] y).eval_once α := by
   intro α β x y h_t_x
   unfold Call.eval_once
   repeat unfold NamedSkExpr.to_sk_expr
@@ -97,7 +97,7 @@ lemma substitute_s_noop : ∀ e rhs n, e = SkExpr.s (.mk) → Fall.substitute.su
   rw [h_e_not_var]
 
 /-
-I generalize this lemmha to all bound variables.
+I generalize this lemma to all bound variables.
 -/
 
 lemma n_eq_imp_bound_rhs : ∀ v n rhs, (.mk n) = v → Fall.substitute.substitute_e (.var v) n rhs = rhs  := by
@@ -113,7 +113,7 @@ lemma n_eq_imp_bound_rhs : ∀ v n rhs, (.mk n) = v → Fall.substitute.substitu
 
 Now, I prove that `valid_judgement SK[K α β x y] α → valid_judgement SK[K α β x y].eval_once α` by proving the call is well-typed with type `α`.
 
-Judgements of function application are determined to be true or false by substitution of the `∀` type of the left-hand side of the function call. This would seem to complicate the lemma once an argument to `K` like `ty_k` is provided. `ty_k` is dependent, and contains variables. However, all arguments to `K` are well-typed. Furthermore, free variables cannot be well-typed at a root expression. This implies all well-typed variable arguments are bound, typed variables in the context.
+Judgements of function application are determined to be true or false by substitution of the `∀` type of the left-hand side of the function call. This would seem to complicate the lemma once an argument to `K` like `ty_k` is provided. `ty_k` is dependent, and contains variables. However, all arguments to `K` are well-typed and closed. I demonstrate this later.
 
 We can use this fact in our larger lemma.
 
@@ -122,40 +122,49 @@ However, the judgement rule allowing `beta_eq t t' → valid_judgement e t → v
 A variable is bound if `ctx[(var n).n - 1] = some t`.
 -/
 
-def is_bound (ctx : Ctx) (v : Var) :=
-  match v with
-    | .mk n => n.toNat > 0 ∧ n.toNat ≤ ctx.length
+inductive is_bound : Ctx → SkExpr → Prop
+  | var  ctx n   : n.toNat > 0 → ⟨(n.toNat - 1)⟩ < (BindId.mk ctx.length) → is_bound ctx (.var (.mk n))
+  | app  ctx c   : is_bound ctx c.lhs                                     → is_bound ctx c.rhs → is_bound ctx (.call c)
+  | fall ctx f   : is_bound (f.bind_ty :: ctx) f.bind_ty                  → is_bound (f.bind_ty :: ctx) f.body → is_bound ctx (.fall f)
+  | k    ctx k   : is_bound ctx (.k k)
+  | s    ctx s   : is_bound ctx (.s s)
+  | prp  ctx prp : is_bound ctx (.prp prp)
+  | ty   ctx ty  : is_bound ctx (.ty ty)
 
-lemma all_well_typed_var_bound_iff (ctx : Ctx) : ∀ (n : BindId), (∃ t, valid_judgement ctx (.var (.mk n)) t) ↔ is_bound ctx (.mk n) := by
+lemma all_well_typed_var_bound_iff (ctx : Ctx) : ∀ (n : BindId), (∃ t, valid_judgement ctx (.var (.mk n)) t) ↔ is_bound ctx (.var (.mk n)) := by
   intro v
   constructor
   intro ⟨t_var, h_t_valid⟩
-  unfold is_bound
-  split
-  simp_all
   cases h_t_valid
-  case beta_eq => sorry
-  case var n h_n_eq h h_valid =>
-    simp [GT.gt] at h
-    unfold LT.lt at h
-    simp [BindId.instLT] at h
-    constructor
-    exact h
-    calc
-      n.toNat = (n.toNat - 1) + 1 := (by simp [@Nat.sub_one_add_one n.toNat (by linarith)])
-      _ ≤ ctx.length        := (by linarith)
-  intro h_is_bound
-  simp [is_bound] at h_is_bound
-  use ctx[v.toNat - 1]
-  obtain ⟨h_n_pos, h₂⟩ := h_is_bound
-  exact valid_judgement.var ctx v (by simp [GT.gt]; unfold LT.lt; simp [BindId.instLT]; exact h_n_pos) (by omega)
+  case mp.beta_eq => sorry
+  case mp.var h_pos h_in_bounds =>
+    apply is_bound.var ctx
+    if h : v = { toNat := ctx.length } then
+      simp_all
+    else
+      simp_all
+      rw [LT.lt] at h_pos
+      simp [BindId.instLT] at h_pos
+      simp_all
+    rw [LT.lt]
+    simp [BindId.instLT]
+    exact h_in_bounds
+  case mpr =>
+    intro h_bound
+    cases h_bound
+    use ctx[v.toNat - 1]
+    apply valid_judgement.var
+    simp [GT.gt]
+    rw [LT.lt]
+    simp [BindId.instLT]
+    simp_all
 
 lemma shift_indices_bound_noop : ∀ v_n shift_by (depth : ℕ), v_n.toNat ≤ depth → (SkExpr.var (.mk v_n)).with_indices_plus shift_by depth = (SkExpr.var (.mk v_n)) := by
   intro v_n shift_by depth h_is_bound
   simp [SkExpr.with_indices_plus]
   simp_all
 
-lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by, valid_judgement ctx e t → e.with_indices_plus shift_by ctx.length = e := by
+lemma all_e_well_typed_bound_shift_noop (ctx : Ctx) : ∀ (e : SkExpr) t shift_by, valid_judgement ctx e t → e.with_indices_plus shift_by ctx.length = e := by
   intro e t shift_by h_judgement_t
   match h : e with
     | .k _ =>
@@ -170,12 +179,12 @@ lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by, valid_ju
       unfold SkExpr.with_indices_plus
       simp
       cases h_judgement_t
-      case fall t_bind_ty t_body h_t_bind_ty h_t_body =>
+      case fall t_bind_ty h_t_bind_ty h_t =>
         simp [Fall.bind_ty] at h_t_bind_ty
-        simp [Fall.body] at h_t_body
-        have h := all_e_well_typed_bound (bind_ty :: ctx) bind_ty t_bind_ty shift_by h_t_bind_ty
+        simp [Fall.body] at h_t
+        have h := all_e_well_typed_bound_shift_noop (bind_ty :: ctx) bind_ty t_bind_ty shift_by h_t_bind_ty
         simp_all
-        have h := all_e_well_typed_bound (bind_ty :: ctx) body t_body shift_by h_t_body
+        have h := all_e_well_typed_bound_shift_noop (bind_ty :: ctx) body t shift_by (by simp [Fall.bind_ty] at h_t; exact h_t)
         simp_all
       case beta_eq => sorry
     | .call (.mk lhs rhs) =>
@@ -183,8 +192,8 @@ lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by, valid_ju
       simp
       cases h_judgement_t
       case call t_lhs h_t_lhs h_t_rhs =>
-        simp [all_e_well_typed_bound ctx lhs (.fall t_lhs) shift_by h_t_lhs]
-        simp [all_e_well_typed_bound ctx rhs t_lhs.bind_ty shift_by h_t_rhs]
+        simp [all_e_well_typed_bound_shift_noop ctx lhs (.fall t_lhs) shift_by h_t_lhs]
+        simp [all_e_well_typed_bound_shift_noop ctx rhs t_lhs.bind_ty shift_by h_t_rhs]
       case beta_eq => sorry
     | .var (.mk n) =>
       have h₀ := h_judgement_t
@@ -194,27 +203,99 @@ lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by, valid_ju
         have h_bound := (all_well_typed_var_bound_iff ctx n).mp (by
           use ctx[n.toNat - 1]
         )
-        unfold is_bound at h_bound
+        unfold is_bound_v at h_bound
         simp at h_bound
         exact shift_indices_bound_noop n shift_by ctx.length (by simp_all)
 
+lemma substitute_bound_noop (ctx : Ctx) : ∀ e with_expr, is_bound ctx e → Fall.substitute.substitute_e e ⟨ctx.length⟩ with_expr = e := by
+  intro e with_expr h_bound
+  cases e
+  case k  =>
+    simp [Fall.substitute.substitute_e]
+  case s =>
+    simp [Fall.substitute.substitute_e]
+  case prp =>
+    simp [Fall.substitute.substitute_e]
+  case ty =>
+    simp [Fall.substitute.substitute_e]
+  case fall f =>
+    match f with
+      | .mk bind_ty body =>
+        cases h_bound
+        case fall h_bind_ty_bound h_body_bound =>
+          simp [Fall.substitute.substitute_e]
+          constructor
+          exact substitute_bound_noop (bind_ty :: ctx) bind_ty with_expr h_bind_ty_bound
+          exact substitute_bound_noop (bind_ty :: ctx) body with_expr h_body_bound
+  case call c =>
+    match c with
+      | .mk lhs rhs =>
+        cases h_bound
+        case app h_bound_lhs h_bound_rhs =>
+          simp [Fall.substitute.substitute_e]
+          constructor
+          exact (substitute_bound_noop ctx lhs with_expr h_bound_lhs)
+          exact (substitute_bound_noop ctx rhs with_expr h_bound_rhs)
+  case var v =>
+    match h : v with
+      | .mk n =>
+        cases h_bound
+        case var h_bound =>
+          simp at h_bound
+          unfold Fall.substitute.substitute_e
+          simp [NamedSkExpr.to_sk_expr]
+          intro h
+          simp_all
+
 /-
 Using the fact that all variables that are well-typed are bound, we can say that with_indices_plus preserves the values of the variable. This concludes our lemma of preservation of `K α β x y : α`.
+
+### Inconsistency
+
+It should be noted that the judgement `(K α β x y).eval_once : α` is obviously true, as evaluation of the `K` combinator requires no substitution, and leaves `α` unaltered. However, `(K α β x y) : α` can potentially perform substitution, if `α` contains free variables. However, **`K` and `S` are closed and contain no free variables.**1
 -/
 
-lemma k_judgement_x_imp_judgement_call {m n : ℕ} (ctx : Ctx) : ∀ α β x y, valid_judgement ctx α SK[Type m] → valid_judgement ctx β SK[Type n] → valid_judgement ctx x α → valid_judgement ctx SK[((((K α) β) x) y)] α := by
+lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgement [] α SK[Type m] → valid_judgement [] β SK[Type n] → valid_judgement [] x α → valid_judgement [] SK[((((K α) β) x) y)] α := by
   intro α β x y t_α t_β t_x
   simp [NamedSkExpr.to_sk_expr] at t_α
   simp [NamedSkExpr.to_sk_expr] at t_β
-  have h : valid_judgement ctx SK[((((K α) β) x) y)] ((Fall.mk β α).substitute y).body := (by
-    apply valid_judgement.call ctx (Call.mk SK[(((K α) β) x)] y) (.mk β α)
-    
+  have h : valid_judgement [] SK[((((K α) β) x) y)] ((Fall.mk β α).substitute y).body := (by
+    apply valid_judgement.call [] (Call.mk SK[(((K α) β) x)] y) (.mk β α)
+    sorry
     sorry
   )
   simp [NamedSkExpr.to_sk_expr] at *
   simp [Fall.substitute] at h
   simp [Fall.body] at h
-  
+  have h_sub_alpha_noop := substitute_bound_noop [β] α (y.with_indices_plus { toNat := 1 } 0) (by
+    cases α
+    case k =>
+      simp [is_bound.k]
+    case s =>
+      simp [is_bound.s]
+    case prp =>
+      simp [is_bound.prp]
+    case ty =>
+      simp [is_bound.ty]
+    case fall f =>
+      match f with
+        | .mk bind_ty body =>
+          cases t_α
+          case fall t_bind_ty h_t_bind_ty h_t_body =>
+            apply is_bound.fall
+            simp [Fall.bind_ty]
+            
+            sorry
+            sorry
+          case beta_eq =>
+            sorry
+    case call =>
+      sorry
+    case var =>
+      sorry
+  )
+  simp at h_sub_alpha_noop
+  simp [h_sub_alpha_noop] at h
   sorry
 
 /-
