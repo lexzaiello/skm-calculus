@@ -209,7 +209,7 @@ lemma all_e_well_typed_bound_shift_noop (ctx : Ctx) : ∀ (e : SkExpr) t shift_b
           simp [BindId.instLT] at h_bound
           exact shift_indices_bound_noop n shift_by ctx.length (by rw [← Nat.pred_eq_sub_one] at h_bound; exact Nat.le_of_pred_lt h_bound)
 
-lemma substitute_bound_noop (ctx : Ctx) : ∀ e with_expr, is_bound ctx e → Fall.substitute.substitute_e e ⟨ctx.length⟩ with_expr = e := by
+lemma substitute_bound_noop (ctx : Ctx) : ∀ e with_expr, is_bound ctx e → Fall.substitute.substitute_e e ⟨ctx.length + 1⟩ with_expr = e := by
   intro e with_expr h_bound
   cases e
   case k  =>
@@ -244,12 +244,28 @@ lemma substitute_bound_noop (ctx : Ctx) : ∀ e with_expr, is_bound ctx e → Fa
         cases h_bound
         case var h_bound =>
           unfold Fall.substitute.substitute_e
-          
-          simp at h_bound
-          
-          simp [NamedSkExpr.to_sk_expr]
-          intro h
+          simp
+          have h_bound' : (BindId.mk n.toNat) ≤ { toNat := ctx.length } := by
+            rw [LT.lt] at h_bound
+            simp [BindId.instLT] at h_bound
+            rw [LE.le]
+            simp [BindId.instLE]
+            omega
+          have h_bound'' : (BindId.mk n.toNat) < { toNat := ctx.length + 1 } := by
+            simp_all
+            rw [LT.lt]
+            simp [BindId.instLT]
+            rw [LE.le] at h_bound'
+            simp [BindId.instLE] at h_bound'
+            linarith
+          have h_bound''' : n < { toNat := ctx.length + 1 } := by
+            simp_all
           simp_all
+          intro h
+          rw [h] at h_bound'''
+          exfalso
+          rw [LT.lt] at h_bound'''
+          simp [BindId.instLT] at h_bound'''
 
 /-
 Using the fact that all variables that are well-typed are bound, we can say that with_indices_plus preserves the values of the variable. This concludes our lemma of preservation of `K α β x y : α`.
