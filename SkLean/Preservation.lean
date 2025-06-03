@@ -159,6 +159,10 @@ lemma all_well_typed_var_bound_iff (ctx : Ctx) : ∀ (n : BindId), (∃ t, valid
     simp [BindId.instLT]
     simp_all
 
+/-
+I generalize this lemma to all expressions by induction on the definition of being bound.
+-/
+
 lemma all_well_typed_e_bound_iff (ctx : Ctx) : ∀ e, (∃ t, valid_judgement ctx e t) → is_bound ctx e := by
   intro e h_typed
   cases e
@@ -215,6 +219,9 @@ lemma all_well_typed_e_bound_iff (ctx : Ctx) : ∀ e, (∃ t, valid_judgement ct
           rw [LT.lt] at h_pos
           simp [BindId.instLT] at h_pos
           exact h_pos
+          rw [LT.lt]
+          simp [BindId.instLT]
+          exact h_bound
         case beta_eq => sorry
 
 lemma shift_indices_bound_noop : ∀ v_n shift_by (depth : ℕ), v_n.toNat ≤ depth → (SkExpr.var (.mk v_n)).with_indices_plus shift_by depth = (SkExpr.var (.mk v_n)) := by
@@ -266,6 +273,10 @@ lemma all_e_well_typed_bound_shift_noop (ctx : Ctx) : ∀ (e : SkExpr) t shift_b
           rw [LT.lt] at h_bound
           simp [BindId.instLT] at h_bound
           exact shift_indices_bound_noop n shift_by ctx.length (by rw [← Nat.pred_eq_sub_one] at h_bound; exact Nat.le_of_pred_lt h_bound)
+
+/-
+Using the above lemma, we can prove that substitution of all bound variables is a noop.
+-/
 
 lemma substitute_bound_noop (ctx : Ctx) : ∀ e with_expr, is_bound ctx e → Fall.substitute.substitute_e e ⟨ctx.length + 1⟩ with_expr = e := by
   intro e with_expr h_bound
@@ -362,9 +373,12 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
           case fall t_bind_ty h_t_bind_ty h_t_body =>
             apply is_bound.fall
             simp [Fall.bind_ty]
-            
-            sorry
-            sorry
+            apply all_well_typed_e_bound_iff
+            use t_bind_ty
+            simp [Fall.bind_ty] at h_t_bind_ty
+            exact h_t_bind_ty
+            apply all_well_typed_e_bound_iff
+            use (SkExpr.ty (Ty.mk m))
           case beta_eq =>
             sorry
     case call =>
