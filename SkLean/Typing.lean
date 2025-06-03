@@ -57,10 +57,10 @@ inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
       valid_judgement ctx call.lhs (.fall t_lhs) →
       valid_judgement ctx call.rhs (t_lhs.bind_ty) →
       valid_judgement ctx (.call call) (t_lhs.substitute call.rhs).body
-  | fall ctx (fall : Fall) t_bind_ty t_body :
+  | fall ctx (fall : Fall) t t_bind_ty t_body :
     valid_judgement (fall.bind_ty :: ctx) fall.bind_ty t_bind_ty →
     valid_judgement (fall.bind_ty :: ctx) fall.body t_body →
-    valid_judgement ctx (.fall fall) t_body
+    valid_judgement ctx (.fall fall) t
   | ty ctx (ty_e : Ty) : valid_judgement ctx (.ty ty_e) (.ty (.mk ty_e.n.succ))
   | prp ctx (prp : Prp) : valid_judgement ctx (.prp prp) (.ty (.mk 0))
   | beta_eq ctx e t t₂ : beta_eq t t₂ → valid_judgement ctx e t₂ → valid_judgement ctx e t

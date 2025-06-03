@@ -136,13 +136,11 @@ lemma all_well_typed_var_bound_iff (ctx : Ctx) : ∀ (n : BindId), (∃ t, valid
   cases h_t_valid
   case beta_eq => sorry
   case var n h_n_eq h h_valid =>
-    simp [List.getElem?_eq_some_iff] at h_valid
-    obtain ⟨h_n_length, h_has_t⟩ := h_valid
-    have h_length_pos := @List.length_pos_of_mem SkExpr t_var ctx (by rw [← h_has_t]; simp)
-    unfold GT.gt at h
+    simp [GT.gt] at h
     unfold LT.lt at h
     simp [BindId.instLT] at h
-    simp [h]
+    constructor
+    exact h
     calc
       n.toNat = (n.toNat - 1) + 1 := (by simp [@Nat.sub_one_add_one n.toNat (by linarith)])
       _ ≤ ctx.length        := (by linarith)
@@ -150,7 +148,7 @@ lemma all_well_typed_var_bound_iff (ctx : Ctx) : ∀ (n : BindId), (∃ t, valid
   simp [is_bound] at h_is_bound
   use ctx[v.toNat - 1]
   obtain ⟨h_n_pos, h₂⟩ := h_is_bound
-  exact valid_judgement.var ctx v ctx[v.toNat - 1] (by simp [GT.gt]; unfold LT.lt; simp [BindId.instLT]; exact h_n_pos) (by simp)
+  exact valid_judgement.var ctx v (by simp [GT.gt]; unfold LT.lt; simp [BindId.instLT]; exact h_n_pos) (by omega)
 
 lemma shift_indices_bound_noop : ∀ v_n shift_by (depth : ℕ), v_n.toNat ≤ depth → (SkExpr.var (.mk v_n)).with_indices_plus shift_by depth = (SkExpr.var (.mk v_n)) := by
   intro v_n shift_by depth h_is_bound
@@ -172,7 +170,7 @@ lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by, valid_ju
       unfold SkExpr.with_indices_plus
       simp
       cases h_judgement_t
-      case fall t_bind_ty t_body h_t_bind_ty h_t_body h_t_rfl =>
+      case fall t_bind_ty t_body h_t_bind_ty h_t_body =>
         simp [Fall.bind_ty] at h_t_bind_ty
         simp [Fall.body] at h_t_body
         have h := all_e_well_typed_bound (bind_ty :: ctx) bind_ty t_bind_ty shift_by h_t_bind_ty
@@ -184,7 +182,7 @@ lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by, valid_ju
       unfold SkExpr.with_indices_plus
       simp
       cases h_judgement_t
-      case call t_lhs h_t_lhs h_t_rhs h_t_eq =>
+      case call t_lhs h_t_lhs h_t_rhs =>
         simp [all_e_well_typed_bound ctx lhs (.fall t_lhs) shift_by h_t_lhs]
         simp [all_e_well_typed_bound ctx rhs t_lhs.bind_ty shift_by h_t_rhs]
       case beta_eq => sorry
@@ -194,7 +192,7 @@ lemma all_e_well_typed_bound (ctx : Ctx) : ∀ (e : SkExpr) t shift_by, valid_ju
       case beta_eq => sorry
       case var h_idx_valid =>
         have h_bound := (all_well_typed_var_bound_iff ctx n).mp (by
-          use t
+          use ctx[n.toNat - 1]
         )
         unfold is_bound at h_bound
         simp at h_bound
@@ -208,49 +206,15 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} (ctx : Ctx) : ∀ α β x y, 
   intro α β x y t_α t_β t_x
   simp [NamedSkExpr.to_sk_expr] at t_α
   simp [NamedSkExpr.to_sk_expr] at t_β
-  apply valid_judgement.call ctx (Call.mk SK[(((K α) β) x)] y) (.mk β α)
-  simp [Call.lhs]
-  apply valid_judgement.call ctx (Call.mk SK[((K α) β)] x) SK[∀ y : β, α] (.mk α SK[∀ y : β, α])
-  simp [Call.lhs]
-  apply valid_judgement.call ctx (Call.mk SK[(K α)] β) SK[∀ x : α, ∀ y : β, α] (.mk SK[Type n] (.fall (Fall.mk α (.fall (.mk (.var (.mk ⟨3⟩)) α)))))
-  simp [Call.lhs]
-  apply valid_judgement.call ctx (Call.mk SK[K] α) SK[∀ β : (Type n), ∀ x : α, ∀ y : #β, α] ty_k_fall
-  simp [Call.lhs]
-  rw [← ty_k_def_eq]
-  exact valid_judgement.k ctx .mk (ty_k) m n rfl
-  simp [Fall.bind_ty]
-  simp [ty_k_fall]
-  simp [Call.rhs]
-  exact t_α
-  simp [NamedSkExpr.to_sk_expr]
-  simp [Call.rhs]
-  simp [ty_k_fall]
-  simp [Fall.body]
-  simp [Fall.substitute]
-  simp [Fall.substitute.substitute_e]
-  simp [BindId.succ]
-  have h := all_e_well_typed_bound [] α SK[Type m] ⟨1⟩
-  cases α
-  case a.a.a.a.k =>
-    simp [SkExpr.with_indices_plus]
-  case a.a.a.a.s =>
-    simp [SkExpr.with_indices_plus]
-  case a.a.a.a.prp =>
-    simp [SkExpr.with_indices_plus]
-  case a.a.a.a.ty =>
-    simp [SkExpr.with_indices_plus]
-  case a.a.a.a.fall f =>
-    cases t_α
-    case fall =>
-      
-      sorry
-    case beta_eq =>
-      sorry
-  case a.a.a.a.call =>
+  have h : valid_judgement ctx SK[((((K α) β) x) y)] ((Fall.mk β α).substitute y).body := (by
+    apply valid_judgement.call ctx (Call.mk SK[(((K α) β) x)] y) (.mk β α)
+    
     sorry
-  case a.a.a.a.var => sorry
-  sorry
-  sorry
+  )
+  simp [NamedSkExpr.to_sk_expr] at *
+  simp [Fall.substitute] at h
+  simp [Fall.body] at h
+  
   sorry
 
 /-
