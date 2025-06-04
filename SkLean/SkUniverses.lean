@@ -75,7 +75,7 @@ This judgement intuitively holds (a la Calculus of Constructions)
 Free variable? Type of `x` changes depending on context (a la metavariable)?
 
 ```
-K_t = ∀ (x : (.var 3)) (y : (.var 2)), x
+K_t = ∀ (x : (.var 3)) (y : (.var 3₁)), x
 K_t : ?1
 K_thing = ∀ α : Type, β : Type, K_t
 K_thing[α := ℕ, β := ℝ] → K_thing = ∀ (x : α) (y : β), (x : α)
@@ -84,11 +84,22 @@ K_thing : (x : α)
 
 We can say that `K_t` is only well-typed under a context Γ where `x : something ∧ y : something₂`.
 
-Now, we can type the `K` combinator like such:
+However, to define the `K` combinator, we need some way to instantiate `(.var 3) and (.var 3₁)` at the expression level.
 
 ```
+((K α β) : K₀[(.var 3) := α, (.var 3₂) := β]) : ∀ (x : α) (y : β), x
+(K α β x y = x : α)
+(K α β x y : K₀[(.var 3) := α, (.var 3₂) := β].body = (x : α)) → (K α β x y : x)
+```
+
+Contradiction?
 
 ```
+(K (Type m) (Type n) α β : K₀[(.var 3) := (Type m), (.var 3₂) := (Type n)]) → (K (Type m) (Type n) α β : ∀ (α : Type m) (β : Type n), α)
+(K α β x y : α) = (x : α)
+```
+
+Seems like a valid judgement.
 -/
 
 #check Fin
