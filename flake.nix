@@ -75,6 +75,9 @@
             - [Definitions](./Sn.lean.md)
             - [Reducibility Candidates](./Candidates.lean.md)
             - [Preservation](./Preservation.lean.md)
+
+            # Hierarchied SK
+            - [Overview](./SkUniverses.lean)
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";
