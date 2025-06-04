@@ -165,6 +165,5 @@ If we can prove that all expressions that are well-typed, given our inference ru
 
 Termination proofs have been exhaustively enumerated for the STLC in the literature, even in Lean. However, proofs of strong normalization of other typed lambda calculi are relatively sparser.
 
-In this paper, I will be considering a particular class of type systems based on, "dependent types." The [next chapter](./CocLcExplainer.lean.md) details this subject.
-
+In this paper, I will be considering a particular class of type systems based on, "polymorphic types" (a la System F).
 -/

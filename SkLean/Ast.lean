@@ -1,9 +1,9 @@
 /-
 # AST
 
-## SK Dependent Typing
+## SK Polymorphic Typing
 
-I interpret the SK combinators as dependently typed functions of the form:
+I interpret the SK combinators as polymorphic functions of the form:
 
 $$
 K\ (\alpha : \text{Type}\ m)\ (\beta : \text{Type}\ n) : \alpha \rightarrow \beta \rightarrow \alpha \\\\

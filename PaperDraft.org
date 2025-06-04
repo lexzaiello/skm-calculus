@@ -33,7 +33,7 @@ I consider the usual SK combinator calculus defined as such:
 \end{align}
 #+END_EXPORT
 
-A natural interpretation of the combinators as typed functions results in the dependent typing:
+A natural interpretation of the combinators as typed functions results in the polymorphic typing:
 
 #+NAME: inference:1
 \label{inference:1}
@@ -101,7 +101,7 @@ where Expr is a typed combinator expression.
 
 #+NAME: decomplemma:1
 \label{decomplemma:1}
-* Decomposition of the Simply-Typed Lambda Calculus into Dependently Typed SK Combinators
+* Decomposition of the Simply-Typed Lambda Calculus into Polymorphic Typed SK Combinators
 
 I utilize an SK compilation scheme outlined in "The Implementation of Functional Programming Languages" [cite:@10.5555/1096899]:
 
@@ -125,7 +125,7 @@ T = \{ t \mid t \in B\}\ \cup\ \{ t \mid \exists\  t_{1} \in T, t_{2} \in T, t =
 \label{maplemma:1}
 ** Type Expressivity & Equivalence
 
-I define a mapping (M_{t}) from the \rightarrow type constructor to \forall: $(\alpha \rightarrow \beta) \mapsto \forall x : \alpha.\beta$. I also assume the existence of a mapping (M_{c}) from the base types $B$ to arbitrary objects in my dependently-typed SK combinator calculus. Type inference is trivially derived from the above inference rules: $\forall\ t \in B, \exists\ c : t, t', c : t \implies t' = M_{t} t \implies M_{c}\ c : t$.
+I define a mapping (M_{t}) from the \rightarrow type constructor to \forall: $(\alpha \rightarrow \beta) \mapsto \forall x : \alpha.\beta$. I also assume the existence of a mapping (M_{c}) from the base types $B$ to arbitrary objects in my polymorphic SK combinator calculus. Type inference is trivially derived from the above inference rules: $\forall\ t \in B, \exists\ c : t, t', c : t \implies t' = M_{t} t \implies M_{c}\ c : t$.
 
 It follows that every well-typed expression in our simply-typed lambda calculus has an equivalent well-typed SK expression:
 
@@ -135,7 +135,7 @@ Assume (1) that for all $c : (t \in B),\ \exists!\ c' \in M_{c},\ c' = M_{c} c$.
 Assume (2) that for all $\{t_{1}, t_{2}, t\} \subset T$ where $t = (t_{1} \rightarrow t_{2})$, there exists one and only one $t' \in M_{t}, t' = M_{t} t$.
 Per \href{decomplemma:1}{above} and induction on (1) there exists a mapping from every lambda expression to an SK combinator expression.
 It follows by induction on $e : t$, where $e$ is well-typed per the \href{decomplemma:1}{inference rules} that all $t \in$ the simply-typed $T$ are in $M_{t}$.
-It suffices to conclude that all well-typed expressions have well-typed counterparts in the dependently-typed SK combinator calculus.
+It suffices to conclude that all well-typed expressions have well-typed counterparts in the polymorphic SK combinator calculus.
 \end{proof}
 #+END_EXPORT
 

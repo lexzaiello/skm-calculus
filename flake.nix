@@ -60,13 +60,12 @@
             # Background
             - [Typed and Untyped Lambda Calculus](./Lc.lean.md)
             - [Strong Normalization](./SnLc.lean.md)
-            - [Dependent Typing](./CocLcExplainer.lean.md)
             - [SK Combinators](./SkRaw.lean.md)
 
             # Existing Work
             - [Typed SK Combinators & Strong Normalization](./ExistingTypedSk.md)
 
-            # Type Discipline
+            # Polymorphic Type Discipline
             - [AST](./Ast.lean.md)
             - [DSL](./Dsl.lean.md)
             - [Type Inference](./Typing.lean.md)
@@ -76,8 +75,8 @@
             - [Reducibility Candidates](./Candidates.lean.md)
             - [Preservation](./Preservation.lean.md)
 
-            # Hierarchied SK
-            - [Overview](./SkUniverses.lean)
+            # Hierarchied, Dependent SK
+            - [Overview](./SkUniverses.lean.md)
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";

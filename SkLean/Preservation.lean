@@ -113,7 +113,7 @@ lemma n_eq_imp_bound_rhs : ∀ v n rhs, (.mk n) = v → Fall.substitute.substitu
 
 Now, I prove that `valid_judgement SK[K α β x y] α → valid_judgement SK[K α β x y].eval_once α` by proving the call is well-typed with type `α`.
 
-Judgements of function application are determined to be true or false by substitution of the `∀` type of the left-hand side of the function call. This would seem to complicate the lemma once an argument to `K` like `ty_k` is provided. `ty_k` is dependent, and contains variables. However, all arguments to `K` are well-typed and closed. I demonstrate this later.
+Judgements of function application are determined to be true or false by substitution of the `∀` type of the left-hand side of the function call. This would seem to complicate the lemma once an argument to `K` like `ty_k` is provided. `ty_k` is generic, and contains variables. However, all arguments to `K` are well-typed and closed. I demonstrate this later.
 
 We can use this fact in our larger lemma.
 
