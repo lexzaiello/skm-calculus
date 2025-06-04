@@ -71,47 +71,27 @@ Kt_{n, m} : Type (m + 1) = ∀ (x : Type m) (y : Type n), x
 Kt_{0, 0} : Type 1 = ∀ (x : Type 0) (y : Type 0), Type 0
 ```
 
-This judgement intuitively holds (a la Calculus of Constructions). Proof irrelevance?
+This judgement intuitively holds (a la Calculus of Constructions)
 Free variable? Type of `x` changes depending on context (a la metavariable)?
 
 ```
-K_t = ∀ (x : α) (y : α), x
+K_t = ∀ (x : (.var 3)) (y : (.var 2)), x
 K_t : ?1
-K_t[x := Nat, y : Real] = ∀ (x : Nat) (y : Real), Nat
-(K_t[x := Nat, y : Real] : Nat)
+K_thing = ∀ α : Type, β : Type, K_t
+K_thing[α := ℕ, β := ℝ] → K_thing = ∀ (x : α) (y : β), (x : α)
+K_thing : (x : α)
+```
+
+We can say that `K_t` is only well-typed under a context Γ where `x : something ∧ y : something₂`.
+
+Now, we can type the `K` combinator like such:
+
 ```
 
 ```
-K₀ : ∀ x : ?1, y : ?2, ?1
-```
-
-How are variables brought into scope?
-
-```
-(K₁ : K₀[?1 := α, ?2 := β]) α β x y = x
-
-K₀ : α = ∀ ?1 ?2 (α : ?1) (β : ?2), α
-
-K₁ : K₀ = λ α β (x : α) (y : β).x
-K₁ : ∀ ?1 ?2 (α : ?1) (β : ?2), α = λ ?1 ?2 (x : ?1) (y : ?2).x
-```
-
-Clearly, this judgement is true:
-
-```
-K₁ Nat Real 1 2 → K₀[?1 := Nat, ?2 := Real, α := 1, β := 2] → K₁ Nat Real 1 2:
-
-K₀ : α = ∀ ?1 ?2 (α : ?1) (β : ?2), α
-(K₁ : K₀) α β x y = x
-```
-
-Substitution is a shared behavior of `∀` and `λ`. `∀` is typeable, `λ` is computable, then:
-
-```
-(K₂ : K₁)
-```
-
 -/
+
+#check Fin
 
 def S₀ (α : Type) (β : Type) (γ : Type) : (α → β → γ) → (α → β) → α → γ :=
   fun x y z => x z (y z)
