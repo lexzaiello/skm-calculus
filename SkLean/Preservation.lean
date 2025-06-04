@@ -471,10 +471,10 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
         simp [substitute_ty_noop]
         simp [Call.rhs]
         simp [Fall.body]
-        have h := substitute_bound_noop [SK[Type m]] α (β.with_indices_plus { toNat := 1 } 0) (by simp [NamedSkExpr.to_sk_expr]; apply all_well_typed_e_bound_iff; use SK[Type m]; simp [NamedSkExpr.to_sk_expr]; exact (judgement_holds_closed_any SK[Type m] List.nil α SK[Type m]).mp (by simp [t_α]))
+        have h := substitute_bound_noop [SK[Type m]] α (β.with_indices_plus { toNat := 1 } 0) (by simp [NamedSkExpr.to_sk_expr]; apply all_well_typed_e_bound_iff; use SK[Type m]; simp [NamedSkExpr.to_sk_expr]; exact (judgement_holds_closed_any List.nil [SK[Type m]] α SK[Type m]).mp t_α)
         simp at h
         simp [h]
-        have h := all_e_well_typed_bound_shift_noop [SK[Type n], α, SK[Type m]] β SK[Type n] ⟨1⟩ (by simp [NamedSkExpr.to_sk_expr]; exact judgement_holds_closed_any [SkExpr.ty (Ty.mk n), α, SkExpr.ty (Ty.mk m)] β SK[Type n] t_β)
+        have h := all_e_well_typed_bound_shift_noop [SK[Type n], α, SK[Type m]] β SK[Type n] ⟨1⟩ (by simp [NamedSkExpr.to_sk_expr]; exact (judgement_holds_closed_any List.nil [SkExpr.ty (Ty.mk n), α, SkExpr.ty (Ty.mk m)] β SK[Type n]).mp t_β)
         simp at h
         have h := valid_judgement.call [] (.mk SK[(K α)] β) (.mk SK[Type n] (.fall (.mk α (.fall (.mk (.var (.mk ⟨3⟩)) α))))) (by
           simp [Call.lhs]
@@ -489,8 +489,8 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
               simp [Call.rhs]
               unfold ty_k_fall
               simp [Fall.bind_ty]
-              exact judgement_holds_closed_any [SK[Type m]] α SK[Type m] t_α
-            have h := valid_judgement.call [] (.mk (SkExpr.k «K».mk) α) (@ty_k_fall m n) (by simp [Call.lhs]; rw [← ty_k_def_eq]; simp [valid_judgement.k]) (by simp [Call.rhs, ty_k_fall, Fall.bind_ty, NamedSkExpr.to_sk_expr]; sorry)
+              exact (judgement_holds_closed_any List.nil [SK[Type m]] α SK[Type m]).mp t_α
+            have h := valid_judgement.call [] (.mk (SkExpr.k «K».mk) α) (@ty_k_fall m n) (by simp [Call.lhs]; rw [← ty_k_def_eq]; simp [valid_judgement.k]) (by simp [Call.rhs, ty_k_fall, Fall.bind_ty, NamedSkExpr.to_sk_expr]; exact t_α)
             simp at h
             unfold ty_k_fall at h
             simp [Fall.body] at h
@@ -498,14 +498,17 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
             simp [Fall.substitute] at h
             simp [Fall.substitute.substitute_e] at h
             simp [BindId.succ] at h
-            have h_shift := all_e_well_typed_bound_shift_noop [] α SK[Type m] ⟨1⟩ sorry
+            have h_shift := all_e_well_typed_bound_shift_noop [] α SK[Type m] ⟨1⟩ t_α
             simp at h_shift
             simp [h_shift] at h
             simp [NamedSkExpr.to_sk_expr]
             exact h
           exact h
-        )
-        sorry
+        ) t_β
+        simp [NamedSkExpr.to_sk_expr, Fall.substitute, substitute_ty_noop, Fall.substitute.substitute_e, BindId.succ, Call.rhs, Fall.body] at h
+        simp [*] at h
+        exact (judgement_holds_closed_any List.nil [β, SkExpr.ty (Ty.mk n), α, SkExpr.ty (Ty.mk m)] SK[((K α) β)]
+          ((.fall (.mk α (.fall (.mk (β.with_indices_plus { toNat := 1 } 0) (Fall.substitute.substitute_e α { toNat := 3 } (β.with_indices_plus { toNat := 1 } 0)))))))).mp h
       )
       simp [NamedSkExpr.to_sk_expr] at h
       simp [Fall.substitute] at h
@@ -515,6 +518,7 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
       simp at h_sub_alpha_noop
       rw [h_sub_alpha_noop] at h
       simp [Fall.body] at h
+      
       sorry
       sorry
     )
