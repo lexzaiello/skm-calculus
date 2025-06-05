@@ -16,7 +16,7 @@ open SkExpr
 abbrev Ctx := List SkExpr
 
 /-
-I make use of a DSL for convenience and legibility. See [DSL](./Dsl.lean.md) for more. The types of K and S are fixed, although they are dependent on a universe level provided at the meta-level.
+I make use of a DSL for convenience and legibility. See [DSL](./Dsl.lean.md) for more. The types of K and S are fixed, although they are dependent on a universe level provided at the meta-level. It is not immediately clear that type universes are required. I plan on elaborating more in the [dependent typing examples](./DependentExamples.lean.md) chapter.
 -/
 
 def ty_k {m n : ℕ} := SK[∀ α : Type m, ∀ β : Type n, #α → #β → #α]
@@ -31,9 +31,9 @@ def ty_s {m n o : ℕ} := SK[∀ α : Type m, ∀ β : Type n, ∀ γ : Type o, 
 
 ## Closedness
 
-Note that this typing of the \\(S\\) and \\(K\\) combinators implies that **free variables are inexpressible in this calculus**. This simplifies typing judgements significantly. I prove this in the [preservation chapter](./Preservation.lean.md). I still make use of a context for a natural typing judgement.
+Note that this typing of the \\(S\\) and \\(K\\) combinators implies that **free variables are inexpressible in this calculus**. This simplifies typing judgements significantly. I prove this in the [preservation chapter](./Preservation.lean.md). I still make use of a context for a readable typing judgement.
 
-Beta equivalence is defined as equality after some sequence of evaluations. Expressions are certainly \\(=_{\beta}\\) if they are definitionally equivalent. An expression is beta equivalent to another if its one-step redux is equivalent to the other expression. I assume symmetry and transitivity.
+Beta equivalence is defined as equality after some sequence of evaluations. Expressions are certainly \\(=_{\beta}\\) if they are definitionally equivalent. An expression is beta equivalent to another if its one-step redux is beta-equivalent to the other expression. I assume symmetry and transitivity.
 -/
 
 inductive beta_eq : SkExpr → SkExpr → Prop
@@ -49,7 +49,7 @@ inductive beta_eq : SkExpr → SkExpr → Prop
 - **`∀ x : bindty.body`** expression: `t` is a valid judgement if `t_body` is a valid judgement for `body` and `t = t_body`.
 - **`Type n`** expression: `t` is a valid judgement if `t = ty (n + 1)`.
 - **`Prop`** expression: `t` is a valid judgement if `t = ty 0`
-- **`var n`** expression: `t` is a  valid judgement if the the nth nearest-bound variable in the context is of type `t`.
+- **`var n`** expression: `t` is a valid judgement if the the nth nearest-bound variable in the context is of type `t`.
 - `t` is a valid judgement for `e` if some `t'` is beta equivalent to it, and `t'` is a valid judgement for `e`.
 -/
 
@@ -70,22 +70,3 @@ inductive valid_judgement : Ctx → SkExpr → SkExpr → Prop
   | prp ctx (prp : Prp) : valid_judgement ctx (.prp prp) (.ty (.mk 0))
   | beta_eq ctx e t t₂ : beta_eq t t₂ → valid_judgement ctx e t₂ → valid_judgement ctx e t
   | var ctx n (h_pos : n > ⟨0⟩) (h_in_bounds : (n.toNat - 1) < ctx.length) : valid_judgement ctx (.var (.mk n)) (ctx[n.toNat - 1])
-
-/-
-For testing purposes, I also encode my type inference rules in an unsafe "partial" function:
--/
-
-partial def type_of_unsafe {m n o : ℕ} (ctx : Ctx) : SkExpr → Option SkExpr
-  | ty (.mk n) => some $ .ty (.mk n.succ)
-  | var (.mk n) => ctx[n.toNat - 1]?
-  | prp _ => ty (.mk 0)
-  | k _ => @ty_k m n
-  | s _ => @ty_s m n o
-  | fall (.mk bind_ty body) => @type_of_unsafe m n o (bind_ty :: ctx) body
-  | call (.mk lhs rhs) => do
-    let t_lhs <- @type_of_unsafe m n o ctx lhs
-    match t_lhs with
-      | .fall f =>
-        pure $ (f.substitute rhs).body
-      | _ => none
-
