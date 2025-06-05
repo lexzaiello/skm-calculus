@@ -13,9 +13,6 @@ def K₁ : K₀ := fun _α _β x _y => x
 abbrev S₀.{m, n, o} := ∀ (α : Type m) (β : Type n) (γ : Type o) (_x : α → β → γ) (_y : α → β) (_z : α), γ
 def S₁ : S₀ := fun _α _β _γ x y z => x z (y z)
 
-abbrev I₀.{m} := ∀ (α : Type m) (_x : α), α
-def I₁ : I₀ := fun _α x => x
-
 /-
 ## Π type derivation:
 
