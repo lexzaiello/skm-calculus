@@ -493,24 +493,47 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
       simp [substitute_ty_noop] at h
       simp [Fall.substitute.substitute_e, BindId.succ, Fall.body] at h
       have h_α_sub_noop : Fall.substitute.substitute_e α { toNat := 3 } (β.with_indices_plus { toNat := 1 } 0) = α := by
-        have h := substitute_bound_noop [β, SK[Type n], α, SK[Type m]] α (β.with_indices_plus { toNat := 1 } 0)
-        simp [NamedSkExpr.to_sk_expr] at h
-        have h_bound : is_bound [β, SK[Type n], α, SK[Type m]] α := by
+        have h_sub_noop := substitute_bound_noop [α, SK[Type m]] α (β.with_indices_plus { toNat := 1 } 0)
+        have h_bound : is_bound [α, SK[Type m]] α := by
           apply all_well_typed_e_bound_iff
           use SK[Type m]
-          exact (judgement_holds_closed_any List.nil [β, α] α SK[Type m]).mp t_α
+          exact (judgement_holds_closed_any List.nil [α, SK[Type m]] α SK[Type m]).mp t_α
         simp [NamedSkExpr.to_sk_expr] at h_bound
-        simp [h_bound] at h
-        exact h
+        simp [h_bound, NamedSkExpr.to_sk_expr] at h_sub_noop
+        exact h_sub_noop
       simp [h_α_sub_noop] at h
-      sorry
-      sorry
+      have h_α_sub_noop : Fall.substitute.substitute_e α { toNat := 2 } (β.with_indices_plus { toNat := 1 } 0) = α := by
+        have h_sub_noop := substitute_bound_noop [SK[Type m]] α (β.with_indices_plus { toNat := 1 } 0)
+        have h_bound : is_bound [SK[Type m]] α := by
+          apply all_well_typed_e_bound_iff
+          use SK[Type m]
+          exact (judgement_holds_closed_any List.nil [SK[Type m]] α SK[Type m]).mp t_α
+        simp [NamedSkExpr.to_sk_expr] at h_bound
+        simp [h_bound, NamedSkExpr.to_sk_expr] at h_sub_noop
+        exact h_sub_noop
+      simp [h_α_sub_noop] at h
+      have h_shift_noop := all_e_well_typed_bound_shift_noop [] β SK[Type n] ⟨1⟩ (by
+        simp [NamedSkExpr.to_sk_expr]
+        exact t_β
+      )
+      simp at h_shift_noop
+      simp [h_shift_noop] at h
+      exact h
+      simp [Call.rhs]
+      simp [Fall.bind_ty]
+      exact t_x
     )
     simp [Fall.substitute, Fall.substitute.substitute_e, Call.rhs, BindId.succ, Fall.body] at h
-    have h_sub_noop_h := substitute_bound_noop [α] β (x.with_indices_plus { toNat := 1 } 0) sorry
+    have h_sub_noop_h := substitute_bound_noop [α] β (x.with_indices_plus { toNat := 1 } 0) (by
+      apply all_well_typed_e_bound_iff
+      use SK[Type n]
+      exact (judgement_holds_closed_any List.nil [α] β SK[Type n]).mp t_β)
     simp at h_sub_noop_h
     rw [h_sub_noop_h] at h
-    have h_sub_noop_h := substitute_bound_noop [α] α (x.with_indices_plus { toNat := 1 } 0) sorry
+    have h_sub_noop_h := substitute_bound_noop [SK[Type m]] α (x.with_indices_plus { toNat := 1 } 0) (by
+          apply all_well_typed_e_bound_iff
+          use SK[Type m]
+          exact (judgement_holds_closed_any List.nil [SK[Type m]] α SK[Type m]).mp t_α)
     simp at h_sub_noop_h
     rw [h_sub_noop_h] at h
     exact h
