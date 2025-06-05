@@ -17,8 +17,8 @@ import SkLean.Typing
 open SkExpr
 
 inductive Sn : SkExpr → Prop
-  | trivial (call : Call) : eval_once call = (.call call) → Sn (.call call)
-  | hard    (call : Call) : (Sn ∘ eval_once) call → Sn (.call call)
+  | trivial (call : Call) : call.eval_once = (.call call) → Sn (.call call)
+  | hard    (call : Call) : Sn call.eval_once → Sn (.call call)
   | prp     (prp  : Prp)  : Sn (.prp prp)
   | ty      (t    : Ty)   : Sn (.ty t)
   | fall    (f    : Fall) : Sn (.fall f)
@@ -28,7 +28,7 @@ inductive Sn : SkExpr → Prop
 I reuse the [previous lemmas](./SnLc.lean.md) about SN bidirectionality (preservation of SN).
 -/
 
-lemma eval_rfl_imp_sn_iff : ∀ (call : Call), eval_once call = (.call call) → (Sn (eval_once call) ↔ Sn (.call call)) := by
+lemma eval_rfl_imp_sn_iff : ∀ (call : Call), call.eval_once = (.call call) → (Sn (call.eval_once) ↔ Sn (.call call)) := by
   intro e h_eq
   constructor
   rw [h_eq]
@@ -36,7 +36,7 @@ lemma eval_rfl_imp_sn_iff : ∀ (call : Call), eval_once call = (.call call) →
   rw [h_eq]
   simp
 
-lemma sn_bidirectional : ∀ (call : Call), Sn (eval_once call) ↔ Sn (.call call) := by
+lemma sn_bidirectional : ∀ (call : Call), Sn (call.eval_once) ↔ Sn (.call call) := by
   intro e
   constructor
   intro h
