@@ -5,9 +5,28 @@
 
 -/
 
-def K₀ := ∀ (α : Type) (β : Type) (x : α) (y : β), α
-def K₁ : K₀ := fun _α _β x y => x
-def S₀ := ∀ (α : Type) (β : Type) (γ : Type) (x : α → β → γ) (y : α → β) (z : α), γ
-def S₁ : S₀ := fun α β γ x y z => x z (y z)
-def I₀ := ∀ (α : Type) (x : α), α
-def I₁ : I₀ := fun (α : Type) (x : α) => x
+import Mathlib.Tactic
+
+abbrev K₀.{m, n} := ∀ (α : Type m) (β : Type n) (_x : α) (_y : β), α
+def K₁ : K₀ := fun _α _β x _y => x
+
+abbrev S₀.{m, n, o} := ∀ (α : Type m) (β : Type n) (γ : Type o) (_x : α → β → γ) (_y : α → β) (_z : α), γ
+def S₁ : S₀ := fun _α _β _γ x y z => x z (y z)
+
+abbrev I₀.{m} := ∀ (α : Type m) (_x : α), α
+def I₁ : I₀ := fun _α x => x
+
+/-
+## Π type derivation:
+
+I denote `_` to mean a hole filled by the typing context.
+I denote `S` and `K` to mean `S₁ _ _ _` and `K₁ _ _`.
+
+```
+def flip := S (S (K (S (K S) K))) (K (S K K))
+def Π₁ (α : Type) (t_map : Type → Type) : t_map α := flip
+
+Π₁ ℕ id = id ℕ = ℕ
+```
+-/
+
