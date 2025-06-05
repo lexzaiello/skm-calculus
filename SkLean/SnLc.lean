@@ -51,8 +51,13 @@ def eval_once (e : Expr'') : Expr'' :=
     .app (eval_once lhs) rhs
   | x => x
 
-def eval''' (e : zntyzzjzzzbhjzbhjzbhjbhzbhjzzzbhjdzbhjgdgddbhjddvation
+def eval''' (e : Expr'') (n : ℕ) : Option Expr'' :=
+  match n with
+    | .zero => none
+    | .succ .zero => eval_once e
+    | .succ n => eval''' (eval_once e) n
 
+/-
 Assume that evaluation of a given expression \\(e\\) terminates. This is only true if there is some value for `steps` which can be provided to `eval'''`. Thus, we can say that:
 -/
 
@@ -136,25 +141,19 @@ Using the fact that `Sn` is bidirectional (3), we can prove that strong normaliz
 We simply obtain `n_steps - 1` via induction given (3), and use its successor.
 -/
 
-lemma sn_imp_exists_steps : ∀ e, Sn e → ∃ n_steps, (eval''' e n_steps).isSome := by
+lemma sn_imp_exists_steps : ∀ e, Sn e → ∃ n_steps, n_steps > 0 ∧ (eval''' e n_steps).isSome := by
   intro e h_sn
   induction h_sn
   use 1
   unfold eval''' at *
   simp
   case hard e' h h₂ =>
-    have h_sn_e' := (sn_bidirectional e').mp h
-    have ⟨n, h⟩ := h₂
+    have ⟨n, ⟨h_n_pos, h⟩⟩ := h₂
     use n.succ
-    unfold eval'''
-    simp
-    split
-    case isTrue h_eq_eval =>
-      simp
-    case isFalse h_eval_some =>
-      simp_all
-  case h e' a =>
-    simp [a]
+    rw [eval''']
+    simp [h]
+    simp_all
+    exact Nat.pos_iff_ne_zero.mp h_n_pos
 
 /-
 ## Termination Proof

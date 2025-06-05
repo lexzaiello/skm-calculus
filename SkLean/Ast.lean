@@ -155,7 +155,7 @@ end Call
 namespace SkExpr
 
 /-
-Whenever a value is substituted in to a \\(\lambda\\) expression, all its free variables must be incremented by 1 in order to prevent shadowing from the new surrounding expression.
+Whenever a value is substituted in to a \\(\lambda\\) expression, all free variables must be incremented by 1 in order to prevent shadowing from the new surrounding expression.
 -/
 
 def with_indices_plus (in_expr : SkExpr) (shift_by : BindId) (at_depth : ℕ) : SkExpr :=

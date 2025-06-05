@@ -95,7 +95,7 @@ We will also have to update substitute to reflect this change.
 
 A simple algorithm for variable substitution in De Bruijn-indexed expressions simply increments a "depth" counter until it reaches a variable with \\(n = \text{depth}\\), then replaces the value.
 However, free variables need to be accounted for.
-In the case of the expression being substituted in, for every deeper level in the tree which it is inserted in, its free variables msut be incremented by 1.
+In the case of the expression being substituted in, for every deeper level in the tree which it is inserted in, its free variables must be incremented by 1.
 -/
 
 -- Shifts free variable de bruijn indices by the specified amount

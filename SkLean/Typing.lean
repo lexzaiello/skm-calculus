@@ -33,7 +33,7 @@ def ty_s {m n o : ℕ} := SK[∀ α : Type m, ∀ β : Type n, ∀ γ : Type o, 
 
 Note that this typing of the \\(S\\) and \\(K\\) combinators implies that **free variables are inexpressible in this calculus**. This simplifies typing judgements significantly. I prove this in the [preservation chapter](./Preservation.lean.md). I still make use of a context for a natural typing judgement.
 
-Beta equivalence is defined as equality after some sequence of evaluations. Expressions are certainly \\(=_{\beta}\\) if they are definitionally equivalent. An expression is beta equivalent to another if its one-step redux is equivalent ot the other expression. I assume symmetry and transitivity.
+Beta equivalence is defined as equality after some sequence of evaluations. Expressions are certainly \\(=_{\beta}\\) if they are definitionally equivalent. An expression is beta equivalent to another if its one-step redux is equivalent to the other expression. I assume symmetry and transitivity.
 -/
 
 inductive beta_eq : SkExpr → SkExpr → Prop
