@@ -6,8 +6,8 @@ I define strong normalization inductively as:
 - Termination in one step of evaluation
 - Strong normalization of the next step of evaluation
 
-I assume strong normalization of terms that are not evaluatable (e.g., Prop, Ty, etc.).
-Unsubstituted variables are assumed to be strongly normalizing, as the inductive definition of Sn for call evaluation does not produce unsubstituted variables (except free variables, which are also strongly normalizing).
+I assume strong normalization of terms that are not computable (e.g., Prop, Ty, etc.).
+Unsubstituted variables are assumed to be strongly normalizing, as the inductive definition of `Sn` for call evaluation does not produce unsubstituted variables and free variables are inexpressible.
 -/
 
 import SkLean.Ast

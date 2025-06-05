@@ -53,7 +53,7 @@ Proving preservation in the general case of evaluation requires proving `K α β
 
 ## Substitution
 
-This lemma becomes tricky once substitution is required. I prove that all substitutions of `(var n) rhs` where `n ≠ 1` are noops. I also prove that all substitutions of `(var 1) rhs = rhs`.
+This lemma becomes tricky once substitution is required. I prove that all substitutions of `(var n) rhs` where `n ≠ ctx.length` are no-ops. I also prove that all substitutions of `(var 1) rhs = rhs`.
 -/
 
 lemma substitute_free_noop : ∀ rhs v n, (Var.mk n) ≠ v → Fall.substitute.substitute_e (.var v) n rhs = (.var v) := by
@@ -96,10 +96,6 @@ lemma substitute_s_noop : ∀ e rhs n, e = SkExpr.s (.mk) → Fall.substitute.su
   unfold Fall.substitute.substitute_e
   rw [h_e_not_var]
 
-/-
-I generalize this lemma to all bound variables.
--/
-
 lemma n_eq_imp_bound_rhs : ∀ v n rhs, (.mk n) = v → Fall.substitute.substitute_e (.var v) n rhs = rhs  := by
   intro v n rhs h_v_n_eq
   unfold Fall.substitute.substitute_e
@@ -113,7 +109,7 @@ lemma n_eq_imp_bound_rhs : ∀ v n rhs, (.mk n) = v → Fall.substitute.substitu
 
 Now, I prove that `valid_judgement SK[K α β x y] α → valid_judgement SK[K α β x y].eval_once α` by proving the call is well-typed with type `α`.
 
-Judgements of function application are determined to be true or false by substitution of the `∀` type of the left-hand side of the function call. This would seem to complicate the lemma once an argument to `K` like `ty_k` is provided. `ty_k` is generic, and contains variables. However, all arguments to `K` are well-typed and closed. I demonstrate this later.
+Judgements of function application are determined to be true or false by substitution of the `∀` type of the left-hand side of the function call. This would seem to complicate the lemma once an argument to `K` like `ty_k` is provided. `ty_k` is dependent, and contains variables. However, all arguments to `K` are well-typed and closed. I demonstrate this later.
 
 We can use this fact in our larger lemma.
 
@@ -463,59 +459,50 @@ lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgem
         (Call.mk (SkExpr.call (Call.mk (SkExpr.call (Call.mk (SkExpr.k «K».mk) α)) β)) x).rhs).body) := (by
       apply valid_judgement.call [] (Call.mk (SkExpr.call (Call.mk (SkExpr.call (Call.mk (SkExpr.k «K».mk) α)) β)) x) (.mk α (.fall (.mk β α)))
       simp [Call.lhs]
-      have h : (valid_judgement [β, SK[Type n], α, SK[Type m]] SK[((K α) β)] ((Fall.mk SK[Type n] (.fall (.mk α (.fall (.mk (SkExpr.var (.mk ⟨3⟩)) α))))).substitute (Call.mk SK[(K α)] β).rhs).body) := (by
-        simp [Fall.substitute]
-        simp [Fall.substitute.substitute_e]
-        simp [BindId.succ]
-        simp [NamedSkExpr.to_sk_expr]
-        simp [substitute_ty_noop]
-        simp [Call.rhs]
-        simp [Fall.body]
-        have h := substitute_bound_noop [SK[Type m]] α (β.with_indices_plus { toNat := 1 } 0) (by simp [NamedSkExpr.to_sk_expr]; apply all_well_typed_e_bound_iff; use SK[Type m]; simp [NamedSkExpr.to_sk_expr]; exact (judgement_holds_closed_any List.nil [SK[Type m]] α SK[Type m]).mp t_α)
-        simp at h
-        simp [h]
-        have h := all_e_well_typed_bound_shift_noop [SK[Type n], α, SK[Type m]] β SK[Type n] ⟨1⟩ (by simp [NamedSkExpr.to_sk_expr]; exact (judgement_holds_closed_any List.nil [SkExpr.ty (Ty.mk n), α, SkExpr.ty (Ty.mk m)] β SK[Type n]).mp t_β)
-        simp at h
-        have h := valid_judgement.call [] (.mk SK[(K α)] β) (.mk SK[Type n] (.fall (.mk α (.fall (.mk (.var (.mk ⟨3⟩)) α))))) (by
-          simp [Call.lhs]
-          simp [NamedSkExpr.to_sk_expr]
-          have h : (valid_judgement [] (.call (.mk (SkExpr.k .mk) α)) (.fall (.mk SK[Type n] (.fall (.mk α (.fall (.mk (.var (.mk ⟨3⟩)) α))))))) := by
-            have h : valid_judgement [SK[Type m]] (SkExpr.call (Call.mk (SkExpr.k «K».mk) α)) ((@ty_k_fall m n).substitute (Call.mk (SkExpr.k «K».mk) α).rhs).body := by
-              simp [NamedSkExpr.to_sk_expr]
-              apply valid_judgement.call [SK[Type m]] (.mk (.k .mk) α) ty_k_fall
+      have h := (valid_judgement.call [] (.mk SK[(K α)] β) (.mk SK[Type n] (.fall (.mk α (.fall (.mk (.var (.mk ⟨3⟩)) α))))) (by
+          simp [Call.lhs, NamedSkExpr.to_sk_expr]
+          have h : (valid_judgement [] SK[(K α)] (.fall (.mk SK[Type n] (.fall (.mk α (.fall (.mk (.var (.mk ⟨3⟩)) α))))))) := by
+            simp [NamedSkExpr.to_sk_expr]
+            have h := valid_judgement.call [] (.mk SK[K] α) (@ty_k_fall m n) (by
               simp [Call.lhs]
               rw [← ty_k_def_eq]
-              simp [valid_judgement.k]
+              simp [NamedSkExpr.to_sk_expr, valid_judgement.k]
+            ) (by
               simp [Call.rhs]
-              unfold ty_k_fall
-              simp [Fall.bind_ty]
-              exact (judgement_holds_closed_any List.nil [SK[Type m]] α SK[Type m]).mp t_α
-            have h := valid_judgement.call [] (.mk (SkExpr.k «K».mk) α) (@ty_k_fall m n) (by simp [Call.lhs]; rw [← ty_k_def_eq]; simp [valid_judgement.k]) (by simp [Call.rhs, ty_k_fall, Fall.bind_ty, NamedSkExpr.to_sk_expr]; exact t_α)
-            simp at h
-            unfold ty_k_fall at h
-            simp [Fall.body] at h
-            simp [Call.rhs] at h
-            simp [Fall.substitute] at h
-            simp [Fall.substitute.substitute_e] at h
-            simp [BindId.succ] at h
-            have h_shift := all_e_well_typed_bound_shift_noop [] α SK[Type m] ⟨1⟩ t_α
-            simp at h_shift
-            simp [h_shift] at h
-            simp [NamedSkExpr.to_sk_expr]
+              simp [ty_k_fall, Fall.bind_ty]
+              exact t_α
+            )
+            simp [Fall.body, Call.rhs] at h
+            rw [ty_k_fall] at h
+            simp [NamedSkExpr.to_sk_expr, Fall.substitute, Fall.substitute.substitute_e, BindId.succ] at h
+            have h_shift_noop := all_e_well_typed_bound_shift_noop [] α SK[Type m] ⟨1⟩ (by
+              simp [NamedSkExpr.to_sk_expr]
+              exact t_α
+            )
+            simp [NamedSkExpr.to_sk_expr, List.length] at h_shift_noop
+            rw [h_shift_noop] at h
             exact h
           exact h
-        ) t_β
-        simp [NamedSkExpr.to_sk_expr, Fall.substitute, substitute_ty_noop, Fall.substitute.substitute_e, BindId.succ, Call.rhs, Fall.body] at h
-        simp [*] at h
-        exact (judgement_holds_closed_any List.nil [β, SkExpr.ty (Ty.mk n), α, SkExpr.ty (Ty.mk m)] SK[((K α) β)]
-          ((.fall (.mk α (.fall (.mk (β.with_indices_plus { toNat := 1 } 0) (Fall.substitute.substitute_e α { toNat := 3 } (β.with_indices_plus { toNat := 1 } 0)))))))).mp h
-      )
+        ) (by
+          simp [Call.rhs, Fall.bind_ty]
+          exact t_β
+        ))
       simp [NamedSkExpr.to_sk_expr] at h
       simp [Fall.substitute] at h
       simp [Call.rhs] at h
       simp [substitute_ty_noop] at h
       simp [Fall.substitute.substitute_e, BindId.succ, Fall.body] at h
-      have h_α_sub_noop := 
+      have h_α_sub_noop : Fall.substitute.substitute_e α { toNat := 3 } (β.with_indices_plus { toNat := 1 } 0) = α := by
+        have h := substitute_bound_noop [β, SK[Type n], α, SK[Type m]] α (β.with_indices_plus { toNat := 1 } 0)
+        simp [NamedSkExpr.to_sk_expr] at h
+        have h_bound : is_bound [β, SK[Type n], α, SK[Type m]] α := by
+          apply all_well_typed_e_bound_iff
+          use SK[Type m]
+          exact (judgement_holds_closed_any List.nil [β, α] α SK[Type m]).mp t_α
+        simp [NamedSkExpr.to_sk_expr] at h_bound
+        simp [h_bound] at h
+        exact h
+      simp [h_α_sub_noop] at h
       sorry
       sorry
     )

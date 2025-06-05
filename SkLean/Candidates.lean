@@ -1,12 +1,12 @@
 /-
 # Reducibility Candidates
 
-I extend existing proofs of strong normalization of the STLC and simply-typed SK combinators by utilizing Girard's "reducibility candidates."
+I extend existing proofs of strong normalization of the STLC and simply-typed SK combinators by utilizing defining reducibility candidates.
 
 I define reducibility candidates as expressions of type \\(t\\) which are [hereditarily terminating](https://www.cs.cmu.edu/~rwh/courses/chtt/pdfs/tait.pdf):
 
-- In the case of unevaluable expressions \\(t\\), the expression is trivially hereditarily terminating and a reducibility candidate for type \\(t\\).
-- In the case where \\(t\\) is of the form \\(\forall x:\alpha.\beta\\), an expression of type \\(e\\) is strongly-normalizing if all its one-step reduxes are reducibility candidates for \\(\beta\\). The set of one-step reduxes is defined as all applications of \\(e\ arg\\) where \\(arg\\) is of type \\(\alpha\\).
+- In the case of noncomputable expressions \\(e : t\\), the expression is trivially hereditarily terminating and a reducibility candidate for type \\(t\\).
+- In the case where \\(t\\) is of the form \\(\forall x:\alpha.\beta\\), an expression \\(e\\) of type \\(t\\) is strongly-normalizing if all its one-step reduxes are reducibility candidates for \\(\beta\\). The set of one-step reduxes is defined as all applications of \\(e\ arg\\) where \\(arg\\) is of type \\(\alpha\\).
 -/
 
 import SkLean.Ast
