@@ -23,7 +23,7 @@ inductive NamedSkExpr where
 namespace NamedSkExpr
 
 /-
-De Bruijn indices are assigned eagerly based on the location of the nearest bound matching variable.
+De Bruijn indices are assigned greedily based on the location of the nearest bound matching variable.
 -/
 def to_sk_expr (names : List String) : NamedSkExpr → SkExpr
   | .k => .k .mk
@@ -40,7 +40,7 @@ def to_sk_expr (names : List String) : NamedSkExpr → SkExpr
 end NamedSkExpr
 
 /-
-Used like so:
+The DSL is used like so:
 
 ```lean
 SK[K]
@@ -85,6 +85,6 @@ macro_rules
   | `(SK[ $e:skexpr ]) => `(NamedSkExpr.to_sk_expr [] ⟪ $e ⟫)
 
 /-
-Variables in body position must be prefixed with #.
+Variables in body position must be prefixed with # so as not to collide with definitions in scope.
 -/
 #eval SK[∀ α : Type 0, ∀ β : Type 0, ∀ x : #α, ∀ y : #β, #α]
