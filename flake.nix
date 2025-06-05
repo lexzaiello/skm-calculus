@@ -75,8 +75,8 @@
             - [Reducibility Candidates](./Candidates.lean.md)
             - [Preservation](./Preservation.lean.md)
 
-            # Hierarchied, Dependent SK
-            - [Overview](./SkUniverses.lean.md)
+            # Dependent SK
+            - [Examples](./DependentExamples.lean.md)
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";
