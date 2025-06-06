@@ -344,9 +344,8 @@ Closed expressions do not contain free variables, and as a result, are well-type
 TODO: Clean this lemma up a ton.
 -/
 
-lemma judgement_holds_closed_any : ∀ ctx ctxxs e t, valid_judgement ctx e t  ↔ valid_judgement (ctx ++ ctxxs) e t := by
+lemma judgement_holds_closed_any : ∀ ctx ctxxs e t, valid_judgement ctx e t  → valid_judgement (ctx ++ ctxxs) e t := by
   intro ctx ctxxs e t
-  constructor
   intro h_closed
   cases e
   case k a =>
@@ -377,12 +376,8 @@ lemma judgement_holds_closed_any : ∀ ctx ctxxs e t, valid_judgement ctx e t  �
           simp [Fall.body] at *
           simp [Fall.bind_ty] at *
           apply valid_judgement.fall (ctx ++ ctxxs) (.mk bind_ty body) t_bind_ty t
-          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] ctx (Fall.mk bind_ty body).bind_ty t_bind_ty).mpr h_t_bind_ty
-          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] (ctx ++ ctxxs) (Fall.mk bind_ty body).bind_ty t_bind_ty).mp h
-          exact h
-          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] ctx (Fall.mk bind_ty body).body t).mpr h_t_body
-          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] (ctx ++ ctxxs) (Fall.mk bind_ty body).body t).mp h
-          exact h
+          
+          sorry
         case beta_eq => sorry
   case call c =>
     match c with
@@ -396,55 +391,13 @@ lemma judgement_holds_closed_any : ∀ ctx ctxxs e t, valid_judgement ctx e t  �
           have h := (judgement_holds_closed_any ctx ctxxs rhs t_lhs.bind_ty).mp h_t_rhs
           exact h
         case beta_eq => sorry
-  case var _ => sorry
-  intro h_closed
-  cases e
-  case k a =>
-    cases h_closed
-    case k =>
-      simp [valid_judgement.k]
-    case beta_eq => sorry
-  case s a =>
-    cases h_closed
-    case s =>
-      simp [valid_judgement.s]
-    case beta_eq => sorry
-  case prp a =>
-    cases h_closed
-    case prp =>
-      simp [valid_judgement.prp]
-    case beta_eq => sorry
-  case ty a =>
-    cases h_closed
-    case ty =>
-      simp [valid_judgement.ty]
-    case beta_eq => sorry
-  case fall f =>
-    match f with
-      | .mk bind_ty body =>
-        cases h_closed
-        case fall t_bind_ty h_t_bind_ty h_t_body =>
-          apply valid_judgement.fall ctx (.mk bind_ty body) t_bind_ty t
-          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] (ctx ++ ctxxs) (Fall.mk bind_ty body).bind_ty t_bind_ty).mpr h_t_bind_ty
-          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] (ctx) (Fall.mk bind_ty body).bind_ty t_bind_ty).mp h
-          exact h
-          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] (ctx ++ ctxxs) (Fall.mk bind_ty body).body t).mpr h_t_body
-          have h := (judgement_holds_closed_any [(Fall.mk bind_ty body).bind_ty] ctx (Fall.mk bind_ty body).body t).mp h
-          exact h
-        case beta_eq => sorry
-  case call c =>
-    match c with
-      | .mk lhs rhs =>
-        cases h_closed
-        case call t_lhs h_t_lhs h_t_rhs =>
-          apply valid_judgement.call ctx (.mk lhs rhs) t_lhs
-          simp [Call.lhs] at *
-          have h := (judgement_holds_closed_any ctx ctxxs lhs (SkExpr.fall t_lhs)).mpr h_t_lhs
-          exact h
-          have h := (judgement_holds_closed_any ctx ctxxs rhs t_lhs.bind_ty).mpr h_t_rhs
-          exact h
-        case beta_eq => sorry
-  case var _ => sorry
+  case var _ =>
+    
+    sorry
+
+/-
+This is a massive lemma. We ought to modularize it.
+-/
 
 lemma k_judgement_x_imp_judgement_call {m n : ℕ} : ∀ α β x y, valid_judgement [] α SK[Type m] → valid_judgement [] β SK[Type n] → valid_judgement [] x α → valid_judgement [] y β → valid_judgement [] SK[((((K α) β) x) y)] α := by
   intro α β x y t_α t_β t_x t_y
