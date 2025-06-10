@@ -156,10 +156,11 @@ $$
 mutual
 
 inductive is_eval_once : Call → Expr → Prop
-  | k x y     : is_eval_once (.mk SKM[(K x)] y) x
-  | s x y z   : is_eval_once (.mk SKM[((S x) y)] z) SKM[((x z) (y z))]
-  | m e t arg : valid_judgment e t → is_eval_once (.mk SKM[(M e)] arg) SKM[((e arg) (t arg))]
-  | rfl       : (.call c) = e₂ → is_eval_once c e₂
+  | k x y        : is_eval_once (.mk SKM[(K x)] y) x
+  | s x y z      : is_eval_once (.mk SKM[((S x) y)] z) SKM[((x z) (y z))]
+  | m e t arg    : valid_judgment e t    → is_eval_once (.mk SKM[(M e)] arg) SKM[((e arg) (t arg))]
+  | call lhs rhs : is_eval_once lhs lhs' → is_eval_once (.mk lhs' rhs) e' → is_eval_once (.mk (.call lhs) rhs) e'
+  | rfl          : (.call c) = e₂ → is_eval_once c e₂
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | rfl                       : e₁ = e₂            → beta_eq e₁ e₂
@@ -331,6 +332,44 @@ lemma s_eval_sn : ∀ x y z, sn SKM[((x z) (y z))] → sn SKM[(((S x) y) z)] := 
   apply @sn.hard (.mk SKM[((S x) y)] z) SKM[((x z) (y z))]
   simp [is_eval_once.s]
   exact sn_eval
+
+/-
+## Type Preservation
+
+As usual, we prove type preservation.
+-/
+
+lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_eval_once c e' → valid_judgment_beta_eq e' t := by
+  intro c e' t h_t h_eval
+  cases h_eval
+  case k y =>
+    cases h_t
+    case call =>
+      cases e'
+      case m m =>
+        match m with
+          | .mk =>
+            apply valid_judgment_beta_eq.beta_eq (.m .mk) (.m .mk) (Expr.call (Call.mk (Expr.call (Call.mk (Expr.m .mk) (Expr.call (Call.mk (Expr.k .mk) (Expr.m .mk))))) y))
+            exact valid_judgment_beta_eq.trivial (by apply valid_judgment.m)
+            apply beta_eq.hard
+            apply is_eval_once.m
+            apply valid_judgment.call
+            apply beta_eq.hard
+            -- (((K M) y) (((M K) M) y))
+            -- => M (((M K) M) y)
+            -- => M ((K M (K M)) y)
+            -- => M (M y)
+            -- => M (M y) : M
+            have h := is_eval_once.k SKM[M] y
+            
+            sorry
+      case k => sorry
+      case s => sorry
+      case call => sorry
+  case s x' y z => sorry
+  case m => sorry
+  case rfl =>
+    simp_all
 
 lemma all_well_typed_in_r : ∀ e t, valid_judgment_beta_eq e t → in_r_for e t := by
   intro e t h_t
