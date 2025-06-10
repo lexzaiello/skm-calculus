@@ -203,78 +203,14 @@ inductive valid_judgment : Expr → Expr → Prop
   | s n                       : valid_judgment SKM[S n] (.s (.mk n.succ))
   | m n                       : valid_judgment SKM[M n] (.m (.mk n.succ))
   | call lhs rhs              : valid_judgment SKM[(lhs rhs)] SKM[((M 0 lhs) (M 0 rhs))]
-
-inductive valid_judgment_beta_eq : Expr → Expr → Prop
-  | trivial              : valid_judgment e t → valid_judgment_beta_eq e t
-  | beta_eq e t₁ t₂      : valid_judgment_beta_eq e t₁ → beta_eq t₁ t₂ → valid_judgment_beta_eq e t₂
+  | beta_eq e t₁ t₂           : valid_judgment e t₁ → beta_eq t₁ t₂ → valid_judgment e t₂
 
 end
 
 /-
-## Consistency
-
-In order to prove consistency of our type system, we need to demonstrate that no false statement can be constructed (thus, proving false). First, we will need to define `False` and `True`.
-We will defer to the standard definition of `false` in combinatory logic:
--/
-
-def flse (n m : ℕ) := SKM[((S n) (K m))]
-def true (n : ℕ)   := SKM[K n]
-
-/-
-We can prove consistency if we cannot construct an expression that occupies the type `flse`. A trivial case to attempt is the judgment `flse : flse`. If this holds from our judgment rules, we are cooked.
--/
-
-lemma eval_once_imp_beta_eq : ∀ e e', is_eval_once e e'→ beta_eq (.call e) e' := by
-  intro e e' h_eval
-  apply beta_eq.symm
-  apply beta_eq.hard _ e e'
-  exact h_eval
-  simp [beta_eq.rfl]
-
-example : ∀ n m, ¬(valid_judgment (flse n m) (flse n m)) := by
-  intro n m a
-  rw [flse] at *
-  cases a
-
-lemma no_one_step_occupies_false : ∀ e n m, ¬ (valid_judgment e (flse n m)) := by
-  intro e n m h
-  cases h
-
-/-
-We can expand our lemma to beta-equivalence up to some number of steps.
--/
-inductive occupies_false : ℕ → Expr → Prop
-  | trivial   : valid_judgment e (flse n m) → occupies_false 0 e
-  | hard e e' : is_eval_once e e'           → occupies_false n e' → occupies_false n.succ (.call e)
-
-lemma no_one_step_occupies_false' : ∀ e, ¬ occupies_false 0 e := by
-  intro e h
-  cases h
-  case trivial h =>
-    cases h
-
-lemma no_two_step_occupies_false : ∀ e, ¬ occupies_false 1 e := by
-  intro e h
-  cases h
-  case hard e' t h_valid =>
-    simp [no_one_step_occupies_false'] at h_valid
-
-/-
-Not 100% sure what happened here, but yay?
--/
-
-lemma no_n_step_occupies_false : ∀ e n, ¬ occupies_false n e := by
-  intro e n h
-  induction h
-  case trivial e' h =>
-    cases h
-  case hard n' e t h_t_valid=>
-    exact h_t_valid
-
-/-
 ## Strong Normalization
 
-A stronger proof of consistency involves proving that every well-typed expression terminates. I do so. I utilize the typical reducibility candidates strategy.
+A strong proof of consistency involves proving that every well-typed expression terminates. I do so. I utilize the typical reducibility candidates strategy.
 -/
 
 inductive sn : Expr → Prop
@@ -349,14 +285,13 @@ lemma s_eval_sn : ∀ n x y z, sn SKM[((x z) (y z))] → sn SKM[(((S n x) y) z)]
 As usual, we prove type preservation. We can speed up this process significantly by proving that all expressions are well-typed (e : M e).
 -/
 
-lemma all_well_typed_m_e : ∀ e, valid_judgment_beta_eq e SKM[(M 0 e)] := by
+lemma all_well_typed_m_e : ∀ e, valid_judgment e SKM[(M 0 e)] := by
   intro e
   cases e
   case m m =>
     match m with
       | .mk n =>
-        apply valid_judgment_beta_eq.beta_eq _ (.m (.mk n.succ))
-        apply valid_judgment_beta_eq.trivial
+        apply valid_judgment.beta_eq _ (.m (.mk n.succ))
         apply valid_judgment.m
         apply beta_eq.hard
         apply is_eval_once.m
@@ -366,8 +301,7 @@ lemma all_well_typed_m_e : ∀ e, valid_judgment_beta_eq e SKM[(M 0 e)] := by
   case k k =>
     match k with
       | .mk n =>
-        apply valid_judgment_beta_eq.beta_eq _ (.k (.mk n.succ))
-        apply valid_judgment_beta_eq.trivial
+        apply valid_judgment.beta_eq _ (.k (.mk n.succ))
         apply valid_judgment.k
         apply beta_eq.hard
         apply is_eval_once.m
@@ -377,8 +311,7 @@ lemma all_well_typed_m_e : ∀ e, valid_judgment_beta_eq e SKM[(M 0 e)] := by
   case s s =>
     match s with
       | .mk n =>
-        apply valid_judgment_beta_eq.beta_eq _ (.s (.mk n.succ))
-        apply valid_judgment_beta_eq.trivial
+        apply valid_judgment.beta_eq _ (.s (.mk n.succ))
         apply valid_judgment.s
         apply beta_eq.hard
         apply is_eval_once.m
@@ -390,15 +323,122 @@ lemma all_well_typed_m_e : ∀ e, valid_judgment_beta_eq e SKM[(M 0 e)] := by
       | .mk lhs rhs =>
         have h_lhs_typed := all_well_typed_m_e lhs
         have h_rhs_typed := all_well_typed_m_e rhs
-        apply valid_judgment_beta_eq.beta_eq _ SKM[((M 0 lhs) (M 0 rhs))]
-        apply valid_judgment_beta_eq.trivial
+        apply valid_judgment.beta_eq _ SKM[((M 0 lhs) (M 0 rhs))]
         apply valid_judgment.call
         apply beta_eq.hard
         apply is_eval_once.m
         apply valid_judgment.call
         simp [beta_eq.rfl]
 
-lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_eval_once c e' → valid_judgment_beta_eq e' t := by
+/-
+To prove preservation, we prove that we can derive typings for `(K (x : α) y : α)` from our base typing rules using `M`.
+-/
+
+lemma m_distributes : beta_eq SKM[(M 0 (lhs rhs))] SKM[((M 0 lhs) (M 0 rhs))] := by
+  apply beta_eq.symm
+  apply beta_eq.hard
+  apply is_eval_once.m
+  apply valid_judgment.call
+  apply beta_eq.rfl
+  rfl
+
+lemma e_well_typed_beta_eq_m : valid_judgment x α → valid_judgment x SKM[((M 0) x)] → beta_eq α SKM[((M 0) x)] := by
+  intro h_t h_t'
+  cases h_t
+  case k =>
+    apply beta_eq.hard
+    apply is_eval_once.m
+    apply valid_judgment.k
+    apply beta_eq.rfl
+    rfl
+  case s =>
+    apply beta_eq.hard
+    apply is_eval_once.m
+    apply valid_judgment.s
+    apply beta_eq.rfl
+    rfl
+  case m =>
+    apply beta_eq.hard
+    apply is_eval_once.m
+    apply valid_judgment.m
+    apply beta_eq.rfl
+    rfl
+  case call lhs rhs =>
+    apply beta_eq.symm
+    apply m_distributes
+  
+
+lemma k_eval_well_typed (n : ℕ) : valid_judgment x α → valid_judgment SKM[(((K n) x) y)] α := by
+  let n' := n.succ
+
+  intro h_t_x
+  apply valid_judgment.beta_eq _ SKM[(((M 0 K n) (M 0 x)) (M 0 y))]
+  apply valid_judgment.beta_eq _ SKM[((M 0 ((K n) x)) (M 0 y))]
+  apply valid_judgment.call SKM[(K n x)] y
+  apply beta_eq.hard
+  apply is_eval_once.left
+  apply is_eval_once.left
+  apply is_eval_once.m
+  apply valid_judgment.k
+  apply is_eval_once.right
+  apply is_eval_once.m
+  apply all_well_typed_m_e
+  apply is_eval_once.rfl
+  rfl
+  apply is_eval_once.k
+  apply beta_eq.symm
+  apply beta_eq.hard
+  apply is_eval_once.left
+  apply is_eval_once.m
+  apply valid_judgment.call
+  apply is_eval_once.left
+  apply is_eval_once.left
+  apply is_eval_once.m
+  apply valid_judgment.k
+  apply is_eval_once.rfl
+  rfl
+  apply is_eval_once.k
+  apply beta_eq.rfl
+  rfl
+  apply beta_eq.trans
+  apply beta_eq.hard SKM[(((M 0 (K n)) (M 0 x)) (M 0 y))] SKC[((M 0 (K n)) (M 0 x)) (M 0 y)] SKM[(((K n') (M 0 x)) (M 0 y))]
+  apply is_eval_once.left
+  apply is_eval_once.left
+  apply is_eval_once.m
+  apply valid_judgment.k
+  apply is_eval_once.rfl
+  rfl
+  apply is_eval_once.left
+  apply is_eval_once.rfl
+  rfl
+  apply is_eval_once.rfl
+  rfl
+  apply beta_eq.symm
+  apply beta_eq.hard
+  apply is_eval_once.left
+  apply is_eval_once.left
+  apply is_eval_once.m
+  apply valid_judgment.k
+  apply is_eval_once.rfl
+  rfl
+  apply is_eval_once.k
+  apply beta_eq.symm
+  apply beta_eq.hard
+  apply is_eval_once.k
+  apply beta_eq.rfl
+  rfl
+  apply beta_eq.symm
+  apply beta_eq.hard
+  apply is_eval_once.left
+  apply is_eval_once.left
+  apply is_eval_once.m
+  apply valid_judgment.k
+  apply is_eval_once.rfl
+  rfl
+  apply is_eval_once.k
+  
+
+lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_eval_once c e' → valid_judgment e' t := by
   intro c e' t h_t h_eval
   have h_eval₀ := h_eval
   cases h_eval
@@ -409,8 +449,7 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_ev
       case m m =>
         match m with
           | .mk n₁ =>
-            apply valid_judgment_beta_eq.beta_eq
-            apply valid_judgment_beta_eq.trivial
+            apply valid_judgment.beta_eq
             apply valid_judgment.m n₁
             apply beta_eq.hard
             apply is_eval_once.left
@@ -430,8 +469,7 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_ev
       case k k =>
         match k with
           | .mk n₁ =>
-            apply valid_judgment_beta_eq.beta_eq
-            apply valid_judgment_beta_eq.trivial
+            apply valid_judgment.beta_eq
             apply valid_judgment.k
             apply beta_eq.hard
             apply is_eval_once.left
@@ -451,8 +489,7 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_ev
       case s s =>
         match s with
           | .mk n₁ =>
-            apply valid_judgment_beta_eq.beta_eq
-            apply valid_judgment_beta_eq.trivial
+            apply valid_judgment.beta_eq
             apply valid_judgment.s
             apply beta_eq.hard
             apply is_eval_once.left
@@ -469,54 +506,60 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_ev
             rfl
             apply is_eval_once.k
             simp [beta_eq.rfl]
-      case call c =>
-        match c with
+      case call c' =>
+        match c' with
           | .mk lhs rhs =>
-            apply valid_judgment_beta_eq.beta_eq _ SKM[((M 0 (K n₀)) (M 0 (lhs rhs)))]
-            let n₀' := n₀.succ
-            apply valid_judgment_beta_eq.beta_eq _ SKM[((K n₀') ((M 0 lhs) (M 0 rhs)))]
-            apply valid_judgment_beta_eq.trivial
-            apply valid_judgment.call lhs rhs
-            
-            sorry
-            sorry
+            -- This is some evaluation of the K combinator that produces a further function call.
+            -- There appears to be a mismatch between valid_judgment and is_eval_once
+            -- It's possible that our typing judgements for the base combinators are not correct.
+            -- It's also possible we're just locally doing this type judgment wrong
+            -- We already know that valid_judgment SKM[K e' y] t. We also know that evaluation of
+            -- K e' y only produces e'. This means we have to prove the typing judgment for e'.
+            -- This is pretty straightforward in the case where evaluation produces no further function calls
+            -- Furthermore, it is straightforward in the case when the call produced is K x y
+            -- or S x z (y z). Furthermore, function applications that are not one of these
+            -- are also straightforward.
+            match h : lhs, rhs with
+              | SKM[(K n x)], y =>
+                apply valid_judgment.beta_eq _ SKM[(M 0 x)]
+                apply valid_judgment.beta_eq _ SKM[x]
+                
+                sorry
+              | SKM[((S x) y)], z =>
+                sorry
+              | _, _ =>
+                sorry
   case s x' y z => sorry
   case m => sorry
   case rfl =>
     simp_all
 
-lemma all_well_typed_in_r : ∀ e t, valid_judgment_beta_eq e t → in_r_for e t := by
+lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
   intro e t h_t
   match h : e with
     | .k _  =>
       cases h_t
       case beta_eq => sorry
-      case trivial t' h_t_inner =>
-        cases h_t_inner
-        case k =>
-          exact in_r_for.k
+      case k =>
+        exact in_r_for.k
     | .s _ =>
       cases h_t
       case beta_eq => sorry
-      case trivial t' h_t_inner =>
-        cases h_t_inner
-        case s =>
-          exact in_r_for.s
+      case s =>
+        exact in_r_for.s
     | .m _ =>
       cases h_t
       case beta_eq => sorry
-      case trivial t' h_t_inner =>
-        cases h_t_inner
-        case m =>
-          exact in_r_for.m
+      case m =>
+        exact in_r_for.m
     | .call (.mk lhs rhs) =>
       cases h_t
       case beta_eq =>
         
         sorry
-      case trivial h_t_inner =>
-        have h_t_lhs : ∃ t_lhs, valid_judgment_beta_eq lhs t_lhs := sorry
-        have h_t_rhs : ∃ t_rhs, valid_judgment_beta_eq rhs t_rhs := sorry
+      case call =>
+        have h_t_lhs : ∃ t_lhs, valid_judgment lhs t_lhs := sorry
+        have h_t_rhs : ∃ t_rhs, valid_judgment rhs t_rhs := sorry
 
         obtain ⟨t_lhs, h_t_lhs⟩ := h_t_lhs
         obtain ⟨t_rhs, h_t_rhs⟩ := h_t_rhs
