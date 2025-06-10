@@ -41,22 +41,22 @@ deriving Repr
 
 inductive S where
   | mk : S
-deriving Repr
+deriving DecidableEq, Repr, BEq
 
 inductive K where
   | mk : K
-deriving Repr
+deriving DecidableEq, Repr, BEq
 
 inductive Call where
   | mk : Expr → Expr → Call
-deriving Repr
+deriving DecidableEq, Repr, BEq
 
 inductive Expr where
   | m    : M → Expr
   | k    : K → Expr
   | s    : S → Expr
   | call : Call → Expr
-deriving Repr
+deriving DecidableEq, Repr, BEq
 
 end
 
@@ -164,7 +164,7 @@ inductive is_eval_once : Call → Expr → Prop
   | k x y     : is_eval_once (.mk SKM[(K x)] y) x
   | s x y z   : is_eval_once (.mk SKM[((S x) y)] z) SKM[((x z) (y z))]
   | m e t arg : valid_judgment e t → is_eval_once (.mk SKM[(M e)] arg) SKM[((e arg) (t arg))]
-  | rfl e₂    : (.call c) = e₂ → is_eval_once c e₂
+  | rfl       : (.call c) = e₂ → is_eval_once c e₂
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | rfl                       : e₁ = e₂            → beta_eq e₁ e₂
@@ -177,23 +177,42 @@ inductive valid_judgment : Expr → Expr → Prop
   | s                    : valid_judgment SKM[S] SKM[S]
   | m                    : valid_judgment SKM[M] SKM[M]
   | call lhs rhs         : valid_judgment (.call (.mk lhs rhs)) SKM[((M lhs) rhs)]
-  | beta_eq e t₁ t₂      : valid_judgment e t₁ → beta_eq t₁ t₂ → valid_judgment e t₂
+
+inductive valid_judgment_beta_eq : Expr → Expr → Prop
+  | beta_eq e t₁ t₂      : valid_judgment_beta_eq e t₁ → beta_eq t₁ t₂ → valid_judgment_beta_eq e t₂
 
 end
 
 /-
 ## Consistency
 
-In order to prove consistency of our type system, we need to demonstrate that no false statement can be constructed (thus, proving false). First, we will need to define `False` and `True`. `True` and `False` are typically encoded using the combinators as such (i.e., Church-encoding):
-
-$$
-T x y = x \\\\
-F x y = y
-$$
+In order to prove consistency of our type system, we need to demonstrate that no false statement can be constructed (thus, proving false). First, we will need to define `False` and `True`.
+We will defer to the standard definition of `false` in combinatory logic:
 -/
 
-def tre  := SKM[K]
+mutual
+
+partial def type_of (e : Expr) : Expr :=
+  match e with
+    | SKM[K] => SKM[K]
+    | SKM[S] => SKM[S]
+    | SKM[M] => SKM[M]
+    | .call (.mk lhs rhs) => eval SKM[((M lhs) rhs)]
+
+partial def eval (e : Expr) : Expr :=
+  match e with
+    | SKM[((K x) _y)] => x
+    | SKM[(((S x) y) z)] => eval SKM[((x z) (y z))]
+    | SKM[((M e) arg)] =>
+      let t_e := type_of e
+
+      eval SKM[((e arg) (t_e arg))]
+    | x => x
+
+end
+
 def flse := SKM[(S K)]
+def true := SKM[K]
 
 /-
 We can prove consistency if we cannot construct an expression that occupies the type `flse`. A trivial case to attempt is the judgment `flse : flse`. If this holds from our judgment rules, we are cooked.
@@ -206,7 +225,7 @@ lemma eval_once_imp_beta_eq : ∀ e e', is_eval_once e e'→ beta_eq (.call e) e
   exact h_eval
   simp [beta_eq.rfl]
 
-lemma call_self_not_beta_eq : ∀ e, ¬ is_eval_once (.mk e e) e := by
+lemma call_self_not_eval_once : ∀ e, ¬ is_eval_once (.mk e e) e := by
   intro e h
   cases h
   case rfl h =>
@@ -229,22 +248,48 @@ example : ¬(valid_judgment flse flse) := by
   intro a
   rw [flse] at *
   cases a
-  case beta_eq e ht ht_beta_eq =>
-    cases ht
-    case call =>
-      cases ht_beta_eq
-      case rfl =>
-        simp_all
-      case hard e₃ h_beta_eq_e₃ h_t_e₃ =>
-        have h_eval : is_eval_once (.mk SKM[(M S)] SKM[K]) SKM[((S K) (S K))] := by
-          apply is_eval_once.m
-          simp [valid_judgment.s]
-        cases h_t_e₃
-        case rfl h =>
-          simp_all
-          apply eval_once_imp_beta_eq at h_eval
-          have h_eval_trans := beta_eq.trans (beta_eq.symm h_beta_eq_e₃) h_eval
-          
-          sorry
-    case beta_eq => sorry
+
+lemma no_one_step_occupies_false : ∀ e, ¬ (valid_judgment e flse) := by
+  intro e h
+  cases h
+
+/-
+We can expand our lemma to beta-equivalence up to some number of steps.
+-/
+
+def eval_once (e : Expr) (t : Expr) (_h_t_valid : valid_judgment e t) : Expr :=
+  match e with
+    | SKM[((K x) _y)] => x
+    | SKM[(((S x) y) z)] => eval SKM[((x z) (y z))]
+    | SKM[((M e) arg)] =>
+      eval SKM[((e arg) (t arg))]
+    | x => x
+
+inductive occupies_false : ℕ → Expr → Prop
+  | trivial                                   : valid_judgment e flse → occupies_false 0 e
+  | hard e t (h_t_valid : valid_judgment e t) : occupies_false n (eval_once e t h_t_valid) → occupies_false n.succ e
+
+lemma no_one_step_occupies_false' : ∀ e, ¬ occupies_false 0 e := by
+  intro e h
+  cases h
+  case trivial h =>
+    cases h
+
+lemma no_two_step_occupies_false : ∀ e, ¬ occupies_false 1 e := by
+  intro e h
+  cases h
+  case hard e' t h_valid =>
+    simp [no_one_step_occupies_false'] at h_valid
+
+/-
+Not 100% sure what happened here, but yay?
+-/
+
+lemma no_n_step_occupies_false : ∀ e n, ¬ occupies_false n e := by
+  intro e n h
+  induction h
+  case trivial e' h =>
+    cases h
+  case hard n' e t h_t_valid=>
+    exact h_t_valid
 
