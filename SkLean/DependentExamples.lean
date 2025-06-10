@@ -198,6 +198,12 @@ inductive beta_eq : SkExpr → SkExpr → Prop
   | symm                      : beta_eq e₂ e₁ → beta_eq e₁ e₂
   | trans                     : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
 
+inductive valid_judgment_weak : Expr → Expr → Prop
+  | k n                       : valid_judgment_weak SKM[K n] (.k (.mk n.succ))
+  | s n                       : valid_judgment_weak SKM[S n] (.s (.mk n.succ))
+  | m n                       : valid_judgment_weak SKM[M n] (.m (.mk n.succ))
+  | call lhs rhs              : valid_judgment_weak SKM[(lhs rhs)] SKM[((M 0 lhs) (M 0 rhs))]
+
 inductive valid_judgment : Expr → Expr → Prop
   | k n                       : valid_judgment SKM[K n] (.k (.mk n.succ))
   | s n                       : valid_judgment SKM[S n] (.s (.mk n.succ))
@@ -342,7 +348,20 @@ lemma m_distributes : beta_eq SKM[(M 0 (lhs rhs))] SKM[((M 0 lhs) (M 0 rhs))] :=
   apply beta_eq.rfl
   rfl
 
-lemma e_well_typed_beta_eq_m : valid_judgment x α → valid_judgment x SKM[((M 0) x)] → beta_eq α SKM[((M 0) x)] := by
+lemma m_distributes_eval_once : is_eval_once SKC[(M 0) (lhs rhs)] SKM[((M 0 lhs) (M 0 rhs))] := by
+  apply is_eval_once.m
+  apply valid_judgment.call
+
+lemma m_distributes_judgment : valid_judgment SKM[(lhs rhs)] SKM[((M 0) (lhs rhs))] → valid_judgment SKM[(lhs rhs)] SKM[((M 0 lhs) (M 0 rhs))] := by
+  intro h_t
+  apply valid_judgment.beta_eq SKM[(lhs rhs)] SKM[((M 0) (lhs rhs))]
+  exact h_t
+  apply beta_eq.symm
+  apply beta_eq.hard
+  apply m_distributes_eval_once
+  apply beta_eq.rfl rfl
+
+lemma e_well_typed_beta_eq_m : valid_judgment_weak x α → valid_judgment x SKM[((M 0) x)] → beta_eq α SKM[((M 0) x)] := by
   intro h_t h_t'
   cases h_t
   case k =>
@@ -366,173 +385,46 @@ lemma e_well_typed_beta_eq_m : valid_judgment x α → valid_judgment x SKM[((M 
   case call lhs rhs =>
     apply beta_eq.symm
     apply m_distributes
-  
 
-lemma k_eval_well_typed (n : ℕ) : valid_judgment x α → valid_judgment SKM[(((K n) x) y)] α := by
-  let n' := n.succ
-
-  intro h_t_x
-  apply valid_judgment.beta_eq _ SKM[(((M 0 K n) (M 0 x)) (M 0 y))]
-  apply valid_judgment.beta_eq _ SKM[((M 0 ((K n) x)) (M 0 y))]
-  apply valid_judgment.call SKM[(K n x)] y
-  apply beta_eq.hard
-  apply is_eval_once.left
-  apply is_eval_once.left
-  apply is_eval_once.m
-  apply valid_judgment.k
-  apply is_eval_once.right
-  apply is_eval_once.m
-  apply all_well_typed_m_e
-  apply is_eval_once.rfl
-  rfl
-  apply is_eval_once.k
-  apply beta_eq.symm
-  apply beta_eq.hard
-  apply is_eval_once.left
-  apply is_eval_once.m
-  apply valid_judgment.call
-  apply is_eval_once.left
-  apply is_eval_once.left
-  apply is_eval_once.m
-  apply valid_judgment.k
-  apply is_eval_once.rfl
-  rfl
-  apply is_eval_once.k
-  apply beta_eq.rfl
-  rfl
-  apply beta_eq.trans
-  apply beta_eq.hard SKM[(((M 0 (K n)) (M 0 x)) (M 0 y))] SKC[((M 0 (K n)) (M 0 x)) (M 0 y)] SKM[(((K n') (M 0 x)) (M 0 y))]
-  apply is_eval_once.left
-  apply is_eval_once.left
-  apply is_eval_once.m
-  apply valid_judgment.k
-  apply is_eval_once.rfl
-  rfl
-  apply is_eval_once.left
-  apply is_eval_once.rfl
-  rfl
-  apply is_eval_once.rfl
-  rfl
-  apply beta_eq.symm
-  apply beta_eq.hard
-  apply is_eval_once.left
-  apply is_eval_once.left
-  apply is_eval_once.m
-  apply valid_judgment.k
-  apply is_eval_once.rfl
-  rfl
-  apply is_eval_once.k
-  apply beta_eq.symm
-  apply beta_eq.hard
-  apply is_eval_once.k
-  apply beta_eq.rfl
-  rfl
-  apply beta_eq.symm
-  apply beta_eq.hard
-  apply is_eval_once.left
-  apply is_eval_once.left
-  apply is_eval_once.m
-  apply valid_judgment.k
-  apply is_eval_once.rfl
-  rfl
-  apply is_eval_once.k
-  
-
-lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_eval_once c e' → valid_judgment e' t := by
+lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak (.call c) t → is_eval_once c e' → valid_judgment e' t := by
   intro c e' t h_t h_eval
-  have h_eval₀ := h_eval
-  cases h_eval
-  case k y n₀ =>
-    cases h_t
-    case call =>
-      cases e'
-      case m m =>
-        match m with
-          | .mk n₁ =>
-            apply valid_judgment.beta_eq
-            apply valid_judgment.m n₁
-            apply beta_eq.hard
-            apply is_eval_once.left
-            apply is_eval_once.m
-            apply valid_judgment.call
-            apply is_eval_once.left
-            apply is_eval_once.left
-            apply is_eval_once.m
-            apply valid_judgment.k
-            apply is_eval_once.right
-            apply is_eval_once.m
-            apply valid_judgment.m
-            apply is_eval_once.rfl
-            rfl
-            apply is_eval_once.k
-            simp [beta_eq.rfl]
-      case k k =>
-        match k with
-          | .mk n₁ =>
-            apply valid_judgment.beta_eq
-            apply valid_judgment.k
-            apply beta_eq.hard
-            apply is_eval_once.left
-            apply is_eval_once.m
-            apply valid_judgment.call
-            apply is_eval_once.left
-            apply is_eval_once.left
-            apply is_eval_once.m
-            apply valid_judgment.k
-            apply is_eval_once.right
-            apply is_eval_once.m
-            apply valid_judgment.k
-            apply is_eval_once.rfl
-            rfl
-            apply is_eval_once.k
-            simp [beta_eq.rfl]
-      case s s =>
-        match s with
-          | .mk n₁ =>
-            apply valid_judgment.beta_eq
-            apply valid_judgment.s
-            apply beta_eq.hard
-            apply is_eval_once.left
-            apply is_eval_once.m
-            apply valid_judgment.call
-            apply is_eval_once.left
-            apply is_eval_once.left
-            apply is_eval_once.m
-            apply valid_judgment.k
-            apply is_eval_once.right
-            apply is_eval_once.m
-            apply valid_judgment.s
-            apply is_eval_once.rfl
-            rfl
-            apply is_eval_once.k
-            simp [beta_eq.rfl]
-      case call c' =>
-        match c' with
-          | .mk lhs rhs =>
-            -- This is some evaluation of the K combinator that produces a further function call.
-            -- There appears to be a mismatch between valid_judgment and is_eval_once
-            -- It's possible that our typing judgements for the base combinators are not correct.
-            -- It's also possible we're just locally doing this type judgment wrong
-            -- We already know that valid_judgment SKM[K e' y] t. We also know that evaluation of
-            -- K e' y only produces e'. This means we have to prove the typing judgment for e'.
-            -- This is pretty straightforward in the case where evaluation produces no further function calls
-            -- Furthermore, it is straightforward in the case when the call produced is K x y
-            -- or S x z (y z). Furthermore, function applications that are not one of these
-            -- are also straightforward.
-            match h : lhs, rhs with
-              | SKM[(K n x)], y =>
-                apply valid_judgment.beta_eq _ SKM[(M 0 x)]
-                apply valid_judgment.beta_eq _ SKM[x]
-                
-                sorry
-              | SKM[((S x) y)], z =>
-                sorry
-              | _, _ =>
-                sorry
-  case s x' y z => sorry
-  case m => sorry
-  case rfl =>
-    simp_all
+  match h : c with
+    | SKC[(K n x) y] =>
+      cases h_eval
+      case k =>
+        cases h_t
+        case call =>
+          apply valid_judgment.beta_eq e' SKM[((M 0) ((K n e') y))] _
+          apply valid_judgment.beta_eq _ SKM[((M 0) (e'))]
+          apply all_well_typed_m_e
+          apply beta_eq.hard
+          apply is_eval_once.m
+          apply valid_judgment.call
+          apply beta_eq.hard
+          apply is_eval_once.left
+          apply m_distributes_eval_once
+          apply is_eval_once.left
+          apply is_eval_once.left
+          apply is_eval_once.m
+          apply valid_judgment.k
+          apply is_eval_once.rfl
+          rfl
+          apply is_eval_once.k
+          apply beta_eq.rfl rfl
+          apply beta_eq.symm
+          apply beta_eq.hard
+          apply m_distributes_eval_once
+          apply beta_eq.rfl rfl
+      case left lhs h_eval₁ h_eval₂ =>
+        cases h_t
+        case call =>
+          
+          sorry
+      case right =>
+        sorry
+      case rfl => sorry
+    | SKC[((S n x) y) z] => sorry
+    | SKC[M n e] => sorry
 
 lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
   intro e t h_t
