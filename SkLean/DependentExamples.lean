@@ -388,8 +388,15 @@ lemma all_well_typed_m_e : ∀ e, valid_judgment_beta_eq e SKM[(M 0 e)] := by
   case call c =>
     match c with
       | .mk lhs rhs =>
-        
-        sorry
+        have h_lhs_typed := all_well_typed_m_e lhs
+        have h_rhs_typed := all_well_typed_m_e rhs
+        apply valid_judgment_beta_eq.beta_eq _ SKM[((M 0 lhs) (M 0 rhs))]
+        apply valid_judgment_beta_eq.trivial
+        apply valid_judgment.call
+        apply beta_eq.hard
+        apply is_eval_once.m
+        apply valid_judgment.call
+        simp [beta_eq.rfl]
 
 lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_eval_once c e' → valid_judgment_beta_eq e' t := by
   intro c e' t h_t h_eval
