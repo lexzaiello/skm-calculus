@@ -199,10 +199,10 @@ inductive beta_eq : SkExpr → SkExpr → Prop
   | trans                     : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
 
 inductive valid_judgment : Expr → Expr → Prop
-  | k n                  : valid_judgment SKM[K n] (.k (.mk n.succ))
-  | s n                  : valid_judgment SKM[S n] (.s (.mk n.succ))
-  | m n                  : valid_judgment SKM[M n] (.m (.mk n.succ))
-  | call lhs rhs         : valid_judgment SKM[(lhs rhs)] SKM[((M 0 lhs) (M 0 rhs))]
+  | k n                       : valid_judgment SKM[K n] (.k (.mk n.succ))
+  | s n                       : valid_judgment SKM[S n] (.s (.mk n.succ))
+  | m n                       : valid_judgment SKM[M n] (.m (.mk n.succ))
+  | call lhs rhs              : valid_judgment SKM[(lhs rhs)] SKM[((M 0 lhs) (M 0 rhs))]
 
 inductive valid_judgment_beta_eq : Expr → Expr → Prop
   | trivial              : valid_judgment e t → valid_judgment_beta_eq e t
@@ -400,6 +400,7 @@ lemma all_well_typed_m_e : ∀ e, valid_judgment_beta_eq e SKM[(M 0 e)] := by
 
 lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_eval_once c e' → valid_judgment_beta_eq e' t := by
   intro c e' t h_t h_eval
+  have h_eval₀ := h_eval
   cases h_eval
   case k y n₀ =>
     cases h_t
@@ -408,7 +409,7 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_ev
       case m m =>
         match m with
           | .mk n₁ =>
-            apply valid_judgment_beta_eq.beta_eq SKM[M n₁] (.m (.mk n₁.succ)) _
+            apply valid_judgment_beta_eq.beta_eq
             apply valid_judgment_beta_eq.trivial
             apply valid_judgment.m n₁
             apply beta_eq.hard
@@ -469,9 +470,16 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_ev
             apply is_eval_once.k
             simp [beta_eq.rfl]
       case call c =>
-        apply valid_judgment_beta_eq.beta_eq _ (.call (.mk SKM[M 0] (.call c)))
-        
-        sorry
+        match c with
+          | .mk lhs rhs =>
+            apply valid_judgment_beta_eq.beta_eq _ SKM[((M 0 (K n₀)) (M 0 (lhs rhs)))]
+            let n₀' := n₀.succ
+            apply valid_judgment_beta_eq.beta_eq _ SKM[((K n₀') ((M 0 lhs) (M 0 rhs)))]
+            apply valid_judgment_beta_eq.trivial
+            apply valid_judgment.call lhs rhs
+            
+            sorry
+            sorry
   case s x' y z => sorry
   case m => sorry
   case rfl =>
