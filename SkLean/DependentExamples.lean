@@ -184,6 +184,7 @@ inductive is_eval_once : Call → Expr → Prop
   | k x y n      : is_eval_once SKC[(K n x) y] x
   | s x y z n    : is_eval_once SKC[((S n x) y) z] SKM[((x z) (y z))]
   | m e t n      : valid_judgment e t → is_eval_once SKC[(M n) e] t
+  | call lhs rhs : is_eval_once lhs lhs' → is_eval_once (.mk (.call lhs) rhs) SKM[(lhs' rhs)]
   | rfl          : (.call c) = e₂ → is_eval_once c e₂
 
 inductive beta_eq : SkExpr → SkExpr → Prop
@@ -394,6 +395,15 @@ lemma valid_judgment_one_step : valid_judgment e (.call t) → is_eval_once t t'
     exact beta_eq.rfl rfl
   case rfl =>
     simp_all
+  case call lhs lhs' rhs h_eval =>
+    apply valid_judgment.beta_eq
+    exact h_t
+    apply beta_eq.symm
+    apply beta_eq.hard
+    apply is_eval_once.call
+    exact h_eval
+    exact beta_eq.rfl rfl
+
 /-
 I define a preservation helper for `K` evaluation.
 -/
@@ -423,13 +433,35 @@ lemma e_well_typed_beta_eq_m : valid_judgment_weak x α → valid_judgment x SKM
     apply beta_eq.symm
     apply m_distributes
 
+lemma weakening : valid_judgment_weak e t → valid_judgment e t := by
+  intro h
+  cases h
+  case k =>
+    simp [valid_judgment.k]
+  case s =>
+    simp [valid_judgment.s]
+  case m =>
+    simp [valid_judgment.m]
+  case call lhs rhs =>
+    simp [valid_judgment.call]
+
 lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak (.call c) t → is_eval_once c e' → valid_judgment e' t := by
   intro c e' t h_t h_eval
   match h : c with
     | SKC[(K n x) y] =>
       let n' := n.succ
-      apply valid_judgment_one_step
-      
+      apply weakening at h_t
+      apply valid_judgment.beta_eq
+      apply all_well_typed_m_e
+      apply beta_eq.symm
+      cases h_t
+      case a.a.call =>
+        apply beta_eq.symm
+        apply beta_eq.hard
+        
+        sorry
+      case a.a.beta_eq =>
+        sorry
     | SKC[((S n x) y) z] => sorry
     | SKC[M n e] => sorry
 
