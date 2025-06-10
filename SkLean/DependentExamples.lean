@@ -184,12 +184,6 @@ inductive is_eval_once : Call → Expr → Prop
   | k x y n      : is_eval_once SKC[(K n x) y] x
   | s x y z n    : is_eval_once SKC[((S n x) y) z] SKM[((x z) (y z))]
   | m e t n      : valid_judgment e t → is_eval_once SKC[(M n) e] t
-  | left         : is_eval_once lhs lhs'
-    → is_eval_once SKC[lhs' rhs] e'
-    → is_eval_once (.mk (.call lhs) rhs) e'
-  | right        : is_eval_once rhs rhs'
-    → is_eval_once SKC[lhs rhs'] e'
-    → is_eval_once (.mk lhs (.call rhs)) e'
   | rfl          : (.call c) = e₂ → is_eval_once c e₂
 
 inductive beta_eq : SkExpr → SkExpr → Prop
@@ -338,6 +332,14 @@ lemma all_well_typed_m_e : ∀ e, valid_judgment e SKM[(M 0 e)] := by
 
 /-
 To prove preservation, we prove that we can derive typings for `(K (x : α) y : α)` from our base typing rules using `M`.
+
+Note that our typing rules make extensive use of the `M` combinator for "reflection." We can use an `S`-transformation rule like such:
+
+$$
+(e_{1}\ e_{2} : M\ e_{1}\ e_{2}) \implies (e_{1}\ e_{2} : (M\ e_{1})\ (M\ e_{2}))
+$$
+
+This shortens our type preservation proof significantly by allowing us to collapse expressions of the form \\((M K arg)\\) to reducible \\((M K) (M arg)\\) expressions.
 -/
 
 lemma m_distributes : beta_eq SKM[(M 0 (lhs rhs))] SKM[((M 0 lhs) (M 0 rhs))] := by
@@ -360,6 +362,41 @@ lemma m_distributes_judgment : valid_judgment SKM[(lhs rhs)] SKM[((M 0) (lhs rhs
   apply beta_eq.hard
   apply m_distributes_eval_once
   apply beta_eq.rfl rfl
+
+/-
+Nice case analysis on judgments allowing type-leve substitution.
+-/
+
+lemma valid_judgment_one_step : valid_judgment e (.call t) → is_eval_once t t' → valid_judgment e t' := by
+  intro h_t h_eval_eq
+  cases h_eval_eq
+  case k y n =>
+    apply valid_judgment.beta_eq
+    exact h_t
+    apply beta_eq.symm
+    apply beta_eq.hard
+    apply is_eval_once.k
+    exact beta_eq.rfl rfl
+  case s =>
+    apply valid_judgment.beta_eq
+    exact h_t
+    apply beta_eq.symm
+    apply beta_eq.hard
+    apply is_eval_once.s
+    exact beta_eq.rfl rfl
+  case m e₁ t₁ h_t₁ =>
+    apply valid_judgment.beta_eq
+    exact h_t
+    apply beta_eq.symm
+    apply beta_eq.hard
+    apply is_eval_once.m
+    exact h_t₁
+    exact beta_eq.rfl rfl
+  case rfl =>
+    simp_all
+/-
+I define a preservation helper for `K` evaluation.
+-/
 
 lemma e_well_typed_beta_eq_m : valid_judgment_weak x α → valid_judgment x SKM[((M 0) x)] → beta_eq α SKM[((M 0) x)] := by
   intro h_t h_t'
@@ -390,39 +427,9 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak (.call c) t → 
   intro c e' t h_t h_eval
   match h : c with
     | SKC[(K n x) y] =>
-      cases h_eval
-      case k =>
-        cases h_t
-        case call =>
-          apply valid_judgment.beta_eq e' SKM[((M 0) ((K n e') y))] _
-          apply valid_judgment.beta_eq _ SKM[((M 0) (e'))]
-          apply all_well_typed_m_e
-          apply beta_eq.hard
-          apply is_eval_once.m
-          apply valid_judgment.call
-          apply beta_eq.hard
-          apply is_eval_once.left
-          apply m_distributes_eval_once
-          apply is_eval_once.left
-          apply is_eval_once.left
-          apply is_eval_once.m
-          apply valid_judgment.k
-          apply is_eval_once.rfl
-          rfl
-          apply is_eval_once.k
-          apply beta_eq.rfl rfl
-          apply beta_eq.symm
-          apply beta_eq.hard
-          apply m_distributes_eval_once
-          apply beta_eq.rfl rfl
-      case left lhs h_eval₁ h_eval₂ =>
-        cases h_t
-        case call =>
-          
-          sorry
-      case right =>
-        sorry
-      case rfl => sorry
+      let n' := n.succ
+      apply valid_judgment_one_step
+      
     | SKC[((S n x) y) z] => sorry
     | SKC[M n e] => sorry
 
