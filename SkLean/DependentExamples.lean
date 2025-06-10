@@ -60,20 +60,15 @@ deriving DecidableEq, Repr, BEq
 
 end
 
-mutual
+namespace Call
 
-def sizeOfC (c : Call) : ℕ :=
-  match c with
-    | .mk lhs rhs => 2 + (sizeOf lhs) + (sizeOf rhs)
+def lhs : Call → Expr
+  | .mk lhs _ => lhs
 
-def sizeOf (e : Expr) : ℕ :=
-  match e with
-    | .m _ => 1
-    | .s _ => 1
-    | .k _ => 1
-    | .call c => sizeOfC c
+def rhs : Call → Expr
+  | .mk _ rhs => rhs
 
-end
+end Call
 
 /-
 ## DSL
@@ -179,6 +174,7 @@ inductive valid_judgment : Expr → Expr → Prop
   | call lhs rhs         : valid_judgment (.call (.mk lhs rhs)) SKM[((M lhs) rhs)]
 
 inductive valid_judgment_beta_eq : Expr → Expr → Prop
+  | trivial              : valid_judgment e t → valid_judgment_beta_eq e t
   | beta_eq e t₁ t₂      : valid_judgment_beta_eq e t₁ → beta_eq t₁ t₂ → valid_judgment_beta_eq e t₂
 
 end
@@ -224,25 +220,6 @@ lemma eval_once_imp_beta_eq : ∀ e e', is_eval_once e e'→ beta_eq (.call e) e
   apply beta_eq.hard _ e e'
   exact h_eval
   simp [beta_eq.rfl]
-
-lemma call_self_not_eval_once : ∀ e, ¬ is_eval_once (.mk e e) e := by
-  intro e h
-  cases h
-  case rfl h =>
-    cases e
-    case m m =>
-      simp_all
-    case k =>
-      simp_all
-    case s =>
-      simp_all
-    case call c =>
-      simp_all
-      apply_fun sizeOfC at h
-      simp [sizeOfC] at h
-      ring_nf at h
-      simp [_root_.sizeOf, sizeOfC] at h
-      linarith
 
 example : ¬(valid_judgment flse flse) := by
   intro a
@@ -316,7 +293,7 @@ inductive in_r_for : Expr → Expr → Prop
 /-
 ### Strong Normalization of Reducibility Candidates
 
-This should be pretty hard to prove.
+This is pretty easy to prove. Just induction from the definition of `in_r_for`.
 -/
 
 lemma all_in_r_sn : ∀ e t, in_r_for e t → sn e := by
@@ -333,4 +310,89 @@ lemma all_in_r_sn : ∀ e t, in_r_for e t → sn e := by
       case hard _ h _ _ =>
         exact h
 
+/-
+Note that we define evaluation as a relation on expressions. This is due to `eval_once`'s dependence on the type of `e`. This appears problematic and confusing. However, we can still prove membership in R of all well-typed expressions.
+-/
 
+lemma k_sn : sn (.k .mk) := sn.k
+
+lemma s_sn : sn (.s .mk) := sn.s
+
+lemma m_sn : sn (.m .mk) := sn.m
+
+lemma k_eval_sn : ∀ x y, sn x → sn SKM[((K x) y)] := by
+  intro x y sn_x
+  apply @sn.hard (.mk SKM[(K x)] y) x
+  simp [is_eval_once.k]
+  exact sn_x
+
+lemma s_eval_sn : ∀ x y z, sn SKM[((x z) (y z))] → sn SKM[(((S x) y) z)] := by
+  intro x y z sn_eval
+  apply @sn.hard (.mk SKM[((S x) y)] z) SKM[((x z) (y z))]
+  simp [is_eval_once.s]
+  exact sn_eval
+
+lemma all_well_typed_in_r : ∀ e t, valid_judgment_beta_eq e t → in_r_for e t := by
+  intro e t h_t
+  match h : e with
+    | .k _  =>
+      cases h_t
+      case beta_eq => sorry
+      case trivial t' h_t_inner =>
+        cases h_t_inner
+        case k =>
+          exact in_r_for.k
+    | .s _ =>
+      cases h_t
+      case beta_eq => sorry
+      case trivial t' h_t_inner =>
+        cases h_t_inner
+        case s =>
+          exact in_r_for.s
+    | .m _ =>
+      cases h_t
+      case beta_eq => sorry
+      case trivial t' h_t_inner =>
+        cases h_t_inner
+        case m =>
+          exact in_r_for.m
+    | .call (.mk lhs rhs) =>
+      cases h_t
+      case beta_eq =>
+        
+        sorry
+      case trivial h_t_inner =>
+        have h_t_lhs : ∃ t_lhs, valid_judgment_beta_eq lhs t_lhs := sorry
+        have h_t_rhs : ∃ t_rhs, valid_judgment_beta_eq rhs t_rhs := sorry
+
+        obtain ⟨t_lhs, h_t_lhs⟩ := h_t_lhs
+        obtain ⟨t_rhs, h_t_rhs⟩ := h_t_rhs
+
+        have h_in_r_lhs := all_well_typed_in_r lhs t_lhs h_t_lhs
+        have h_in_r_rhs := all_well_typed_in_r rhs t_rhs h_t_rhs
+
+        have h_sn_lhs := all_in_r_sn lhs t_lhs h_in_r_lhs
+        have h_sn_rhs := all_in_r_sn rhs t_rhs h_in_r_rhs
+
+        match h₂ : e with
+          | SKM[((K x) y)] =>
+            simp_all
+            obtain ⟨h_lhs_eq, h_rls_eq⟩ := h
+            have h_in_r := @in_r_for.hard lhs rhs x (by
+              rw [← h_lhs_eq]
+              rw [← h_rls_eq]
+              apply k_eval_sn
+              have h_x_well_typed : valid_judgment_beta_eq x t := sorry
+              have h_x_in_r := all_well_typed_in_r x t h_x_well_typed
+              exact all_in_r_sn x t h_x_in_r
+            ) (by
+              rw [← h_lhs_eq]
+              rw [← h_rls_eq]
+              simp [is_eval_once.k]
+            ) (by
+              apply in_r_for.hard
+              sorry
+            )
+          | SKM[(((S x) y) z)] => sorry
+          | SKM[((M e) arg)] => sorry
+          | _ => sorry
