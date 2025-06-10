@@ -346,8 +346,50 @@ lemma s_eval_sn : ∀ n x y z, sn SKM[((x z) (y z))] → sn SKM[(((S n x) y) z)]
 /-
 ## Type Preservation
 
-As usual, we prove type preservation.
+As usual, we prove type preservation. We can speed up this process significantly by proving that all expressions are well-typed (e : M e).
 -/
+
+lemma all_well_typed_m_e : ∀ e, valid_judgment_beta_eq e SKM[(M 0 e)] := by
+  intro e
+  cases e
+  case m m =>
+    match m with
+      | .mk n =>
+        apply valid_judgment_beta_eq.beta_eq _ (.m (.mk n.succ))
+        apply valid_judgment_beta_eq.trivial
+        apply valid_judgment.m
+        apply beta_eq.hard
+        apply is_eval_once.m
+        apply valid_judgment.m
+        apply beta_eq.rfl
+        rfl
+  case k k =>
+    match k with
+      | .mk n =>
+        apply valid_judgment_beta_eq.beta_eq _ (.k (.mk n.succ))
+        apply valid_judgment_beta_eq.trivial
+        apply valid_judgment.k
+        apply beta_eq.hard
+        apply is_eval_once.m
+        apply valid_judgment.k
+        apply beta_eq.rfl
+        rfl
+  case s s =>
+    match s with
+      | .mk n =>
+        apply valid_judgment_beta_eq.beta_eq _ (.s (.mk n.succ))
+        apply valid_judgment_beta_eq.trivial
+        apply valid_judgment.s
+        apply beta_eq.hard
+        apply is_eval_once.m
+        apply valid_judgment.s
+        apply beta_eq.rfl
+        rfl
+  case call c =>
+    match c with
+      | .mk lhs rhs =>
+        
+        sorry
 
 lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_eval_once c e' → valid_judgment_beta_eq e' t := by
   intro c e' t h_t h_eval
@@ -398,8 +440,31 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_ev
             rfl
             apply is_eval_once.k
             simp [beta_eq.rfl]
-      case s => sorry
-      case call => sorry
+      case s s =>
+        match s with
+          | .mk n₁ =>
+            apply valid_judgment_beta_eq.beta_eq
+            apply valid_judgment_beta_eq.trivial
+            apply valid_judgment.s
+            apply beta_eq.hard
+            apply is_eval_once.left
+            apply is_eval_once.m
+            apply valid_judgment.call
+            apply is_eval_once.left
+            apply is_eval_once.left
+            apply is_eval_once.m
+            apply valid_judgment.k
+            apply is_eval_once.right
+            apply is_eval_once.m
+            apply valid_judgment.s
+            apply is_eval_once.rfl
+            rfl
+            apply is_eval_once.k
+            simp [beta_eq.rfl]
+      case call c =>
+        apply valid_judgment_beta_eq.beta_eq _ (.call (.mk SKM[M 0] (.call c)))
+        
+        sorry
   case s x' y z => sorry
   case m => sorry
   case rfl =>
