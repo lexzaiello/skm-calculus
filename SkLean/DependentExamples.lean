@@ -377,7 +377,27 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_ev
             rfl
             apply is_eval_once.k
             simp [beta_eq.rfl]
-      case k => sorry
+      case k k =>
+        match k with
+          | .mk n₁ =>
+            apply valid_judgment_beta_eq.beta_eq
+            apply valid_judgment_beta_eq.trivial
+            apply valid_judgment.k
+            apply beta_eq.hard
+            apply is_eval_once.left
+            apply is_eval_once.m
+            apply valid_judgment.call
+            apply is_eval_once.left
+            apply is_eval_once.left
+            apply is_eval_once.m
+            apply valid_judgment.k
+            apply is_eval_once.right
+            apply is_eval_once.m
+            apply valid_judgment.k
+            apply is_eval_once.rfl
+            rfl
+            apply is_eval_once.k
+            simp [beta_eq.rfl]
       case s => sorry
       case call => sorry
   case s x' y z => sorry
