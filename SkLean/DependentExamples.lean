@@ -256,18 +256,9 @@ lemma no_one_step_occupies_false : ∀ e, ¬ (valid_judgment e flse) := by
 /-
 We can expand our lemma to beta-equivalence up to some number of steps.
 -/
-
-def eval_once (e : Expr) (t : Expr) (_h_t_valid : valid_judgment e t) : Expr :=
-  match e with
-    | SKM[((K x) _y)] => x
-    | SKM[(((S x) y) z)] => eval SKM[((x z) (y z))]
-    | SKM[((M e) arg)] =>
-      eval SKM[((e arg) (t arg))]
-    | x => x
-
 inductive occupies_false : ℕ → Expr → Prop
-  | trivial                                   : valid_judgment e flse → occupies_false 0 e
-  | hard e t (h_t_valid : valid_judgment e t) : occupies_false n (eval_once e t h_t_valid) → occupies_false n.succ e
+  | trivial   : valid_judgment e flse → occupies_false 0 e
+  | hard e e' : is_eval_once e e'     → occupies_false n e' → occupies_false n.succ (.call e)
 
 lemma no_one_step_occupies_false' : ∀ e, ¬ occupies_false 0 e := by
   intro e h
@@ -292,4 +283,54 @@ lemma no_n_step_occupies_false : ∀ e n, ¬ occupies_false n e := by
     cases h
   case hard n' e t h_t_valid=>
     exact h_t_valid
+
+/-
+## Strong Normalization
+
+A stronger proof of consistency involves proving that every well-typed expression terminates. I do so. I utilize the typical reducibility candidates strategy.
+-/
+
+inductive sn : Expr → Prop
+  | s        : sn s
+  | k        : sn k
+  | m        : sn m
+  | trivial  : is_eval_once e (.call e)  → sn (.call e)
+  | hard     : is_eval_once e e'         → sn e' → sn (.call e)
+
+/-
+### Reducibility Candidates
+
+Reducibility candidates. Noncomputable exprs are trivial.
+A call is in `R(t)` if it produces an expression whose one-step reduxes are in `R`.
+-/
+
+inductive in_r_for : Expr → Expr → Prop
+  | m              : in_r_for SKM[M] SKM[M]
+  | k              : in_r_for SKM[K] SKM[K]
+  | s              : in_r_for SKM[S] SKM[S]
+  | hard           : sn SKM[(lhs rhs)]
+    → is_eval_once (.mk lhs rhs) e'
+    → in_r_for e' SKM[((M lhs) rhs)]
+    → in_r_for SKM[(lhs rhs)] SKM[((M lhs) rhs)]
+
+/-
+### Strong Normalization of Reducibility Candidates
+
+This should be pretty hard to prove.
+-/
+
+lemma all_in_r_sn : ∀ e t, in_r_for e t → sn e := by
+  intro e t h_in_r
+  match h : e with
+    | .s _ =>
+      exact sn.s
+    | .k _ =>
+      exact sn.k
+    | .m _ =>
+      exact sn.m
+    | .call (.mk lhs rhs) =>
+      cases h_in_r
+      case hard _ h _ _ =>
+        exact h
+
 
