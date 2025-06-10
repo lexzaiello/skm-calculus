@@ -20,31 +20,51 @@ Normal \\(\Pi\\) typing:
 
 \\(\Pi (x : A), B x\\)
 
-`M` is basically the `S` combinator, but lhs is the body and rhs is the type signature. This allows higher-kinded type-expr composition. This makes the combinators fully dependently-typed.
+`M` is basically the `I` combinator, but it allows reflection at runtime.
+We can derive a few useful higher-typing combinator using this base combinator:
 
-```
-def M : (∀ x : A, B x) := sorry
-mything : (?1 : Type → Type) := (?2 : Type → Type → Type)
-M mything ℕ := ?2 ℕ (?1 ℕ)
-```
+$$
+M\ (e : t) = t \\\\
+M_{\circ}\ (e : t) = e\ t = e\ (M\ e) = S\ (SKS)\ M\ e \\\\
+M_{s}\ (e : t)\ arg = e\ arg\ (t\ arg) = S\ e\ t\ arg = S\ e\ (M\ e)\ arg = S\ S\ M\ e\ arg
+$$
 
 Notably, this allows us to fully eliminate binders in all types.
-We can simplify our type system using a notion of a "valid transition." `K`, `S`, and `M` are well-typed on their own. They are parametric over some types, respectively.
-Application is entirely what assigns meaning to these expressions. We **do not** need variables, substitution, or `∀` to express this.
+
+$$
+K : K \\\\
+(K \mathbb{N} : K (M \mathbb{N}))
+$
+
+However, we quickly run into issues. We shouldn't be able to produce an expression of type `False`.
+
+$$
+false := SK \\\\
+? : false \\\\
+false : (M S) (M K) \rightarrow false : S K \rightarrow false : false \\\\
+\textbf{contradiction.}
+$$
+
+However, if we introduce type universes, we easily get around this paradox:
+
+$$
+K_{0} : K_{1} \\\\
+M K_{0} = K{1}
+$$
 -/
 
 begin mutual
 
 inductive M where
-  | mk : M
+  | mk :  ℕ → M
 deriving Repr
 
 inductive S where
-  | mk : S
+  | mk : ℕ → S
 deriving DecidableEq, Repr, BEq
 
 inductive K where
-  | mk : K
+  | mk : ℕ → K
 deriving DecidableEq, Repr, BEq
 
 inductive Call where
@@ -77,27 +97,37 @@ We make use of a small DSL for legibility.
 -/
 
 declare_syntax_cat skmexpr
-syntax "K"             : skmexpr
-syntax "S"             : skmexpr
-syntax "M"             : skmexpr
+syntax "K" ident               : skmexpr
+syntax "S" ident               : skmexpr
+syntax "M" ident               : skmexpr
+syntax "K" num                 : skmexpr
+syntax "S" num                 : skmexpr
+syntax "M" num                 : skmexpr
 syntax "(" skmexpr skmexpr ")" : skmexpr
-syntax ident           : skmexpr
-syntax "(" skmexpr ")" : skmexpr
+syntax ident                   : skmexpr
+syntax "(" skmexpr ")"         : skmexpr
 
-syntax " ⟪ " skmexpr " ⟫ " : term
+syntax " ⟪ " skmexpr " ⟫ "     : term
 
 macro_rules
-  | `(⟪ K ⟫)                      => `(Expr.k .mk)
-  | `(⟪ S ⟫)                      => `(Expr.s .mk)
-  | `(⟪ M ⟫)                      => `(Expr.m .mk)
-  | `(⟪ $e:ident ⟫)               => `($e)
-  | `(⟪ ($e:skmexpr) ⟫)           => `(⟪$e⟫)
-  | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫) => `(Expr.call (.mk ⟪ $e₁ ⟫ ⟪ $e₂ ⟫))
+  | `(⟪ K $u:ident ⟫)                     => `(Expr.k (.mk $u))
+  | `(⟪ S $u:ident ⟫)                     => `(Expr.s (.mk $u))
+  | `(⟪ M $u:ident ⟫)                     => `(Expr.m (.mk $u))
+  | `(⟪ K $u:num ⟫)                     => `(Expr.k (.mk $u))
+  | `(⟪ S $u:num ⟫)                     => `(Expr.s (.mk $u))
+  | `(⟪ M $u:num ⟫)                     => `(Expr.m (.mk $u))
+  | `(⟪ $e:ident ⟫)                       => `($e)
+  | `(⟪ ($e:skmexpr) ⟫)                   => `(⟪$e⟫)
+  | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)      => `(Expr.call (.mk ⟪ $e₁ ⟫ ⟪ $e₂ ⟫))
 
-syntax "SKM[ " skmexpr " ] " : term
+syntax "SKM[ " skmexpr " ] "        : term
+syntax "SKC[" skmexpr skmexpr "]" : term
 
 macro_rules
   | `(SKM[ $e:skmexpr ]) => `(⟪ $e ⟫)
+
+macro_rules
+  | `(SKC[ $e₁:skmexpr $e₂:skmexpr ]) => `(Call.mk ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
 
 /-
 ## Judgment Rules
@@ -142,24 +172,24 @@ $$
 This typing is coherent under an evaluation rule for the \\(M\\) combinator:
 
 $$
-M\ (x : t)\ \text{arg} = x\ \text{arg}\ (t\ \text{arg}) \\\\
-M\ K\ \mathbb{N} = K\ \mathbb{N}\ (K\ \mathbb{N}) = \mathbb{N} \\\\
-M\ K\ K = K\ K\ (K\ K) = K \\\\
-\frac{
-  \Gamma \vdash e : ?, arg : t, (M\ e\ \text{arg} : t_{2})
-}{
-  \Gamma \vdash ? = t, e : t
-}
+M\ (x : t)\ \text{arg} = \text{arg}\ x\ (\text{arg}\ t) \\\\
+M\ \mathbb{N}\ K = K\ \mathbb{N}\ (K\ \text{Type}) = \mathbb{N} \\\\
+M\ K\ K = K\ K\ (K\ K) = K
 $$
 -/
 
 mutual
 
 inductive is_eval_once : Call → Expr → Prop
-  | k x y        : is_eval_once (.mk SKM[(K x)] y) x
-  | s x y z      : is_eval_once (.mk SKM[((S x) y)] z) SKM[((x z) (y z))]
-  | m e t arg    : valid_judgment e t    → is_eval_once (.mk SKM[(M e)] arg) SKM[((e arg) (t arg))]
-  | call lhs rhs : is_eval_once lhs lhs' → is_eval_once (.mk lhs' rhs) e' → is_eval_once (.mk (.call lhs) rhs) e'
+  | k x y n      : is_eval_once SKC[(K n x) y] x
+  | s x y z n    : is_eval_once SKC[((S n x) y) z] SKM[((x z) (y z))]
+  | m e t n      : valid_judgment e t → is_eval_once SKC[(M n) e] t
+  | left         : is_eval_once lhs lhs'
+    → is_eval_once SKC[lhs' rhs] e'
+    → is_eval_once (.mk (.call lhs) rhs) e'
+  | right        : is_eval_once rhs rhs'
+    → is_eval_once SKC[lhs rhs'] e'
+    → is_eval_once (.mk lhs (.call rhs)) e'
   | rfl          : (.call c) = e₂ → is_eval_once c e₂
 
 inductive beta_eq : SkExpr → SkExpr → Prop
@@ -169,10 +199,10 @@ inductive beta_eq : SkExpr → SkExpr → Prop
   | trans                     : beta_eq e₁ e₂ → beta_eq e₂ e₃ → beta_eq e₁ e₃
 
 inductive valid_judgment : Expr → Expr → Prop
-  | k                    : valid_judgment SKM[K] SKM[K]
-  | s                    : valid_judgment SKM[S] SKM[S]
-  | m                    : valid_judgment SKM[M] SKM[M]
-  | call lhs rhs         : valid_judgment (.call (.mk lhs rhs)) SKM[((M lhs) rhs)]
+  | k n                  : valid_judgment SKM[K n] (.k (.mk n.succ))
+  | s n                  : valid_judgment SKM[S n] (.s (.mk n.succ))
+  | m n                  : valid_judgment SKM[M n] (.m (.mk n.succ))
+  | call lhs rhs         : valid_judgment SKM[(lhs rhs)] SKM[((M 0 lhs) (M 0 rhs))]
 
 inductive valid_judgment_beta_eq : Expr → Expr → Prop
   | trivial              : valid_judgment e t → valid_judgment_beta_eq e t
@@ -187,29 +217,8 @@ In order to prove consistency of our type system, we need to demonstrate that no
 We will defer to the standard definition of `false` in combinatory logic:
 -/
 
-mutual
-
-partial def type_of (e : Expr) : Expr :=
-  match e with
-    | SKM[K] => SKM[K]
-    | SKM[S] => SKM[S]
-    | SKM[M] => SKM[M]
-    | .call (.mk lhs rhs) => eval SKM[((M lhs) rhs)]
-
-partial def eval (e : Expr) : Expr :=
-  match e with
-    | SKM[((K x) _y)] => x
-    | SKM[(((S x) y) z)] => eval SKM[((x z) (y z))]
-    | SKM[((M e) arg)] =>
-      let t_e := type_of e
-
-      eval SKM[((e arg) (t_e arg))]
-    | x => x
-
-end
-
-def flse := SKM[(S K)]
-def true := SKM[K]
+def flse (n m : ℕ) := SKM[((S n) (K m))]
+def true (n : ℕ)   := SKM[K n]
 
 /-
 We can prove consistency if we cannot construct an expression that occupies the type `flse`. A trivial case to attempt is the judgment `flse : flse`. If this holds from our judgment rules, we are cooked.
@@ -222,21 +231,21 @@ lemma eval_once_imp_beta_eq : ∀ e e', is_eval_once e e'→ beta_eq (.call e) e
   exact h_eval
   simp [beta_eq.rfl]
 
-example : ¬(valid_judgment flse flse) := by
-  intro a
+example : ∀ n m, ¬(valid_judgment (flse n m) (flse n m)) := by
+  intro n m a
   rw [flse] at *
   cases a
 
-lemma no_one_step_occupies_false : ∀ e, ¬ (valid_judgment e flse) := by
-  intro e h
+lemma no_one_step_occupies_false : ∀ e n m, ¬ (valid_judgment e (flse n m)) := by
+  intro e n m h
   cases h
 
 /-
 We can expand our lemma to beta-equivalence up to some number of steps.
 -/
 inductive occupies_false : ℕ → Expr → Prop
-  | trivial   : valid_judgment e flse → occupies_false 0 e
-  | hard e e' : is_eval_once e e'     → occupies_false n e' → occupies_false n.succ (.call e)
+  | trivial   : valid_judgment e (flse n m) → occupies_false 0 e
+  | hard e e' : is_eval_once e e'           → occupies_false n e' → occupies_false n.succ (.call e)
 
 lemma no_one_step_occupies_false' : ∀ e, ¬ occupies_false 0 e := by
   intro e h
@@ -283,13 +292,14 @@ A call is in `R(t)` if it produces an expression whose one-step reduxes are in `
 -/
 
 inductive in_r_for : Expr → Expr → Prop
-  | m              : in_r_for SKM[M] SKM[M]
-  | k              : in_r_for SKM[K] SKM[K]
-  | s              : in_r_for SKM[S] SKM[S]
+  | m              : in_r_for SKM[M n] (.m (.mk n.succ))
+  | k              : in_r_for SKM[K n] (.k (.mk n.succ))
+  | s              : in_r_for SKM[S n] (.s (.mk n.succ))
   | hard           : sn SKM[(lhs rhs)]
-    → is_eval_once (.mk lhs rhs) e'
-    → in_r_for e' SKM[((M lhs) rhs)]
-    → in_r_for SKM[(lhs rhs)] SKM[((M lhs) rhs)]
+    → is_eval_once SKC[lhs rhs] e'
+    → valid_judgment e' t
+    → in_r_for e' t
+    → in_r_for SKM[(lhs rhs)] t
 
 /-
 ### Strong Normalization of Reducibility Candidates
@@ -306,30 +316,30 @@ lemma all_in_r_sn : ∀ e t, in_r_for e t → sn e := by
       exact sn.k
     | .m _ =>
       exact sn.m
-    | .call (.mk lhs rhs) =>
+    | SKM[(lhs rhs)] =>
       cases h_in_r
-      case hard _ h _ _ =>
+      case hard _ h _ _ _ =>
         exact h
 
 /-
 Note that we define evaluation as a relation on expressions. This is due to `eval_once`'s dependence on the type of `e`. This appears problematic and confusing. However, we can still prove membership in R of all well-typed expressions.
 -/
 
-lemma k_sn : sn (.k .mk) := sn.k
+lemma k_sn : sn (.k (.mk n)) := sn.k
 
-lemma s_sn : sn (.s .mk) := sn.s
+lemma s_sn : sn (.s (.mk n)) := sn.s
 
-lemma m_sn : sn (.m .mk) := sn.m
+lemma m_sn : sn (.m (.mk n)) := sn.m
 
-lemma k_eval_sn : ∀ x y, sn x → sn SKM[((K x) y)] := by
-  intro x y sn_x
-  apply @sn.hard (.mk SKM[(K x)] y) x
+lemma k_eval_sn : ∀ n x y, sn x → sn SKM[((K n x) y)] := by
+  intro n x y sn_x
+  apply @sn.hard (.mk SKM[(K n x)] y) x
   simp [is_eval_once.k]
   exact sn_x
 
-lemma s_eval_sn : ∀ x y z, sn SKM[((x z) (y z))] → sn SKM[(((S x) y) z)] := by
-  intro x y z sn_eval
-  apply @sn.hard (.mk SKM[((S x) y)] z) SKM[((x z) (y z))]
+lemma s_eval_sn : ∀ n x y z, sn SKM[((x z) (y z))] → sn SKM[(((S n x) y) z)] := by
+  intro n x y z sn_eval
+  apply @sn.hard (.mk SKM[((S n x) y)] z) SKM[((x z) (y z))]
   simp [is_eval_once.s]
   exact sn_eval
 
@@ -342,27 +352,31 @@ As usual, we prove type preservation.
 lemma eval_preserves_judgment : ∀ c e' t, valid_judgment (.call c) t → is_eval_once c e' → valid_judgment_beta_eq e' t := by
   intro c e' t h_t h_eval
   cases h_eval
-  case k y =>
+  case k y n₀ =>
     cases h_t
     case call =>
       cases e'
       case m m =>
         match m with
-          | .mk =>
-            apply valid_judgment_beta_eq.beta_eq (.m .mk) (.m .mk) (Expr.call (Call.mk (Expr.call (Call.mk (Expr.m .mk) (Expr.call (Call.mk (Expr.k .mk) (Expr.m .mk))))) y))
-            exact valid_judgment_beta_eq.trivial (by apply valid_judgment.m)
+          | .mk n₁ =>
+            apply valid_judgment_beta_eq.beta_eq SKM[M n₁] (.m (.mk n₁.succ)) _
+            apply valid_judgment_beta_eq.trivial
+            apply valid_judgment.m n₁
             apply beta_eq.hard
+            apply is_eval_once.left
             apply is_eval_once.m
             apply valid_judgment.call
-            apply beta_eq.hard
-            -- (((K M) y) (((M K) M) y))
-            -- => M (((M K) M) y)
-            -- => M ((K M (K M)) y)
-            -- => M (M y)
-            -- => M (M y) : M
-            have h := is_eval_once.k SKM[M] y
-            
-            sorry
+            apply is_eval_once.left
+            apply is_eval_once.left
+            apply is_eval_once.m
+            apply valid_judgment.k
+            apply is_eval_once.right
+            apply is_eval_once.m
+            apply valid_judgment.m
+            apply is_eval_once.rfl
+            rfl
+            apply is_eval_once.k
+            simp [beta_eq.rfl]
       case k => sorry
       case s => sorry
       case call => sorry
@@ -435,3 +449,39 @@ lemma all_well_typed_in_r : ∀ e t, valid_judgment_beta_eq e t → in_r_for e t
           | SKM[(((S x) y) z)] => sorry
           | SKM[((M e) arg)] => sorry
           | _ => sorry
+
+/-
+#### Ramblings
+
+M_id (e : t) = t := M 
+
+We want:
+
+(K (Nat : Typea) Real : Typea)
+(K Nat Real : K Typea Typeb)
+(K Nat Real : M K )
+(K Nat Real : M 
+
+we can quickly see that we have a more specific version of M that becomes useful:
+
+M_1 (e : t) arg = arg t
+
+We can actually derive this from the existing combinators. I will do this later.
+
+(K Nat Real : K (M_1 Nat) (M_1 Real))
+
+I define SR = S (S (K K) (S K S)) (K (S K S K))
+
+SR M_1 Nat Real = (M_1 Nat) (M_1 Real)
+
+K (SR M_1 Nat Real) = (M_1 Nat) (M_1 Real)
+
+So, we define the typing judgment:
+
+(x : t) (y : t) : x (M_1 x) 
+
+Eh this doesn't generalize well.
+Also, let's take an example. Identify function.
+
+((S : S) (K : K) (S : S)) : S 
+-/
