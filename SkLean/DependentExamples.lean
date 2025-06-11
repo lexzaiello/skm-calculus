@@ -463,8 +463,8 @@ lemma weakening : valid_judgment_weak e t → valid_judgment e t := by
   case call lhs rhs =>
     simp [valid_judgment.call]
 
-lemma is_eval_once_trans : ∀ e₁ e₂ e₃, is_eval_once e₁ (.call e₂) → is_eval_once e₂ (.call e₃) → beta_eq (Expr.call e₁) (Expr.call e₃) := by
-  intro e₁ e₂ e₃ h₁ h₂
+lemma is_eval_once_trans : is_eval_once e₁ (.call e₂) → is_eval_once e₂ (.call e₃) → beta_eq (Expr.call e₁) (Expr.call e₃) := by
+  intro h₁ h₂
   have h₁_b : beta_eq (Expr.call e₁) (Expr.call e₂) := by
     apply beta_eq.symm
     apply beta_eq.hard (.call e₂) e₁ (.call e₂) h₁
@@ -508,10 +508,36 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak (.call c) t → 
             apply beta_eq.rfl rfl
           )
         case a.a.a.left lhs' a₁ a₂ =>
+          apply weakening at h_t₀
           apply valid_judgment.beta_eq
           apply all_well_typed_m_e
-          
-          sorry
+          have h_a₂_beq := beta_eq.hard e' SKC[lhs' y] e' a₂ (beta_eq.rfl rfl)
+          have h_a₁_beq := beta_eq.hard lhs' SKC[(K n) x] lhs' a₁ (beta_eq.rfl rfl)
+          apply beta_eq.symm
+          have h := is_eval_once.left a₁ a₂
+          apply beta_eq.symm
+          have h_beta_eq : beta_eq e' SKM[(((K n) x) y)] := by
+            apply beta_eq.hard
+            exact h
+            apply beta_eq.rfl rfl
+          have h_m_beta_eq : beta_eq SKM[(M 0 e')] SKM[(M 0 (((K n) x) y))] := by
+            
+            sorry
+          apply beta_eq.trans
+          exact h_m_beta_eq
+          apply beta_eq.symm
+          apply beta_eq.hard
+          apply m_distributes_eval_once
+          apply beta_eq.hard
+          apply is_eval_once.left
+          apply m_distributes_eval_once
+          apply is_eval_once.left
+          apply is_eval_once.left
+          apply is_eval_once.m
+          apply valid_judgment.k
+          apply is_eval_once.rfl rfl
+          apply is_eval_once.k
+          apply beta_eq.rfl rfl
     | SKC[((S n x) y) z] => sorry
     | SKC[M n e] => sorry
     | _ => sorry
