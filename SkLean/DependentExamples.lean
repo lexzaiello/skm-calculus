@@ -183,9 +183,14 @@ mutual
 inductive is_eval_once : Call → Expr → Prop
   | k x y n      : is_eval_once SKC[(K n x) y] x
   | s x y z n    : is_eval_once SKC[((S n x) y) z] SKM[((x z) (y z))]
-  | m e t n      : valid_judgment e t → is_eval_once SKC[(M n) e] t
-  | call lhs rhs : is_eval_once lhs lhs' → is_eval_once (.mk (.call lhs) rhs) SKM[(lhs' rhs)]
-  | rfl          : (.call c) = e₂ → is_eval_once c e₂
+  | m e t n      : valid_judgment e t    → is_eval_once SKC[(M n) e] t
+  | left         : is_eval_once lhs lhs'
+    → is_eval_once SKC[lhs' rhs] e'
+    → is_eval_once (.mk (.call lhs) rhs) e'
+  | right        : is_eval_once rhs rhs'
+    → is_eval_once SKC[lhs rhs'] e'
+    → is_eval_once (.mk lhs (.call rhs)) e'
+  | rfl          : (.call c) = e₂        → is_eval_once c e₂
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | rfl                       : e₁ = e₂            → beta_eq e₁ e₂
@@ -395,14 +400,27 @@ lemma valid_judgment_one_step : valid_judgment e (.call t) → is_eval_once t t'
     exact beta_eq.rfl rfl
   case rfl =>
     simp_all
-  case call lhs lhs' rhs h_eval =>
-    apply valid_judgment.beta_eq
-    exact h_t
+  case left a b c rhs h_t_eval =>
+    apply valid_judgment.beta_eq at h_t
+    apply h_t
     apply beta_eq.symm
     apply beta_eq.hard
-    apply is_eval_once.call
-    exact h_eval
+    apply is_eval_once.left
+    exact rhs
+    exact h_t_eval
     exact beta_eq.rfl rfl
+  case right a b c rhs h_t_eval =>
+    apply valid_judgment.beta_eq at h_t
+    apply h_t
+    apply beta_eq.symm
+    apply beta_eq.hard
+    apply is_eval_once.right
+    exact rhs
+    exact h_t_eval
+    exact beta_eq.rfl rfl
+
+lemma valid_judgment_beta_eq : valid_judgment e t → beta_eq t t' → valid_judgment e t' := by
+  apply valid_judgment.beta_eq
 
 /-
 I define a preservation helper for `K` evaluation.
@@ -447,23 +465,32 @@ lemma weakening : valid_judgment_weak e t → valid_judgment e t := by
 
 lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak (.call c) t → is_eval_once c e' → valid_judgment e' t := by
   intro c e' t h_t h_eval
+  have h_t₀ := h_t
   match h : c with
     | SKC[(K n x) y] =>
       let n' := n.succ
-      apply weakening at h_t
-      apply valid_judgment.beta_eq
-      apply all_well_typed_m_e
-      apply beta_eq.symm
       cases h_t
-      case a.a.call =>
-        apply beta_eq.symm
-        apply beta_eq.hard
-        
-        sorry
-      case a.a.beta_eq =>
-        sorry
+      case call =>
+        apply @valid_judgment_beta_eq e' SKM[((((M 0) (K n)) ((M 0) x)) (M 0 y))] SKM[(((M 0) (K n x)) ((M 0) y))]
+        apply @valid_judgment_beta_eq _ SKM[(((K n') ((M 0) x)) (M 0 y))]
+        apply @valid_judgment_beta_eq _ SKM[((M 0) x)]
+        cases h_eval
+        case a.a.a.k =>
+          apply all_well_typed_m_e
+        case a.a.a.rfl h =>
+          simp_all
+          apply weakening at h_t₀
+          apply valid_judgment_beta_eq h_t₀ (by
+            apply beta_eq.symm
+            apply beta_eq.hard
+            
+            apply m_distributes
+            
+            sorry
+          )
     | SKC[((S n x) y) z] => sorry
     | SKC[M n e] => sorry
+    | _ => sorry
 
 lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
   intro e t h_t
