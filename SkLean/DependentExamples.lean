@@ -462,10 +462,30 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak c t → is_eval_
     apply beta_eq.right
     exact h
     exact beta_eq.rfl
-  case left =>
-    sorry
-  case right =>
-    sorry
+  case left lhs lhs' rhs h_eq =>
+    apply weakening at h_t
+    apply valid_judgment_m_iff.mp at h_t
+    apply valid_judgment.beta_eq
+    apply all_well_typed_m_e
+    apply beta_eq.trans
+    apply beta_eq.right
+    apply beta_eq.left
+    apply beta_eq.symm
+    apply beta_eq.eval
+    exact h_eq
+    exact h_t
+  case right rhs rhs' lhs h_eq =>
+    apply weakening at h_t
+    apply valid_judgment_m_iff.mp at h_t
+    apply valid_judgment.beta_eq
+    apply all_well_typed_m_e
+    apply beta_eq.trans
+    apply beta_eq.right
+    apply beta_eq.right
+    apply beta_eq.symm
+    apply beta_eq.eval
+    exact h_eq
+    exact h_t
 
 lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
   intro e t h_t
