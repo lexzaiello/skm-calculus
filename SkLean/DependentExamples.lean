@@ -183,8 +183,8 @@ mutual
 inductive is_eval_once : Expr → Expr → Prop
   | k x y n      : is_eval_once SKM[((K n x) y)] x
   | s x y z n    : is_eval_once SKM[(((S n x) y) z)] SKM[((x z) (y z))]
-  | m e t        : valid_judgment e t
-    → is_eval_once SKM[((M 0) e)] t
+  | m e t n      : valid_judgment e t
+    → is_eval_once SKM[((M n) e)] t
   | left         : is_eval_once lhs lhs'
     → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
   | right        : is_eval_once rhs rhs'
@@ -202,13 +202,13 @@ inductive valid_judgment_weak : Expr → Expr → Prop
   | k n                       : valid_judgment_weak SKM[K n] (.k (.mk n.succ))
   | s n                       : valid_judgment_weak SKM[S n] (.s (.mk n.succ))
   | m n                       : valid_judgment_weak SKM[M n] (.m (.mk n.succ))
-  | call lhs rhs              : valid_judgment_weak SKM[(lhs rhs)] SKM[((M 0 lhs) (M 0 rhs))]
+  | call lhs rhs n            : valid_judgment_weak SKM[(lhs rhs)] SKM[((M n lhs) (M n rhs))]
 
 inductive valid_judgment : Expr → Expr → Prop
   | k n                       : valid_judgment SKM[K n] (.k (.mk n.succ))
   | s n                       : valid_judgment SKM[S n] (.s (.mk n.succ))
   | m n                       : valid_judgment SKM[M n] (.m (.mk n.succ))
-  | call lhs rhs              : valid_judgment SKM[(lhs rhs)] SKM[((M 0 lhs) (M 0 rhs))]
+  | call lhs rhs n            : valid_judgment SKM[(lhs rhs)] SKM[((M n lhs) (M n rhs))]
   | beta_eq e t₁ t₂           : valid_judgment e t₁ → beta_eq t₁ t₂ → valid_judgment e t₂
 
 end
@@ -237,8 +237,7 @@ inductive in_r_for : Expr → Expr → Prop
   | m              : in_r_for SKM[M n] (.m (.mk n.succ))
   | k              : in_r_for SKM[K n] (.k (.mk n.succ))
   | s              : in_r_for SKM[S n] (.s (.mk n.succ))
-  | hard           : sn SKM[(lhs rhs)]
-    → is_eval_once SKM[(lhs rhs)] e'
+  | call           : is_eval_once SKM[(lhs rhs)] e'
     → valid_judgment e' t
     → in_r_for e' t
     → in_r_for SKM[(lhs rhs)] t
@@ -264,8 +263,10 @@ lemma all_in_r_sn : ∀ e t, in_r_for e t → sn e := by
       exact sn.m
     | SKM[(lhs rhs)] =>
       cases h_in_r
-      case hard _ h _ _ _ =>
+      case call _ h _ _ _ =>
         exact h
+      case trans t₂ h_t₂ h_in_r h_t₃ =>
+        sorry
 
 /-
 Note that we define evaluation as a relation on expressions. This is due to `eval_once`'s dependence on the type of `e`. This appears problematic and confusing. However, we can still prove membership in R of all well-typed expressions.
@@ -295,7 +296,7 @@ lemma s_eval_sn : ∀ n x y z, sn SKM[((x z) (y z))] → sn SKM[(((S n x) y) z)]
 As usual, we prove type preservation. We can speed up this process significantly by proving that all expressions are well-typed (e : M e).
 -/
 
-lemma all_well_typed_m_e : ∀ e, valid_judgment e SKM[(M 0 e)] := by
+lemma all_well_typed_m_e : ∀ e, valid_judgment e SKM[(M n e)] := by
   intro e
   cases e
   case m m =>
@@ -328,8 +329,8 @@ lemma all_well_typed_m_e : ∀ e, valid_judgment e SKM[(M 0 e)] := by
   case call c =>
     match c with
       | .mk lhs rhs =>
-        have h_lhs_typed := @all_well_typed_m_e lhs
-        have h_rhs_typed := @all_well_typed_m_e rhs
+        have h_lhs_typed := @all_well_typed_m_e n lhs
+        have h_rhs_typed := @all_well_typed_m_e n rhs
         apply valid_judgment.beta_eq _ SKM[((M 0 lhs) (M 0 rhs))]
         apply valid_judgment.call
         apply beta_eq.symm
@@ -351,7 +352,7 @@ This shortens our type preservation proof significantly by allowing us to collap
 
 namespace beta_eq
 
-lemma m_distributes : beta_eq SKM[(M 0 (lhs rhs))] SKM[((M 0 lhs) (M 0 rhs))] := by
+lemma m_distributes : beta_eq SKM[(M 0 (lhs rhs))] SKM[((M n lhs) (M n rhs))] := by
   apply beta_eq.eval
   apply is_eval_once.m
   apply @valid_judgment.call _ _
@@ -360,7 +361,7 @@ end beta_eq
 
 namespace eval_once
 
-lemma m_distributes : is_eval_once SKM[((M 0) (lhs rhs))] SKM[((M 0 lhs) (M 0 rhs))] := by
+lemma m_distributes : is_eval_once SKM[((M n) (lhs rhs))] SKM[((M n lhs) (M n rhs))] := by
   apply is_eval_once.m
   apply valid_judgment.call
 
@@ -377,7 +378,7 @@ lemma m_distributes_judgment : valid_judgment SKM[(lhs rhs)] SKM[((M 0) (lhs rhs
 
 end valid_judgment
 
-lemma valid_judgment_m_iff : valid_judgment e t ↔ beta_eq SKM[(M 0 e)] t := by
+lemma valid_judgment_m_iff : valid_judgment e t ↔ beta_eq SKM[(M n e)] t := by
   constructor
   intro h
   apply beta_eq.eval
@@ -386,6 +387,7 @@ lemma valid_judgment_m_iff : valid_judgment e t ↔ beta_eq SKM[(M 0 e)] t := by
   intro h
   apply valid_judgment.beta_eq
   apply all_well_typed_m_e
+  exact n
   exact h
 
 /-
@@ -416,7 +418,7 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once 
   cases h_eval
   case k y n =>
     apply valid_judgment.beta_eq
-    apply all_well_typed_m_e
+    apply @all_well_typed_m_e 0
     apply beta_eq.trans
     apply beta_eq.symm
     apply beta_eq.eval
@@ -430,7 +432,7 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once 
     exact beta_eq.rfl
   case s x y z n =>
     apply valid_judgment.beta_eq
-    apply all_well_typed_m_e
+    apply @all_well_typed_m_e 0
     apply beta_eq.trans
     apply beta_eq.symm
     apply beta_eq.eval
@@ -442,8 +444,8 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once 
     apply is_eval_once.m
     exact h_t
     exact beta_eq.rfl
-  case m e'' h =>
-    apply valid_judgment_m_iff.mp at h_t
+  case m e'' n h =>
+    apply (@valid_judgment_m_iff _ _ n).mp at h_t
     apply valid_judgment_m_iff.mpr
     apply valid_judgment_m_iff.mp at h
     apply beta_eq.symm
@@ -456,7 +458,7 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once 
   case left lhs lhs' rhs h_eq =>
     apply valid_judgment_m_iff.mp at h_t
     apply valid_judgment.beta_eq
-    apply all_well_typed_m_e
+    apply @all_well_typed_m_e 0
     apply beta_eq.trans
     apply beta_eq.right
     apply beta_eq.left
@@ -467,7 +469,7 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once 
   case right rhs rhs' lhs h_eq =>
     apply valid_judgment_m_iff.mp at h_t
     apply valid_judgment.beta_eq
-    apply all_well_typed_m_e
+    apply @all_well_typed_m_e 0
     apply beta_eq.trans
     apply beta_eq.right
     apply beta_eq.right
@@ -534,7 +536,10 @@ lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
         have h_sn_lhs := all_in_r_sn lhs t_lhs h_in_r_lhs
         have h_sn_rhs := all_in_r_sn rhs t_rhs h_in_r_rhs
 
-        
+        cases h_in_r_lhs
+        case intro.intro.m n =>
+          apply in_r_for.call
+          exact is_eval_once.m rhs t_rhs h_t_rhs
 
 /-
 #### Ramblings
