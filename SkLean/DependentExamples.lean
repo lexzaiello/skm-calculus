@@ -352,7 +352,7 @@ This shortens our type preservation proof significantly by allowing us to collap
 
 namespace beta_eq
 
-lemma m_distributes : beta_eq SKM[(M 0 (lhs rhs))] SKM[((M n lhs) (M n rhs))] := by
+lemma m_distributes : beta_eq SKM[(M n (lhs rhs))] SKM[((M n lhs) (M n rhs))] := by
   apply beta_eq.eval
   apply is_eval_once.m
   apply @valid_judgment.call _ _
@@ -412,6 +412,60 @@ lemma congr_m : is_eval_once a b → beta_eq SKM[((M 0) a)] SKM[((M 0) b)] := by
   apply beta_eq.right
   exact beta_eq.eval h
   exact beta_eq.rfl
+
+lemma inj_m : valid_judgment_weak e t → ∃ n₁ n₂, valid_judgment SKM[(M n₁ e)] SKM[(M n₂ t)] := by
+  intro h
+  cases h
+  case k n' =>
+    use n'
+    use n'
+    apply valid_judgment.beta_eq
+    apply valid_judgment_m_iff.mpr
+    apply beta_eq.right
+    apply beta_eq.eval
+    apply is_eval_once.m
+    apply valid_judgment.k
+    exact n'
+    exact beta_eq.rfl
+  case s n' =>
+    use n'
+    use n'
+    apply valid_judgment.beta_eq
+    apply valid_judgment_m_iff.mpr
+    apply beta_eq.right
+    apply beta_eq.eval
+    apply is_eval_once.m
+    apply valid_judgment.s
+    exact n'
+    exact beta_eq.rfl
+  case m n =>
+    use n
+    use n
+    apply valid_judgment.beta_eq
+    apply valid_judgment_m_iff.mpr
+    apply beta_eq.right
+    apply beta_eq.eval
+    apply is_eval_once.m
+    apply valid_judgment.m
+    exact n
+    exact beta_eq.rfl
+  case call lhs rhs n' =>
+    use n'
+    use n'.succ
+    apply valid_judgment.beta_eq
+    apply all_well_typed_m_e
+    exact n'
+    apply beta_eq.trans
+    apply beta_eq.m_distributes
+    apply beta_eq.trans
+    apply beta_eq.right
+    apply beta_eq.m_distributes
+    apply beta_eq.trans
+    apply beta_eq.left
+    apply beta_eq.eval
+    apply is_eval_once.m
+    apply valid_judgment.m
+    apply beta_eq.rfl
 
 lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once c e' → valid_judgment e' t := by
   intro c e' t h_t h_eval
@@ -539,8 +593,8 @@ lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
         cases h_in_r_lhs
         case intro.intro.m n =>
           apply in_r_for.call
-          exact is_eval_once.m rhs t_rhs h_t_rhs
-
+          exact is_eval_once.m rhs t_rhs n h_t_rhs
+          
 /-
 #### Ramblings
 
