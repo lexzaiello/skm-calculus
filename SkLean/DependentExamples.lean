@@ -345,60 +345,45 @@ $$
 This shortens our type preservation proof significantly by allowing us to collapse expressions of the form \\((M K arg)\\) to reducible \\((M K) (M arg)\\) expressions.
 -/
 
+namespace beta_eq
+
 lemma m_distributes : beta_eq SKM[(M n (lhs rhs))] SKM[((M n lhs) (M n rhs))] := by
   apply beta_eq.eval
   apply is_eval_once.m
   apply @valid_judgment.call _ _ n
 
-lemma m_distributes_eval_once : is_eval_once SKM[((M n) (lhs rhs))] SKM[((M n lhs) (M n rhs))] := by
+end beta_eq
+
+namespace eval_once
+
+lemma m_distributes : is_eval_once SKM[((M n) (lhs rhs))] SKM[((M n lhs) (M n rhs))] := by
   apply is_eval_once.m
   apply valid_judgment.call
+
+end eval_once
+
+namespace valid_judgment
 
 lemma m_distributes_judgment : valid_judgment SKM[(lhs rhs)] SKM[((M n) (lhs rhs))] → valid_judgment SKM[(lhs rhs)] SKM[((M n lhs) (M n rhs))] := by
   intro h_t
   apply valid_judgment.beta_eq SKM[(lhs rhs)] SKM[((M n) (lhs rhs))]
   exact h_t
   apply beta_eq.eval
-  apply m_distributes_eval_once
+  apply eval_once.m_distributes
 
-/-
-Nice case analysis on judgments allowing type-leve substitution.
--/
+end valid_judgment
 
-lemma valid_judgment_one_step : valid_judgment e t → is_eval_once t t' → valid_judgment e t' := by
-  intro h_t h_eval_eq
-  cases h_eval_eq
-  case k y n =>
-    apply valid_judgment.beta_eq
-    exact h_t
-    apply beta_eq.eval
-    apply is_eval_once.k
-  case s =>
-    apply valid_judgment.beta_eq
-    exact h_t
-    apply beta_eq.eval
-    apply is_eval_once.s
-  case m e₁ t₁ h_t₁ =>
-    apply valid_judgment.beta_eq
-    exact h_t
-    apply beta_eq.eval
-    apply is_eval_once.m
-    exact h_t₁
-  case left h =>
-    apply valid_judgment.beta_eq at h_t
-    apply h_t
-    apply beta_eq.eval
-    apply is_eval_once.left
-    exact h
-  case right h =>
-    apply valid_judgment.beta_eq at h_t
-    apply h_t
-    apply beta_eq.eval
-    apply is_eval_once.right
-    exact h
-
-lemma valid_judgment_beta_eq : valid_judgment e t → beta_eq t t' → valid_judgment e t' := by
+lemma valid_judgment_m_iff : valid_judgment e t ↔ beta_eq SKM[(M n e)] t := by
+  constructor
+  intro h
+  apply beta_eq.eval
+  apply is_eval_once.m
+  exact h
+  intro h
   apply valid_judgment.beta_eq
+  apply all_well_typed_m_e
+  exact n
+  exact h
 
 /-
 I define a preservation helper for `K` evaluation.
@@ -416,12 +401,6 @@ lemma weakening : valid_judgment_weak e t → valid_judgment e t := by
   case call lhs rhs =>
     simp [valid_judgment.call]
 
-lemma valid_judgment_m : valid_judgment e t → beta_eq SKM[(M n e)] t := by
-  intro h
-  apply beta_eq.eval
-  apply is_eval_once.m
-  exact h
-
 lemma congr_m : is_eval_once a b → beta_eq SKM[((M 0) a)] SKM[((M 0) b)] := by
   intro h
   apply beta_eq.trans
@@ -429,56 +408,46 @@ lemma congr_m : is_eval_once a b → beta_eq SKM[((M 0) a)] SKM[((M 0) b)] := by
   exact beta_eq.eval h
   exact beta_eq.rfl
 
-lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak (.call c) t → is_eval_once c e' → valid_judgment e' t := by
+lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak c t → is_eval_once c e' → valid_judgment e' t := by
   intro c e' t h_t h_eval
-  have h_t₀ := h_t
-  match h : c with
-    | SKC[(K n x) y] =>
-      let n' := n.succ
-      cases h_t
-      case call =>
-        apply @valid_judgment_beta_eq e' SKM[((((M 0) (K n)) ((M 0) x)) (M 0 y))] SKM[(((M 0) (K n x)) ((M 0) y))]
-        apply @valid_judgment_beta_eq _ SKM[(((K n') ((M 0) x)) (M 0 y))]
-        apply @valid_judgment_beta_eq _ SKM[((M 0) x)]
-        cases h_eval
-        case a.a.a.k =>
-          apply all_well_typed_m_e
-        case a.a.a.rfl h =>
-          simp_all
-          apply weakening at h_t₀
-          apply valid_judgment_beta_eq h_t₀ (by
-            apply beta_eq.symm
-            apply beta_eq.hard
-            apply is_eval_once.left
-            apply m_distributes_eval_once
-            apply is_eval_once.left
-            apply is_eval_once.left
-            apply is_eval_once.m
-            apply valid_judgment.k
-            apply is_eval_once.rfl rfl
-            apply is_eval_once.k
-            apply beta_eq.rfl rfl
-          )
-        case a.a.a.left lhs' a₁ a₂ =>
-          cases a₁
-          case right rhs rhs' a₁ h₁ =>
-            cases a₂
-            case k n' =>
-              apply valid_judgment.beta_eq _ SKM[((M 0) rhs')]
-              have h := all_well_typed_m_e e'
-              apply valid_judgment.beta_eq
-              exact h
-              
-              sorry
-            case s n' =>
-              sorry
-            case m n' =>
-              sorry
-          case rfl =>
-            sorry
-    | SKC[((S n x) y) z] => sorry
-    | SKC[M n e] => sorry
-    | _ => sorry
+  cases h_eval
+  case k y n =>
+    apply weakening at h_t
+    apply valid_judgment.beta_eq
+    apply all_well_typed_m_e
+    exact n
+    apply beta_eq.trans
+    apply beta_eq.symm
+    apply beta_eq.eval
+    apply is_eval_once.k SKM[(M n e')] SKM[(M n y)]
+    exact n
+    apply beta_eq.trans
+    apply beta_eq.eval
+    apply is_eval_once.k
+    cases h_t
+    case a.a.a.call n' =>
+      apply beta_eq.symm
+      apply beta_eq.trans
+      apply beta_eq.left
+      apply beta_eq.m_distributes
+      apply beta_eq.trans
+      apply beta_eq.left
+      apply beta_eq.left
+      apply beta_eq.eval
+      apply is_eval_once.m
+      apply valid_judgment.k
+      apply beta_eq.eval
+      apply is_eval_once.k SKM[(M n' e')] SKM[(M n' y)] n.succ
+      
+    sorry
+  case s =>
+    sorry
+  case m =>
+    sorry
+  case left =>
+    sorry
+  case right =>
+    sorry
 
 lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
   intro e t h_t
