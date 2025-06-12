@@ -407,7 +407,7 @@ lemma congr_m : is_eval_once a b → beta_eq SKM[((M 0) a)] SKM[((M 0) b)] := by
   exact beta_eq.eval h
   exact beta_eq.rfl
 
-lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak c t → is_eval_once c e' → valid_judgment e' t := by
+lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once c e' → valid_judgment e' t := by
   intro c e' t h_t h_eval
   cases h_eval
   case k y n =>
@@ -416,25 +416,14 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak c t → is_eval_
     apply beta_eq.trans
     apply beta_eq.symm
     apply beta_eq.eval
-    apply is_eval_once.k SKM[(M 0 e')] SKM[(M 0 y)]
+    apply is_eval_once.right
+    apply is_eval_once.k e' y
     exact n
     apply beta_eq.trans
     apply beta_eq.eval
-    apply is_eval_once.k
-    cases h_t
-    case a.a.a.call =>
-      apply beta_eq.symm
-      apply beta_eq.trans
-      apply beta_eq.left
-      apply beta_eq.m_distributes
-      apply beta_eq.trans
-      apply beta_eq.left
-      apply beta_eq.left
-      apply beta_eq.eval
-      apply is_eval_once.m
-      apply valid_judgment.k
-      apply beta_eq.eval
-      apply is_eval_once.k SKM[(M 0 e')] SKM[(M 0 y)] n.succ
+    apply is_eval_once.m
+    exact h_t
+    exact beta_eq.rfl
   case s x y z n =>
     apply valid_judgment.beta_eq
     apply all_well_typed_m_e
@@ -447,11 +436,9 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak c t → is_eval_
     apply beta_eq.trans
     apply beta_eq.eval
     apply is_eval_once.m
-    apply weakening at h_t
     exact h_t
     exact beta_eq.rfl
   case m e'' h =>
-    apply weakening at h_t
     apply valid_judgment_m_iff.mp at h_t
     apply valid_judgment_m_iff.mpr
     apply valid_judgment_m_iff.mp at h
@@ -463,7 +450,6 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak c t → is_eval_
     exact h
     exact beta_eq.rfl
   case left lhs lhs' rhs h_eq =>
-    apply weakening at h_t
     apply valid_judgment_m_iff.mp at h_t
     apply valid_judgment.beta_eq
     apply all_well_typed_m_e
@@ -475,7 +461,6 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak c t → is_eval_
     exact h_eq
     exact h_t
   case right rhs rhs' lhs h_eq =>
-    apply weakening at h_t
     apply valid_judgment_m_iff.mp at h_t
     apply valid_judgment.beta_eq
     apply all_well_typed_m_e
@@ -487,32 +472,28 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment_weak c t → is_eval_
     exact h_eq
     exact h_t
 
-lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
+lemma all_well_typed_in_r : ∀ e t, valid_judgment_weak e t → in_r_for e t := by
   intro e t h_t
   match h : e with
     | .k _  =>
       cases h_t
-      case beta_eq => sorry
       case k =>
         exact in_r_for.k
     | .s _ =>
       cases h_t
-      case beta_eq => sorry
       case s =>
         exact in_r_for.s
     | .m _ =>
       cases h_t
-      case beta_eq => sorry
       case m =>
         exact in_r_for.m
     | .call (.mk lhs rhs) =>
+      have h_t₀ := h_t
       cases h_t
-      case beta_eq =>
-        
-        sorry
       case call =>
-        have h_t_lhs : ∃ t_lhs, valid_judgment lhs t_lhs := sorry
-        have h_t_rhs : ∃ t_rhs, valid_judgment rhs t_rhs := sorry
+        
+        have h_t_lhs : ∃ t_lhs, valid_judgment_weak lhs t_lhs := sorry
+        have h_t_rhs : ∃ t_rhs, valid_judgment_weak rhs t_rhs := sorry
 
         obtain ⟨t_lhs, h_t_lhs⟩ := h_t_lhs
         obtain ⟨t_rhs, h_t_rhs⟩ := h_t_rhs
@@ -523,28 +504,7 @@ lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
         have h_sn_lhs := all_in_r_sn lhs t_lhs h_in_r_lhs
         have h_sn_rhs := all_in_r_sn rhs t_rhs h_in_r_rhs
 
-        match h₂ : e with
-          | SKM[((K x) y)] =>
-            simp_all
-            obtain ⟨h_lhs_eq, h_rls_eq⟩ := h
-            have h_in_r := @in_r_for.hard lhs rhs x (by
-              rw [← h_lhs_eq]
-              rw [← h_rls_eq]
-              apply k_eval_sn
-              have h_x_well_typed : valid_judgment_beta_eq x t := sorry
-              have h_x_in_r := all_well_typed_in_r x t h_x_well_typed
-              exact all_in_r_sn x t h_x_in_r
-            ) (by
-              rw [← h_lhs_eq]
-              rw [← h_rls_eq]
-              simp [is_eval_once.k]
-            ) (by
-              apply in_r_for.hard
-              sorry
-            )
-          | SKM[(((S x) y) z)] => sorry
-          | SKM[((M e) arg)] => sorry
-          | _ => sorry
+        
 
 /-
 #### Ramblings
