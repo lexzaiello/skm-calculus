@@ -378,43 +378,73 @@ lemma valid_judgment_imp_m : ∀ n, valid_judgment e t → valid_judgment e SKM[
   apply is_eval_once.m
   exact h
 
-lemma eval_preserves_judgment : ∀ e e' t, valid_judgment e t → is_eval_once e e' → valid_judgment e' t' → valid_judgment e t' := by
+lemma eval_preserves_judgment : ∀ e e' t, valid_judgment e t → is_eval_once e e' → valid_judgment e' t' → valid_judgment e' t := by
   intro c e' t h_t h_eval h_t'
   cases h_eval
   case k y n =>
     apply valid_judgment.beta_eq
     apply valid_judgment_imp_m (e'.max_universe.succ)
+    exact h_t'
+    apply beta_eq.trans
+    apply beta_eq.eval
+    apply is_eval_once.m
+    exact h_t'
+    apply beta_eq.symm
+    apply beta_eq.trans
+    apply beta_eq.symm
+    apply beta_eq.eval
+    apply is_eval_once.m
+    use 0
     exact h_t
     apply beta_eq.trans
     apply beta_eq.eval
     apply is_eval_once.right
     apply is_eval_once.k
-    simp [Expr.max_universe]
     apply beta_eq.eval
     apply is_eval_once.m
     exact h_t'
   case s x y z n =>
     apply valid_judgment.beta_eq
     apply valid_judgment_imp_m (SKM[((x z) (y z))].max_universe.succ)
+    exact h_t'
+    apply beta_eq.trans
+    apply beta_eq.eval
+    apply is_eval_once.m
+    exact h_t'
+    apply beta_eq.symm
+    apply beta_eq.trans
+    apply beta_eq.symm
+    apply beta_eq.eval
+    apply is_eval_once.m
+    use 0
     exact h_t
     apply beta_eq.trans
     apply beta_eq.eval
     apply is_eval_once.right
     apply is_eval_once.s
-    simp [Expr.max_universe]
     apply beta_eq.eval
     apply is_eval_once.m
     exact h_t'
   case m e'' n h =>
     apply valid_judgment.beta_eq
-    apply valid_judgment_imp_m (e'.max_universe.succ)
+    apply valid_judgment_imp_m (e''.max_universe.succ)
+    exact h_t'
+    apply beta_eq.trans
+    apply beta_eq.eval
+    apply is_eval_once.m
+    exact h_t'
+    apply beta_eq.symm
+    apply beta_eq.trans
+    apply beta_eq.symm
+    apply beta_eq.eval
+    apply is_eval_once.m
+    use 0
     exact h_t
     apply beta_eq.trans
     apply beta_eq.eval
     apply is_eval_once.right
     apply is_eval_once.m
     exact h
-    simp [Expr.max_universe]
     apply beta_eq.eval
     apply is_eval_once.m
     exact h_t'
@@ -422,26 +452,28 @@ lemma eval_preserves_judgment : ∀ e e' t, valid_judgment e t → is_eval_once 
     apply valid_judgment.beta_eq
     apply valid_judgment_imp_m
     use 0
-    exact h_t
+    exact h_t'
     apply beta_eq.trans
     apply beta_eq.right
     apply beta_eq.left
+    apply beta_eq.symm
     apply beta_eq.eval h_eq
     apply beta_eq.eval
     apply is_eval_once.m
-    exact h_t'
+    exact h_t
   case right rhs rhs' lhs h_eq =>
     apply valid_judgment.beta_eq
     apply valid_judgment_imp_m
     use 0
-    exact h_t
+    exact h_t'
     apply beta_eq.trans
     apply beta_eq.right
     apply beta_eq.right
+    apply beta_eq.symm
     apply beta_eq.eval h_eq
     apply beta_eq.eval
     apply is_eval_once.m
-    exact h_t'
+    exact h_t
 
 lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
   intro e t h_t
