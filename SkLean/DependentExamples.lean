@@ -129,6 +129,18 @@ macro_rules
 macro_rules
   | `(SKC[ $e₁:skmexpr $e₂:skmexpr ]) => `(Call.mk ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
 
+namespace Expr
+
+def max_universe (e : Expr) : ℕ :=
+  match e with
+    | SKM[(K n)] => n
+    | SKM[(S n)] => n
+    | SKM[(M n)] => n
+    | SKM[(lhs rhs)] =>
+      max (max_universe lhs) (max_universe rhs)
+
+end Expr
+
 /-
 ## Judgment Rules
 
@@ -186,8 +198,10 @@ inductive is_eval_once : Expr → Expr → Prop
   | m e t n      : valid_judgment e t
     → is_eval_once SKM[((M n) e)] t
   | left         : is_eval_once lhs lhs'
+    → rhs.max_universe < lhs'.max_universe
     → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
   | right        : is_eval_once rhs rhs'
+    → rhs'.max_universe < lhs.max_universe
     → is_eval_once SKM[(lhs rhs)] SKM[(lhs rhs')]
 
 inductive beta_eq : SkExpr → SkExpr → Prop
@@ -213,6 +227,41 @@ inductive valid_judgment : Expr → Expr → Prop
 
 end
 
+mutual
+
+partial def type_of (e : Expr) : Option Expr :=
+  match e with
+    | SKM[(K n)] => pure $ (.k (.mk n.succ))
+    | SKM[(S n)] => pure $ (.s (.mk n.succ))
+    | SKM[(M n)] => pure $ (.m (.mk n.succ))
+    | SKM[(lhs rhs)] => eval SKM[((M 0 lhs) (M 0 rhs))]
+
+partial def eval (e : Expr) : Option Expr :=
+  match e with
+    | SKM[(((K _n) x) _y)] => eval x
+    | SKM[((((S _n) x) y) z)] => eval SKM[((x z) (y z))]
+    | SKM[(M _n e)] => do eval (← type_of e)
+    | SKM[(lhs rhs)] => do
+      if rhs.max_universe ≥ lhs.max_universe then
+        none
+      else
+        let lhs' ← eval lhs
+
+        eval SKM[(lhs' rhs)]
+    | x => x
+
+end
+
+def I (m n o : ℕ) : m > n → m > o → Expr := fun _ _ => SKM[(((S m) (K n)) (K o))]
+def W (l m n o : ℕ) : l > m → m > n → m > o → Expr :=
+  fun _ h₂ h₃ =>
+    let icomb := I m n o h₂ h₃
+    SKM[(((S m) (icomb)) (icomb))]
+
+def W₁ := W 3 2 1 0 (by linarith) (by linarith) (by linarith)
+def W₂ := W 4 3 2 1 (by linarith) (by linarith) (by linarith)
+
+#eval eval SKM[(W₂ W₁)]
 /-
 ## Strong Normalization
 
@@ -230,7 +279,11 @@ inductive sn : Expr → Prop
 ### Reducibility Candidates
 
 Reducibility candidates. Noncomputable exprs are trivial.
-A call is in `R(t)` if it produces an expression whose one-step reduxes are in `R`.
+A call is in `R(t)` if its type is "computable."
+For example, the omega combinator does not have a computable type.
+UH OH.
+
+We can easily get around this if we make combinator universes **computationally relevant**.
 -/
 
 inductive in_r_for : Expr → Expr → Prop
@@ -264,6 +317,7 @@ lemma all_in_r_sn : ∀ e t, in_r_for e t → sn e := by
     | SKM[(lhs rhs)] =>
       cases h_in_r
       case call _ h _ _ _ =>
+        
         exact h
       case trans t₂ h_t₂ h_in_r h_t₃ =>
         sorry
@@ -472,13 +526,14 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once 
   cases h_eval
   case k y n =>
     apply valid_judgment.beta_eq
-    apply @all_well_typed_m_e 0
+    apply @all_well_typed_m_e e'.max_universe.succ
     apply beta_eq.trans
     apply beta_eq.symm
     apply beta_eq.eval
     apply is_eval_once.right
     apply is_eval_once.k e' y
     exact n
+    simp [Expr.max_universe]
     apply beta_eq.trans
     apply beta_eq.eval
     apply is_eval_once.m
@@ -486,13 +541,14 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once 
     exact beta_eq.rfl
   case s x y z n =>
     apply valid_judgment.beta_eq
-    apply @all_well_typed_m_e 0
+    apply @all_well_typed_m_e SKM[((x z) (y z))].max_universe.succ
     apply beta_eq.trans
     apply beta_eq.symm
     apply beta_eq.eval
     apply is_eval_once.right
     apply is_eval_once.s x y z
     exact n
+    simp [Expr.max_universe]
     apply beta_eq.trans
     apply beta_eq.eval
     apply is_eval_once.m
@@ -509,10 +565,10 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once 
     apply beta_eq.right
     exact h
     exact beta_eq.rfl
-  case left lhs lhs' rhs h_eq =>
+  case left lhs lhs' rhs h_eq h_universe =>
     apply valid_judgment_m_iff.mp at h_t
     apply valid_judgment.beta_eq
-    apply @all_well_typed_m_e 0
+    apply @all_well_typed_m_e lhs.max_universe.succ
     apply beta_eq.trans
     apply beta_eq.right
     apply beta_eq.left
@@ -520,7 +576,7 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once 
     apply beta_eq.eval
     exact h_eq
     exact h_t
-  case right rhs rhs' lhs h_eq =>
+  case right rhs rhs' lhs h_eq h_universe =>
     apply valid_judgment_m_iff.mp at h_t
     apply valid_judgment.beta_eq
     apply @all_well_typed_m_e 0
@@ -577,7 +633,7 @@ lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
     | .call (.mk lhs rhs) =>
       have h_t₀ := h_t
       cases h_t
-      case call =>
+      case call n =>
         have h_t_lhs : ∃ t_lhs, valid_judgment lhs t_lhs := ⟨SKM[(M 0 lhs)], all_well_typed_m_e lhs⟩
         have h_t_rhs : ∃ t_rhs, valid_judgment rhs t_rhs := ⟨SKM[(M 0 rhs)], all_well_typed_m_e rhs⟩
 
@@ -591,9 +647,24 @@ lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
         have h_sn_rhs := all_in_r_sn rhs t_rhs h_in_r_rhs
 
         cases h_in_r_lhs
-        case intro.intro.m n =>
+        case intro.intro.m n₂ =>
           apply in_r_for.call
-          exact is_eval_once.m rhs t_rhs n h_t_rhs
+          apply is_eval_once.m
+          apply h_t_rhs
+          apply valid_judgment.beta_eq
+          apply all_well_typed_m_e
+          use n₂.succ
+          apply valid_judgment_m_iff.mp at h_t_rhs
+          apply beta_eq.trans
+          apply beta_eq.right
+          exact (beta_eq.symm h_t_rhs)
+          apply beta_eq.symm
+          apply beta_eq.trans
+          apply beta_eq.left
+          apply beta_eq.eval
+          apply is_eval_once.m
+          apply valid_judgment.m
+          apply beta_eq.rfl
           
 /-
 #### Ramblings
