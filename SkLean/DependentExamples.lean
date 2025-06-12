@@ -242,6 +242,10 @@ inductive in_r_for : Expr → Expr → Prop
     → valid_judgment e' t
     → in_r_for e' t
     → in_r_for SKM[(lhs rhs)] t
+  | trans          : valid_judgment e t₁
+    → valid_judgment e t₂
+    → in_r_for e t₂
+    → in_r_for e t₁
 
 /-
 ### Strong Normalization of Reducibility Candidates
@@ -472,28 +476,54 @@ lemma eval_preserves_judgment : ∀ c e' t, valid_judgment c t → is_eval_once 
     exact h_eq
     exact h_t
 
-lemma all_well_typed_in_r : ∀ e t, valid_judgment_weak e t → in_r_for e t := by
+lemma all_well_typed_in_r : ∀ e t, valid_judgment e t → in_r_for e t := by
   intro e t h_t
   match h : e with
-    | .k _  =>
+    | .k k  =>
       cases h_t
       case k =>
         exact in_r_for.k
-    | .s _ =>
+      case beta_eq t₂ h_t₂ h_eq =>
+        match k with
+          | .mk n =>
+            apply in_r_for.trans
+            apply valid_judgment.beta_eq
+            exact h_t₂
+            exact h_eq
+            exact valid_judgment.k n
+            exact in_r_for.k
+    | .s s =>
       cases h_t
       case s =>
         exact in_r_for.s
-    | .m _ =>
+      case beta_eq t₂ h_t₂ h_eq =>
+        match s with
+          | .mk n =>
+            apply in_r_for.trans
+            apply valid_judgment.beta_eq
+            exact h_t₂
+            exact h_eq
+            exact valid_judgment.s n
+            exact in_r_for.s
+    | .m m =>
       cases h_t
       case m =>
         exact in_r_for.m
+      case beta_eq t₂ h_t₂ h_eq =>
+        match m with
+          | .mk n =>
+            apply in_r_for.trans
+            apply valid_judgment.beta_eq
+            exact h_t₂
+            exact h_eq
+            exact valid_judgment.m n
+            exact in_r_for.m
     | .call (.mk lhs rhs) =>
       have h_t₀ := h_t
       cases h_t
       case call =>
-        
-        have h_t_lhs : ∃ t_lhs, valid_judgment_weak lhs t_lhs := sorry
-        have h_t_rhs : ∃ t_rhs, valid_judgment_weak rhs t_rhs := sorry
+        have h_t_lhs : ∃ t_lhs, valid_judgment lhs t_lhs := ⟨SKM[(M 0 lhs)], all_well_typed_m_e lhs⟩
+        have h_t_rhs : ∃ t_rhs, valid_judgment rhs t_rhs := ⟨SKM[(M 0 rhs)], all_well_typed_m_e rhs⟩
 
         obtain ⟨t_lhs, h_t_lhs⟩ := h_t_lhs
         obtain ⟨t_rhs, h_t_rhs⟩ := h_t_rhs
