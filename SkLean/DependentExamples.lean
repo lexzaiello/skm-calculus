@@ -205,6 +205,10 @@ inductive is_eval_once : Expr → Expr → Prop
   | s_rfl        : is_eval_once SKM[S n] SKM[S n]
   | m_rfl        : is_eval_once SKM[M n] SKM[M n]
 
+inductive is_normal_n : ℕ → Expr → Expr → Prop
+  | one  : is_eval_once e e  → is_normal_n 1 e e
+  | succ : n > 1 → is_eval_once e e' → is_normal_n (n - 1) e' e_final → is_normal_n n e e_final
+
 inductive beta_eq : SkExpr → SkExpr → Prop
   | rfl                       : beta_eq e e
   | eval                      : is_eval_once e₁ e₂ → beta_eq e₁ e₂
@@ -528,18 +532,35 @@ lemma is_eval_once_rfl : is_eval_once e e → e = e := by
   case m_rfl =>
     rfl
 
-theorem all_well_typed_sn (e : Expr) (t : Expr) : valid_judgment e t → sn e := by
+theorem all_well_typed_weak_sn (e : Expr) (t : Expr) : valid_judgment_weak e t → sn e := by
   intro h_t
   match e with
     | SKM[((K n x) y)] =>
       apply sn.hard
       apply is_eval_once.k
-      
-      sorry
+      apply all_well_typed_weak_sn
+      apply eval_preserves_judgment_hard
+      exact h_t
+      apply is_eval_once.k
     | SKM[(((S n x) y) z)] =>
-      sorry
-    | SKM[(M n e)] => sorry
-    | SKM[(lhs rhs)] => sorry
+      apply sn.hard
+      apply is_eval_once.s
+      cases h_t
+      case a.call h_t_lhs h_t_z h_u =>
+        cases h_t_lhs
+    | SKM[(M n e')] =>
+      cases h_t
+      case call h_t_m h_t_e' h_t_u =>
+        apply sn.hard
+        apply is_eval_once.m
+        apply weakening at h_t_e'
+        exact h_t_e'
+        simp_all
+        cases h_t_m
+    | SKM[(lhs rhs)] =>
+      cases h_t
+      case call h_t_lhs h_t_rhs h_u =>
+        cases h_t_lhs
     | .k (.mk n) =>
       apply sn.trivial
       exact is_eval_once.k_rfl
@@ -550,6 +571,78 @@ theorem all_well_typed_sn (e : Expr) (t : Expr) : valid_judgment e t → sn e :=
       apply sn.trivial
       exact is_eval_once.m_rfl
 termination_by e
+
+lemma sn_reverse_execution : sn e' → is_eval_once e e' → sn e := by
+  intro h_sn_eval h
+  apply sn.hard
+  exact h
+  exact h_sn_eval
+
+lemma sn_imp_n_steps_eval_normal (e : Expr) : sn e → ∃ n e', is_normal_n n e e' := by
+  intro h_sn
+  induction h_sn
+  case trivial e h =>
+    use 1
+    use e
+    apply is_normal_n.one
+    exact h
+  case hard e'' e''' h_eval' h_sn h_is_step =>
+    have ⟨n_sub_1, e'''', h_eval⟩ := h_is_step
+    use n_sub_1.succ
+    use e''''
+    apply is_normal_n.succ
+    cases h_eval
+    linarith
+    linarith
+    exact h_eval'
+    exact h_eval
+
+lemma normal_forms_sn : n > 0 → is_normal_n n e e' → sn e' := by
+  intro h_n h_normal
+  cases h_normal
+  case one h =>
+    apply sn.trivial
+    exact h
+  case succ e'' h_step h_eval h_normal =>
+    exact (@normal_forms_sn (n - 1) _ _ (by omega) h_normal)
+termination_by n
+
+lemma all_sn_well_typed : sn e → ∃ t, valid_judgment e t := by
+  intro h_sn
+  have ⟨n_steps, ⟨normal_form, h_eval⟩⟩ := sn_imp_n_steps_eval_normal _ h_sn
+  cases e
+  case m m =>
+    match m with
+      | .mk n =>
+        use (.m (.mk n.succ))
+        apply valid_judgment.m
+  case k k =>
+    match k with
+      | .mk n =>
+        use (.k (.mk n.succ))
+        apply valid_judgment.k
+  case s s =>
+    match s with
+      | .mk n =>
+        use (.s (.mk n.succ))
+        apply valid_judgment.s
+  case call c =>
+    match c with
+      | .mk lhs rhs =>
+        
+        sorry
+
+lemma all_well_typed_with_sn_args_sn : sn rhs → sn SKM[(lhs rhs)] → sn lhs := by
+  intro h_rhs h_app
+  have ⟨eval_app, h_eval_app⟩ := all_sn_eval_once _ h_app
+  have ⟨eval_rhs, h_eval_rhs⟩ := all_sn_eval_once _ h_rhs
+  cases h_eval_app
+  case k n =>
+    
+  sorry
+
+theorem all_well_typed_sn : ∀ e t, valid_judgment e t → sn e := by
+  sorry
 
 /-
 #### Ramblings
@@ -586,3 +679,5 @@ Also, let's take an example. Identify function.
 
 ((S : S) (K : K) (S : S)) : S 
 -/
+
+#check 1 = 1
