@@ -621,38 +621,129 @@ lemma congr_m : valid_judgment a t
     case call.m rhs h_rhs h₂ h₃ h₄ h₅ =>
       simp [Expr.max_universe] at *
       apply valid_judgment_imp_m at h₅
-      cases h₄
-      case beta_eq h₁ h₂ h₃ h₄ =>
-        apply beta_eq.symm
-        apply beta_eq.trans
-        apply beta_eq.eval
-        apply is_eval_once.m
-        exact h_t_rhs
-        apply beta_eq.trans
-        apply beta_eq.left
-        exact (beta_eq.symm h₄)
-        apply beta_eq.symm
-        apply beta_eq.trans
-        apply beta_eq.eval
-        apply is_eval_once.m
-        apply valid_judgment.call
-        simp_all
-        simp [Expr.max_universe]
-        linarith
-        apply valid_judgment.beta_eq
-        exact h₃
-        simp [Expr.max_universe]
-        exact h₄
-        exact h_rhs
-        simp [Expr.max_universe]
-        apply beta_eq.trans
-        apply beta_eq.eval
-        apply is_eval_once.left
-        apply is_eval_once.m
-        exact h₃
-        apply beta_eq.rfl
-     
-    sorry
+      apply beta_eq.trans
+      apply beta_eq.right
+      apply beta_eq.eval
+      apply is_eval_once.m
+      exact h_rhs
+      apply beta_eq.trans
+      apply beta_eq.eval
+      apply is_eval_once.m
+      apply valid_judgment.call
+      simp [Expr.max_universe] at *
+      apply valid_judgment.beta_eq
+      apply valid_judgment.m
+      simp
+      ring_nf
+      apply beta_eq.symm
+      simp [Expr.max_universe]
+      apply beta_eq.trans
+      apply beta_eq.eval
+      apply is_eval_once.m
+      apply valid_judgment.m
+      simp
+      ring_nf
+      apply beta_eq.rfl
+      exact h₅
+      apply beta_eq.symm
+      apply beta_eq.trans
+      apply beta_eq.eval
+      apply is_eval_once.m
+      exact h_t_rhs
+      simp [Expr.max_universe]
+      ring_nf
+      apply beta_eq.trans
+      apply beta_eq.right
+      apply beta_eq.eval
+      apply is_eval_once.m
+      exact h₅
+      apply beta_eq.trans
+      apply beta_eq.left
+      apply beta_eq.eval
+      apply is_eval_once.m
+      apply valid_judgment.m
+      apply beta_eq.symm
+      apply beta_eq.trans
+      apply beta_eq.right
+      apply beta_eq.eval
+      apply is_eval_once.m
+      exact h_rhs
+      simp
+      apply beta_eq.symm
+      apply beta_eq.trans
+      apply beta_eq.eval
+      apply is_eval_once.m
+      apply valid_judgment.call
+      simp_all
+      simp [Expr.max_universe]
+      simp
+      apply valid_judgment.beta_eq
+      apply valid_judgment.m
+      simp
+      ring_nf
+      simp [Expr.max_universe]
+      ring_nf
+      apply beta_eq.symm
+      apply beta_eq.trans
+      apply beta_eq.eval
+      apply is_eval_once.m
+      apply valid_judgment.m
+      simp
+      ring_nf
+      apply beta_eq.rfl
+      exact h₅
+      simp [Expr.max_universe]
+      ring_nf
+      apply beta_eq.rfl
+    case call.left lhs rhs h_u h_t_lhs h_t_rhs lhs' h_eval =>
+      simp [Expr.max_universe] at *
+      apply beta_eq.eval at h_eval
+      apply beta_eq.trans
+      apply beta_eq.right
+      apply beta_eq.left
+      exact h_eval
+      apply beta_eq.trans
+      apply beta_eq.eval
+      apply is_eval_once.m
+      exact h_t_rhs
+      apply beta_eq.symm
+      apply beta_eq.trans
+      apply beta_eq.eval
+      apply is_eval_once.m
+      exact h_t_rhs
+      apply beta_eq.rfl
+    case call.right lhs rhs h_u h_t_lhs h_t_rhs lhs' h_eval =>
+      simp [Expr.max_universe] at *
+      apply beta_eq.eval at h_eval
+      apply beta_eq.trans
+      apply beta_eq.right
+      apply beta_eq.right
+      exact h_eval
+      apply beta_eq.trans
+      apply beta_eq.eval
+      apply is_eval_once.m
+      exact h_t_rhs
+      apply beta_eq.symm
+      apply beta_eq.trans
+      apply beta_eq.eval
+      apply is_eval_once.m
+      exact h_t_rhs
+      apply beta_eq.rfl
+    case beta_eq t' h_t' h_eq =>
+      apply beta_eq.eval at h
+      apply beta_eq.trans
+      apply beta_eq.right
+      exact h
+      apply beta_eq.trans
+      apply beta_eq.eval
+      apply is_eval_once.m
+      exact h_t_rhs
+      apply beta_eq.symm
+      apply beta_eq.trans
+      apply beta_eq.eval
+      apply is_eval_once.m
+      exact h_t_rhs
+      exact beta_eq.rfl
 
 lemma eval_preserves_judgment_hard' : ∀ e e' t, valid_judgment e t → is_eval_once e e' → valid_judgment e' t := by
   intro e e' t h_t h_eval
