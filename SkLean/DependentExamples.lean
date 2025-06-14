@@ -285,8 +285,8 @@ inductive valid_judgment_weak : Expr → Expr → Prop
 end
 
 inductive is_normal_n : ℕ → Expr → Expr → Prop
-  | one  : is_eval_once e e               → is_normal_n 1 e e
-  | succ : n.succ > 1 → is_eval_once e e' → is_normal_n n e' e_final → is_normal_n n.succ e e_final
+  | one  : is_eval_once e e                             → is_normal_n 1 e e
+  | succ : is_eval_once e e' → is_normal_n n e' e_final → is_normal_n n.succ e e_final
 
 mutual
 
@@ -619,7 +619,6 @@ theorem all_well_typed_weak_sn (e : Expr) (t : Expr) : valid_judgment_weak e t �
     | .m (.mk n) =>
       apply sn.trivial
       exact is_eval_once.m_rfl
-termination_by e
 
 lemma sn_reverse_execution : sn e' → is_eval_once e e' → sn e := by
   intro h_sn_eval h
@@ -641,22 +640,12 @@ lemma sn_imp_n_steps_eval_normal (e : Expr) : sn e → ∃ n e', is_normal_n n e
     use e''''
     apply is_normal_n.succ
     cases h_eval
-    linarith
-    linarith
+    exact h_eval'
     exact h_eval'
     exact h_eval
 
-lemma normal_forms_sn : n > 0 → is_normal_n n e e' → sn e' := by
-  intro h_n h_normal
-  cases h_normal
-  case one h =>
-    apply sn.trivial
-    exact h
-  case succ e'' n h_step h_eval h_normal =>
-    exact (@normal_forms_sn (n) _ _ (by omega) h_normal)
-termination_by n
-
 def is_candidate_for_weak (e : Expr) (t : Expr) : Prop := valid_judgment_weak e t ∧ e.valid_universes
+def is_candidate_for (e : Expr) (t : Expr) : Prop := valid_judgment e t ∧ e.valid_universes
 
 lemma k_eval_def_eq : is_eval_once SKM[(K n)] e → e = SKM[(K n)] := by
   intro h
@@ -760,50 +749,19 @@ theorem all_well_typed_candidate : valid_judgment_weak e t → is_candidate_for_
     apply valid_judgment_imp_valid_universes
     exact h_t_rhs
 
-theorem sum_universes_decrease_normal_form : n > 1 → valid_judgment_weak SKM[(lhs rhs)] t → is_normal_n n SKM[(lhs rhs)] e' → SKM[(lhs rhs)].max_universe > e'.max_universe := by
-  intro h_n h_t h_normal
+theorem sum_universes_decrease_normal_form : valid_judgment_weak SKM[(lhs rhs)] t → is_normal_n n SKM[(lhs rhs)] e' → SKM[(lhs rhs)].max_universe > e'.max_universe := by
+  intro h_t h_normal
   cases h_normal
   case one =>
     contradiction
-  case succ e_next n_step h_n_step h_step h_normal =>
+  case succ e_next n h_step h_normal =>
     simp_all
-    if h_n_eq : n_step = 1 then
+    if h_n_eq : n = 1 then
       simp_all
-      simp [Expr.max_universe]
-      cases e'
-      case m n =>
-        have h_t' := eval_preserves_judgment_hard _ e_next t h_t h_step
-        cases h_t'
-        cases h_t
-        cases h_t
-        cases h_t
-        case call lhs' rhs' h_u h_t_lhs h_t_rhs =>
-          cases h_t_lhs
-      case k n =>
-        have h_t' := eval_preserves_judgment_hard _ e_next t h_t h_step
-        cases h_t'
-        cases h_t
-        cases h_t
-        cases h_t
-        case call lhs' rhs' h_u h_t_lhs h_t_rhs =>
-          cases h_t_lhs
-      case s n =>
-        have h_t' := eval_preserves_judgment_hard _ e_next t h_t h_step
-        cases h_t'
-        cases h_t
-        cases h_t
-        cases h_t
-        case call lhs' rhs' h_u h_t_lhs h_t_rhs =>
-          cases h_t_lhs
-      case call c =>
-        have h_t' := eval_preserves_judgment_hard _ e_next t h_t h_step
-        cases h_t'
-        cases h_t
-        cases h_t
-        cases h_t
-        case call lhs' rhs' h_u h_t_lhs h_t_rhs =>
-          cases h_t_lhs
-    else if h_n_eq : n_step > 2 then
+      cases h_normal
+      contradiction
+      contradiction
+    else if h_n_eq : n > 2 then
       have h_t_e'' := eval_preserves_judgment_hard SKM[(lhs rhs)] e_next t h_t h_step
       have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t
       simp_all
@@ -854,6 +812,50 @@ theorem sum_universes_decrease_normal_form : n > 1 → valid_judgment_weak SKM[(
       simp [Expr.max_universe]
       contradiction
 
+theorem sum_universes_decrease_normal_form_hard : valid_judgment_weak e t → is_normal_n n e e' → (e.max_universe > e'.max_universe ∨ is_normal_n 1 e e') := by
+  intro h_t h_normal
+  induction h_normal
+  case one e'' h_eval =>
+    right
+    apply is_normal_n.one
+    exact h_eval
+  case succ e_next e_next_next e_final h_n h_eval_step h_norm h =>
+    have h_t' := eval_preserves_judgment_hard _ _ _ h_t h_eval_step
+    simp [h_t'] at h
+    left
+    cases h
+    case h.inl h =>
+      cases h_t
+      cases h_t'
+      simp_all
+      cases h_t'
+      simp_all
+      cases h_t'
+      simp_all
+      case call lhs rhs h_u h_t_lhs h_t_rhs =>
+        simp [Expr.max_universe] at *
+        apply lt_trans
+        exact h
+        apply sum_universes_decrease_normal_form
+        apply valid_judgment_weak.call
+        exact h_u
+        exact h_t_lhs
+        exact h_t_rhs
+        cases h_norm
+        case hbc.a.one h_eval_next_next =>
+          apply is_normal_n.succ
+          exact h_eval_step
+          apply is_normal_n.one
+          exact h_eval_next_next
+        case hbc.a.succ e' n h_eval h_eval' =>
+          apply is_normal_n.succ
+          exact h_eval_step
+          apply is_normal_n.one
+          contradiction
+    case h.inr h =>
+      
+      sorry
+
 theorem all_candidates_sn (e : Expr) : is_candidate_for_weak e t → sn e := by
   intro h
   unfold is_candidate_for_weak at h
@@ -887,32 +889,35 @@ theorem all_candidates_sn (e : Expr) : is_candidate_for_weak e t → sn e := by
         apply sn.hard
         apply is_eval_once.k
         exact x_sn
-    | SKM[(((S n x) y) z)] =>
-      have h_t_e' := eval_preserves_judgment_hard SKM[(((S n x) y) z)] SKM[((x z) (y z))] t h_t (by apply is_eval_once.s)
-      cases h_t
-      case call h_t_lhs h_t_rhs h_u =>
-        apply @sn.hard _ SKM[((x z) (y z))]
-        apply is_eval_once.s
-        have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t_e'
-        have h_e'_candidate := all_well_typed_candidate h_t_e'
-        have h_lhs_candidate : is_candidate_for_weak SKM[(x z)] t_lhs := by
-          apply all_well_typed_candidate
-          exact h_t_lhs
-        have h_rhs_candidate : is_candidate_for_weak SKM[(y z)] t_rhs := by
-          apply all_well_typed_candidate
-          exact h_t_rhs
-        have h_sn_lhs : sn SKM[(x z)] := by
-          apply all_candidates_sn
-          exact h_lhs_candidate
-        have h_sn_rhs : sn SKM[(y z)] := by
-          apply all_candidates_sn
-          exact h_rhs_candidate
-        
-    | SKM[(M n e)] =>
-      sorry
     | SKM[(lhs rhs)] =>
-      sorry
-termination_by e
+      -- We know that lhs and rhs are both typed.
+      -- We know as a consequence that both are candidates
+      -- and by extension, both are sn
+      have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t
+      have candidate_lhs := all_well_typed_candidate h_t_lhs
+      have candidate_rhs := all_well_typed_candidate h_t_rhs
+      have sn_lhs := all_candidates_sn _ candidate_lhs
+      have sn_rhs := all_candidates_sn _ candidate_rhs
+
+      -- However, evaluation could potentially produce a new term which is not SN.
+      -- We know that since the lhs is sn, it has a normal form
+      -- which is smaller in size than its predecessor
+      -- or it is rfl
+      -- We also know that the rhs has a normal form which is smaller.
+      -- We can use the is_eval_once rules to establish that the left-hand-side
+      -- evaluates to the next-step in finding a normal form
+      -- This isn't necessarily smaller in size.
+      -- This means we will have to use the beta_eq sn rule
+      -- to "jump" to the normal form
+      have ⟨n_eval_lhs, lhs', h_eval_lhs⟩ := sn_imp_n_steps_eval_normal lhs sn_lhs
+      have ⟨n_eval_rhs, rhs', h_eval_rhs⟩ := sn_imp_n_steps_eval_normal rhs sn_rhs
+      cases h_eval_lhs
+      case one h =>
+        -- Already in normal from. What do now?
+        sorry
+      case succ lhs'' n h_n h_eval_lhs h_normal =>
+        have h := sum_universes_decrease_normal_form h_n h_t 
+        sorry
 
 theorem all_well_typed_sn : ∀ e t, valid_judgment e t → sn e := by
   
