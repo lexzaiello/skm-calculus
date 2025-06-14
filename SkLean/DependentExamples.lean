@@ -927,13 +927,21 @@ theorem all_candidates_sn (e : Expr) : is_candidate_for_weak e t → sn e := by
       -- to "jump" to the normal form
       have ⟨n_eval_lhs, lhs', h_eval_lhs⟩ := sn_imp_n_steps_eval_normal lhs sn_lhs
       have ⟨n_eval_rhs, rhs', h_eval_rhs⟩ := sn_imp_n_steps_eval_normal rhs sn_rhs
-      cases h_eval_lhs
-      case one h =>
-        -- Already in normal from. What do now?
-        sorry
-      case succ lhs'' n h_n h_eval_lhs h_normal =>
-        have h := sum_universes_decrease_normal_form h_n h_t 
-        sorry
+      have h_terminal_lhs := sum_universes_decrease_normal_form_hard h_t_lhs h_eval_lhs
+      have h_terminal_rhs := sum_universes_decrease_normal_form_hard h_t_rhs h_eval_rhs
+      cases h_terminal_lhs
+      case inl h =>
+        cases h_terminal_rhs
+        case inl h' =>
+          cases h_eval_lhs
+          case one h_eval_lhs' =>
+            contradiction
+          case succ h_eval_lhs' =>
+            contradiction
+        case inr h' =>
+          contradiction
+      case inr h =>
+        contradiction
 
 theorem all_well_typed_sn : ∀ e t, valid_judgment e t → sn e := by
   
