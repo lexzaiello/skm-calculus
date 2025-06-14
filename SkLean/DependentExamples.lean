@@ -139,6 +139,12 @@ def max_universe (e : Expr) : ℕ :=
     | SKM[(lhs rhs)] =>
       max (max_universe lhs) (max_universe rhs)
 
+inductive valid_universes : Expr → Prop
+  | k    : valid_universes SKM[(K n)]
+  | s    : valid_universes SKM[(S n)]
+  | m    : valid_universes SKM[(M n)]
+  | call : lhs.max_universe > rhs.max_universe → valid_universes SKM[(lhs rhs)]
+
 end Expr
 
 /-
@@ -206,7 +212,7 @@ inductive is_eval_once : Expr → Expr → Prop
   | m_rfl        : is_eval_once SKM[M n] SKM[M n]
 
 inductive is_normal_n : ℕ → Expr → Expr → Prop
-  | one  : is_eval_once e e  → is_normal_n 1 e e
+  | one  : is_eval_once e e          → is_normal_n 1 e e
   | succ : n > 1 → is_eval_once e e' → is_normal_n (n - 1) e' e_final → is_normal_n n e e_final
 
 inductive beta_eq : SkExpr → SkExpr → Prop
@@ -607,30 +613,29 @@ lemma normal_forms_sn : n > 0 → is_normal_n n e e' → sn e' := by
     exact (@normal_forms_sn (n - 1) _ _ (by omega) h_normal)
 termination_by n
 
-lemma all_sn_well_typed : sn e → ∃ t, valid_judgment e t := by
-  intro h_sn
-  have ⟨n_steps, ⟨normal_form, h_eval⟩⟩ := sn_imp_n_steps_eval_normal _ h_sn
-  cases e
-  case m m =>
-    match m with
-      | .mk n =>
-        use (.m (.mk n.succ))
-        apply valid_judgment.m
-  case k k =>
-    match k with
-      | .mk n =>
-        use (.k (.mk n.succ))
-        apply valid_judgment.k
-  case s s =>
-    match s with
-      | .mk n =>
-        use (.s (.mk n.succ))
-        apply valid_judgment.s
-  case call c =>
-    match c with
-      | .mk lhs rhs =>
-        
-        sorry
+inductive is_candidate : Expr → Prop
+  | k    : is_candidate SKM[(K n)]
+  | m    : is_candidate SKM[(M n)]
+  | s    : is_candidate SKM[(S n)]
+  | call : is_candidate lhs
+    → is_candidate rhs
+    → sn SKM[(lhs rhs)]
+    → is_candidate SKM[(lhs rhs)]
+
+lemma all_candidates_sn : is_candidate e → sn e := by
+  intro h
+  cases h
+  case k =>
+    apply sn.trivial
+    apply is_eval_once.k_rfl
+  case m =>
+    apply sn.trivial
+    apply is_eval_once.m_rfl
+  case s =>
+    apply sn.trivial
+    apply is_eval_once.s_rfl
+  case call lhs rhs h_sn_lhs h_sn_rhs h_e_sn =>
+    exact h_e_sn
 
 lemma all_well_typed_with_sn_args_sn : sn rhs → sn SKM[(lhs rhs)] → sn lhs := by
   intro h_rhs h_app
