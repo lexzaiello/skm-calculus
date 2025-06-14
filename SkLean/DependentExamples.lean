@@ -822,9 +822,9 @@ theorem sum_universes_decrease_normal_form_hard : valid_judgment_weak e t → is
   case succ e_next e_next_next e_final h_n h_eval_step h_norm h =>
     have h_t' := eval_preserves_judgment_hard _ _ _ h_t h_eval_step
     simp [h_t'] at h
-    left
     cases h
-    case h.inl h =>
+    case inl h =>
+      left
       cases h_t
       cases h_t'
       simp_all
@@ -852,9 +852,25 @@ theorem sum_universes_decrease_normal_form_hard : valid_judgment_weak e t → is
           exact h_eval_step
           apply is_normal_n.one
           contradiction
-    case h.inr h =>
-      
-      sorry
+    case inr h =>
+      have h' := is_normal_n.succ h_eval_step h_norm
+      cases h_t
+      cases h_t'
+      right
+      exact h
+      cases h_t'
+      right
+      exact h
+      cases h'
+      cases h_t'
+      right
+      exact h
+      case m.succ e'' h_eval h_norm =>
+        cases h_eval_step
+        simp_all
+      case call lhs rhs h_u h_t_lhs h_t_rhs =>
+        simp_all
+        cases h_t_lhs
 
 theorem all_candidates_sn (e : Expr) : is_candidate_for_weak e t → sn e := by
   intro h
