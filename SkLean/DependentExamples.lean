@@ -143,7 +143,10 @@ inductive valid_universes : Expr → Prop
   | k    : valid_universes SKM[(K n)]
   | s    : valid_universes SKM[(S n)]
   | m    : valid_universes SKM[(M n)]
-  | call : lhs.max_universe > rhs.max_universe → valid_universes SKM[(lhs rhs)]
+  | call : lhs.max_universe > rhs.max_universe
+    → valid_universes lhs
+    → valid_universes rhs
+    → valid_universes SKM[(lhs rhs)]
 
 end Expr
 
@@ -469,6 +472,28 @@ lemma valid_judgment_call_imp_n_bounds : valid_judgment_weak SKM[(lhs rhs)] t �
   case call _ _ h_u =>
     exact h_u
 
+lemma valid_judgment_call_imp_judgment_lhs_rhs : valid_judgment_weak SKM[(lhs rhs)] t → (∃ t_lhs, valid_judgment_weak lhs t_lhs) ∧ (∃ t_rhs, valid_judgment_weak rhs t_rhs) := by
+  intro h_t
+  cases h_t
+  case call h_t_lhs h_t_rhs h_u =>
+    constructor
+    use (.call (.mk (.m (.mk lhs.max_universe.succ)) lhs))
+    use (.call (.mk (.m (.mk rhs.max_universe.succ)) rhs))
+
+lemma valid_judgment_imp_valid_universes : valid_judgment_weak e t → e.valid_universes := by
+  intro h_t
+  cases h_t
+  apply Expr.valid_universes.k
+  apply Expr.valid_universes.s
+  apply Expr.valid_universes.m
+  case call lhs rhs h_u h_t_lhs h_t_rhs =>
+    apply Expr.valid_universes.call
+    exact h_u
+    apply valid_judgment_imp_valid_universes at h_t_lhs
+    exact h_t_lhs
+    apply valid_judgment_imp_valid_universes at h_t_rhs
+    exact h_t_rhs
+
 lemma weakening : valid_judgment_weak e t → valid_judgment e t := by
   intro h
   cases h
@@ -613,18 +638,13 @@ lemma normal_forms_sn : n > 0 → is_normal_n n e e' → sn e' := by
     exact (@normal_forms_sn (n - 1) _ _ (by omega) h_normal)
 termination_by n
 
-inductive is_candidate : Expr → Prop
-  | k    : is_candidate SKM[(K n)]
-  | m    : is_candidate SKM[(M n)]
-  | s    : is_candidate SKM[(S n)]
-  | call : is_candidate lhs
-    → is_candidate rhs
-    → sn SKM[(lhs rhs)]
-    → is_candidate SKM[(lhs rhs)]
+def is_candidate_for_weak (e : Expr) (t : Expr) : Prop := valid_judgment_weak e t ∧ e.valid_universes
 
-lemma all_candidates_sn : is_candidate e → sn e := by
+lemma all_candidates_sn : is_candidate_for_weak e t → sn e := by
   intro h
-  cases h
+  unfold is_candidate_for_weak at h
+  have ⟨h_t, h_u⟩ := h
+  cases h_t
   case k =>
     apply sn.trivial
     apply is_eval_once.k_rfl
@@ -634,19 +654,113 @@ lemma all_candidates_sn : is_candidate e → sn e := by
   case s =>
     apply sn.trivial
     apply is_eval_once.s_rfl
-  case call lhs rhs h_sn_lhs h_sn_rhs h_e_sn =>
-    exact h_e_sn
+  case call lhs rhs h_u' h_t_lhs h_t_rhs =>
+    sorry
 
-lemma all_well_typed_with_sn_args_sn : sn rhs → sn SKM[(lhs rhs)] → sn lhs := by
-  intro h_rhs h_app
-  have ⟨eval_app, h_eval_app⟩ := all_sn_eval_once _ h_app
-  have ⟨eval_rhs, h_eval_rhs⟩ := all_sn_eval_once _ h_rhs
-  cases h_eval_app
+lemma k_eval_def_eq : is_eval_once SKM[(K n)] e → e = SKM[(K n)] := by
+  intro h
+  cases h
+  simp
+
+lemma s_eval_def_eq : is_eval_once SKM[(S n)] e → e = SKM[(S n)] := by
+  intro h
+  cases h
+  simp
+
+lemma m_eval_def_eq : is_eval_once SKM[(M n)] e → e = SKM[(M n)] := by
+  intro h
+  cases h
+  simp
+
+lemma membership_candidate_preserved : valid_judgment_weak e t → is_candidate_for_weak e t → is_eval_once e e' → is_candidate_for_weak e' t := by
+  intro h_t h_candidate h_eval
+  have h_candidate₀ := h_candidate
+  unfold is_candidate_for_weak at h_candidate
+  have ⟨h_t_e, h_candidate_e⟩ := h_candidate
+  cases h_candidate_e
   case k n =>
-    
-  sorry
+    apply k_eval_def_eq at h_eval
+    rw [h_eval]
+    cases h_t_e
+    case k =>
+      exact ⟨valid_judgment_weak.k n, by apply Expr.valid_universes.k⟩
+  case s n =>
+    apply s_eval_def_eq at h_eval
+    rw [h_eval]
+    cases h_t_e
+    case s =>
+      exact ⟨valid_judgment_weak.s n, by apply Expr.valid_universes.s⟩
+  case m n =>
+    apply m_eval_def_eq at h_eval
+    rw [h_eval]
+    cases h_t_e
+    case m =>
+      exact ⟨valid_judgment_weak.m n, by apply Expr.valid_universes.m⟩
+  case call lhs rhs h₁ h_u_lhs h_u_rhs  =>
+    have h_t_e' := eval_preserves_judgment_hard SKM[(lhs rhs)] e' t h_t_e h_eval
+    unfold is_candidate_for_weak
+    constructor
+    exact h_t_e'
+    cases e'
+    case right.m m =>
+      match m with
+        | .mk n =>
+          apply Expr.valid_universes.m
+    case right.s s =>
+      match s with
+        | .mk n =>
+          apply Expr.valid_universes.s
+    case right.k k =>
+      match k with
+        | .mk n =>
+          apply Expr.valid_universes.k
+    case right.call c =>
+      match c with
+        | .mk lhs' rhs' =>
+          have ⟨⟨t_lhs, h_t_lhs'⟩, ⟨t_rhs, h_t_rhs'⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t_e'
+          apply Expr.valid_universes.call
+          apply valid_judgment_call_imp_n_bounds at h_t_e'
+          exact h_t_e'
+          simp_all
+          apply valid_judgment_imp_valid_universes
+          exact h_t_lhs'
+          apply valid_judgment_imp_valid_universes
+          exact h_t_rhs'
+
+theorem all_well_typed_candidate : valid_judgment_weak e t → is_candidate_for_weak e t := by
+  intro h_t
+  cases h_t
+  case k =>
+    unfold is_candidate_for_weak
+    constructor
+    apply valid_judgment_weak.k
+    apply Expr.valid_universes.k
+  case s =>
+    unfold is_candidate_for_weak
+    constructor
+    apply valid_judgment_weak.s
+    apply Expr.valid_universes.s
+  case m =>
+    unfold is_candidate_for_weak
+    constructor
+    apply valid_judgment_weak.m
+    apply Expr.valid_universes.m
+  case call lhs rhs h_u h_t_lhs h_t_rhs =>
+    unfold is_candidate_for_weak
+    constructor
+    apply valid_judgment_weak.call
+    exact h_u
+    exact h_t_lhs
+    exact h_t_rhs
+    apply Expr.valid_universes.call
+    exact h_u
+    apply valid_judgment_imp_valid_universes
+    exact h_t_lhs
+    apply valid_judgment_imp_valid_universes
+    exact h_t_rhs
 
 theorem all_well_typed_sn : ∀ e t, valid_judgment e t → sn e := by
+  
   sorry
 
 /-
