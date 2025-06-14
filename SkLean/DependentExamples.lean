@@ -612,6 +612,39 @@ lemma valid_judgment_call_imp_n_bounds : valid_judgment_weak SKM[(lhs rhs)] t �
   case call _ _ h_u =>
     exact h_u
 
+lemma valid_judgment_weak_imp_valid_judgment : valid_judgment_weak e t → valid_judgment e t := by
+  intro h
+  cases h
+  apply valid_judgment.k
+  apply valid_judgment.s
+  apply valid_judgment.m
+  apply valid_judgment.call
+  case call.a lhs rhs h_u _ _ =>
+    exact h_u
+  case call.a lhs rhs h_u h_t_lhs h_t_rhs =>
+    apply valid_judgment_weak_imp_valid_judgment
+    exact h_t_lhs
+  case call.a lhs rhs h_u h_t_lhs h_t_rhs =>
+    apply valid_judgment_weak_imp_valid_judgment
+    exact h_t_rhs
+
+lemma valid_judgment_call_imp_judgment_lhs_rhs_easy : valid_judgment SKM[(lhs rhs)] t → (∃ t_lhs, valid_judgment lhs t_lhs) ∧ (∃ t_rhs, valid_judgment rhs t_rhs) := by
+  intro h_t
+  cases h_t
+  case call h_t_lhs h_t_rhs h_u =>
+    constructor
+    use (.call (.mk (.m (.mk lhs.max_universe.succ)) lhs))
+    use (.call (.mk (.m (.mk rhs.max_universe.succ)) rhs))
+  case beta_eq t₂ h_t₂ h_t_beq =>
+    have h := congr_m h_t₂
+    constructor
+    cases h_t₂
+    case left.call =>
+      use (.call (.mk (.m (.mk lhs.max_universe.succ)) lhs))
+    case left.beta_eq =>
+      
+    sorry
+
 lemma valid_judgment_call_imp_judgment_lhs_rhs : valid_judgment SKM[(lhs rhs)] t → (∃ t_lhs, valid_judgment lhs t_lhs) ∧ (∃ t_rhs, valid_judgment rhs t_rhs) := by
   intro h_t
   cases h_t
@@ -858,7 +891,7 @@ lemma membership_candidate_preserved : valid_judgment_weak e t → is_candidate_
     case right.call c =>
       match c with
         | .mk lhs' rhs' =>
-          have ⟨⟨t_lhs, h_t_lhs'⟩, ⟨t_rhs, h_t_rhs'⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t_e'
+          have ⟨⟨t_lhs, h_t_lhs'⟩, ⟨t_rhs, h_t_rhs'⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs (valid_judgment_weak_imp_valid_judgment h_t_e')
           apply Expr.valid_universes.call
           apply valid_judgment_call_imp_n_bounds at h_t_e'
           exact h_t_e'
