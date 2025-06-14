@@ -640,23 +640,6 @@ termination_by n
 
 def is_candidate_for_weak (e : Expr) (t : Expr) : Prop := valid_judgment_weak e t ∧ e.valid_universes
 
-lemma all_candidates_sn : is_candidate_for_weak e t → sn e := by
-  intro h
-  unfold is_candidate_for_weak at h
-  have ⟨h_t, h_u⟩ := h
-  cases h_t
-  case k =>
-    apply sn.trivial
-    apply is_eval_once.k_rfl
-  case m =>
-    apply sn.trivial
-    apply is_eval_once.m_rfl
-  case s =>
-    apply sn.trivial
-    apply is_eval_once.s_rfl
-  case call lhs rhs h_u' h_t_lhs h_t_rhs =>
-    sorry
-
 lemma k_eval_def_eq : is_eval_once SKM[(K n)] e → e = SKM[(K n)] := by
   intro h
   cases h
@@ -758,6 +741,54 @@ theorem all_well_typed_candidate : valid_judgment_weak e t → is_candidate_for_
     exact h_t_lhs
     apply valid_judgment_imp_valid_universes
     exact h_t_rhs
+
+theorem all_candidates_sn (e : Expr) : is_candidate_for_weak e t → sn e := by
+  intro h
+  unfold is_candidate_for_weak at h
+  have ⟨h_t, h_u⟩ := h
+  match h_e_eq : e with
+    | .k _ =>
+      apply sn.trivial
+      cases h_t
+      apply is_eval_once.k_rfl
+    | .m _ =>
+    apply sn.trivial
+    cases h_t
+    apply is_eval_once.m_rfl
+    | .s _ =>
+      apply sn.trivial
+      cases h_t
+      apply is_eval_once.s_rfl
+    | SKM[(((K n) x) y)] =>
+      cases h_t
+      case call h_t_lhs h_t_rhs h_u =>
+        have x_sn : sn x := by
+          simp_all
+          apply valid_judgment_call_imp_judgment_lhs_rhs at h_t_lhs
+          have ⟨_, ⟨t_x, h_t_x⟩⟩ := h_t_lhs
+          apply @all_candidates_sn t_x x
+          unfold is_candidate_for_weak
+          constructor
+          exact h_t_x
+          apply valid_judgment_imp_valid_universes at h_t_x
+          exact h_t_x
+        apply sn.hard
+        apply is_eval_once.k
+        exact x_sn
+    | SKM[(((S n x) y) z)] =>
+      have h_t_e' := eval_preserves_judgment_hard SKM[(((S n x) y) z)] SKM[((x z) (y z))] t h_t (by apply is_eval_once.s)
+      cases h_t
+      case call h_t_lhs h_t_rhs h_u =>
+        apply @sn.hard _ SKM[((x z) (y z))]
+        apply is_eval_once.s
+        have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t_e'
+        have h_e'_candidate := all_well_typed_candidate h_t_e'
+        
+    | SKM[(M n e)] =>
+      sorry
+    | SKM[(lhs rhs)] =>
+      sorry
+termination_by e
 
 theorem all_well_typed_sn : ∀ e t, valid_judgment e t → sn e := by
   
