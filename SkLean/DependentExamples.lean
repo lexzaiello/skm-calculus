@@ -943,9 +943,11 @@ theorem all_candidates_sn (e : Expr) : is_candidate_for_weak e t → sn e := by
       case inr h =>
         contradiction
 
-theorem all_well_typed_sn : ∀ e t, valid_judgment e t → sn e := by
-  
-  sorry
+theorem all_well_typed_sn_weak : ∀ e t, valid_judgment_weak e t → sn e := by
+  intro e t h_t
+  have h_candidate := all_well_typed_candidate h_t
+  have h_sn := all_candidates_sn _ h_candidate
+  exact h_sn
 
 /-
 #### Ramblings
