@@ -769,26 +769,77 @@ theorem sum_universes_decrease_normal_form : n > 1 → valid_judgment_weak SKM[(
     simp_all
     if h_n_eq : n_step = 1 then
       simp_all
-      cases h_t
-      case call h_t_lhs h_t_rhs h_u =>
-        
-        sorry
+      simp [Expr.max_universe]
+      cases e'
+      case m n =>
+        have h_t' := eval_preserves_judgment_hard _ e_next t h_t h_step
+        cases h_t'
+        cases h_t
+        cases h_t
+        cases h_t
+        case call lhs' rhs' h_u h_t_lhs h_t_rhs =>
+          cases h_t_lhs
+      case k n =>
+        have h_t' := eval_preserves_judgment_hard _ e_next t h_t h_step
+        cases h_t'
+        cases h_t
+        cases h_t
+        cases h_t
+        case call lhs' rhs' h_u h_t_lhs h_t_rhs =>
+          cases h_t_lhs
+      case s n =>
+        have h_t' := eval_preserves_judgment_hard _ e_next t h_t h_step
+        cases h_t'
+        cases h_t
+        cases h_t
+        cases h_t
+        case call lhs' rhs' h_u h_t_lhs h_t_rhs =>
+          cases h_t_lhs
+      case call c =>
+        have h_t' := eval_preserves_judgment_hard _ e_next t h_t h_step
+        cases h_t'
+        cases h_t
+        cases h_t
+        cases h_t
+        case call lhs' rhs' h_u h_t_lhs h_t_rhs =>
+          cases h_t_lhs
     else if h_n_eq : n_step > 2 then
       have h_t_e'' := eval_preserves_judgment_hard SKM[(lhs rhs)] e_next t h_t h_step
       have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t
       simp_all
-      match h : lhs with
-        | .m (.mk n) =>
-          simp [Expr.max_universe]
-          
-          sorry
-        | .k (.mk n) =>
-          sorry
-        | .s (.mk n) =>
-          sorry
-        | .call c =>
-          simp [Expr.max_universe]
-          sorry
+      cases e'
+      case m m =>
+        simp [Expr.max_universe] at *
+        cases h_t_e''
+        cases h_t
+        cases h_t
+        cases h_t
+        case call h_n lhs' rhs' h_u h_t_lhs h_t_rhs =>
+          cases h_t_lhs
+      case k =>
+        simp [Expr.max_universe] at *
+        cases h_t_e''
+        cases h_t
+        cases h_t
+        cases h_t
+        case call h_n lhs' rhs' h_u h_t_lhs h_t_rhs =>
+          cases h_t_lhs
+      case s =>
+        simp [Expr.max_universe] at *
+        cases h_t_e''
+        cases h_t
+        cases h_t
+        cases h_t
+        case call h_n lhs' rhs' h_u h_t_lhs h_t_rhs =>
+          cases h_t_lhs
+      case call =>
+        simp [Expr.max_universe] at *
+        cases h_t_e''
+        cases h_t
+        cases h_t
+        cases h_t
+        case call h_n lhs' rhs' h_u h_t_lhs h_t_rhs =>
+          cases h_t_lhs
     else
       simp_all
       cases h_step
