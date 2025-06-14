@@ -113,9 +113,9 @@ macro_rules
   | `(⟪ K $u:ident ⟫)                     => `(Expr.k (.mk $u))
   | `(⟪ S $u:ident ⟫)                     => `(Expr.s (.mk $u))
   | `(⟪ M $u:ident ⟫)                     => `(Expr.m (.mk $u))
-  | `(⟪ K $u:num ⟫)                     => `(Expr.k (.mk $u))
-  | `(⟪ S $u:num ⟫)                     => `(Expr.s (.mk $u))
-  | `(⟪ M $u:num ⟫)                     => `(Expr.m (.mk $u))
+  | `(⟪ K $u:num ⟫)                       => `(Expr.k (.mk $u))
+  | `(⟪ S $u:num ⟫)                       => `(Expr.s (.mk $u))
+  | `(⟪ M $u:num ⟫)                       => `(Expr.m (.mk $u))
   | `(⟪ $e:ident ⟫)                       => `($e)
   | `(⟪ ($e:skmexpr) ⟫)                   => `(⟪$e⟫)
   | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)      => `(Expr.call (.mk ⟪ $e₁ ⟫ ⟪ $e₂ ⟫))
@@ -138,6 +138,14 @@ def max_universe (e : Expr) : ℕ :=
     | SKM[(M n)] => n
     | SKM[(lhs rhs)] =>
       (max_universe lhs) + (max_universe rhs)
+
+def min_universe (e : Expr) : ℕ :=
+  match e with
+    | SKM[(K n)] => n
+    | SKM[(S n)] => n
+    | SKM[(M n)] => n
+    | SKM[(lhs rhs)] =>
+      min (max_universe lhs) (max_universe rhs)
 
 inductive valid_universes : Expr → Prop
   | k    : valid_universes SKM[(K n)]
@@ -752,40 +760,37 @@ theorem all_well_typed_candidate : valid_judgment_weak e t → is_candidate_for_
     apply valid_judgment_imp_valid_universes
     exact h_t_rhs
 
-theorem sum_universes_decrease_normal_form : n > 1 → valid_judgment_weak e t → is_normal_n n e e' → e.max_universe > e'.max_universe := by
+theorem sum_universes_decrease_normal_form : n > 1 → valid_judgment_weak SKM[(lhs rhs)] t → is_normal_n n SKM[(lhs rhs)] e' → SKM[(lhs rhs)].max_universe > e'.max_universe := by
   intro h_n h_t h_normal
-  induction h_normal
+  cases h_normal
   case one =>
     contradiction
-  case succ e'' e''' n_step e_final h_n h_step h_normal h =>
+  case succ e_next n_step h_n_step h_step h_normal =>
     simp_all
-    if h_n_eq : n_step > 1 then
-      have h_t_e'' := eval_preserves_judgment_hard e'' e''' t h_t h_step
+    if h_n_eq : n_step = 1 then
       simp_all
-      cases h_step
-      simp [Expr.max_universe]
-      omega
-      case s x y z n =>
-        contradiction
-      case m e n h_t =>
-        contradiction
-      case left =>
-        contradiction
-      case right =>
-        contradiction
-      case k_rfl =>
-        simp [Expr.max_universe] at *
-        linarith
-      case s_rfl =>
-        simp [Expr.max_universe] at *
-        linarith
-      case m_rfl =>
-        simp [Expr.max_universe] at *
-        linarith
+      cases h_t
+      case call h_t_lhs h_t_rhs h_u =>
+        
+        sorry
+    else if h_n_eq : n_step > 2 then
+      have h_t_e'' := eval_preserves_judgment_hard SKM[(lhs rhs)] e_next t h_t h_step
+      have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t
+      simp_all
+      match h : lhs with
+        | .m (.mk n) =>
+          simp [Expr.max_universe]
+          
+          sorry
+        | .k (.mk n) =>
+          sorry
+        | .s (.mk n) =>
+          sorry
+        | .call c =>
+          simp [Expr.max_universe]
+          sorry
     else
       simp_all
-      have h_n : n_step = 1 := by
-        linarith
       cases h_step
       simp [Expr.max_universe]
       contradiction
@@ -797,12 +802,6 @@ theorem sum_universes_decrease_normal_form : n > 1 → valid_judgment_weak e t �
       contradiction
       simp [Expr.max_universe]
       contradiction
-      simp [Expr.max_universe]
-      cases h_normal
-      cases h_t
-      simp_all
-      
-      sorry
 
 theorem all_candidates_sn (e : Expr) : is_candidate_for_weak e t → sn e := by
   intro h
