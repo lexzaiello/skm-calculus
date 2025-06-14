@@ -622,7 +622,6 @@ lemma sn_reverse_execution : sn e' → is_eval_once e e' → sn e := by
 lemma sn_imp_n_steps_eval_normal (e : Expr) : sn e → ∃ n e', is_normal_n n e e' := by
   intro h_sn
   induction h_sn
-  case zero 
   case trivial e h =>
     use 1
     use e
@@ -654,15 +653,17 @@ def is_candidate_for_weak (e : Expr) (t : Expr) : Prop := valid_judgment_weak e 
 lemma k_eval_def_eq : is_eval_once SKM[(K n)] e → e = SKM[(K n)] := by
   intro h
   cases h
+  rfl
 
 lemma s_eval_def_eq : is_eval_once SKM[(S n)] e → e = SKM[(S n)] := by
   intro h
   cases h
+  rfl
 
 lemma m_eval_def_eq : is_eval_once SKM[(M n)] e → e = SKM[(M n)] := by
   intro h
   cases h
-  simp
+  rfl
 
 lemma membership_candidate_preserved : valid_judgment_weak e t → is_candidate_for_weak e t → is_eval_once e e' → is_candidate_for_weak e' t := by
   intro h_t h_candidate h_eval
