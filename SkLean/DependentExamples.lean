@@ -137,7 +137,7 @@ def max_universe (e : Expr) : ℕ :=
     | SKM[(S n)] => n
     | SKM[(M n)] => n
     | SKM[(lhs rhs)] =>
-      max (max_universe lhs) (max_universe rhs)
+      (max_universe lhs) + (max_universe rhs)
 
 inductive valid_universes : Expr → Prop
   | k    : valid_universes SKM[(K n)]
@@ -211,12 +211,21 @@ inductive is_eval_once : Expr → Expr → Prop
   | right        : is_eval_once rhs rhs'
     → is_eval_once SKM[(lhs rhs)] SKM[(lhs rhs')]
   | k_rfl        : is_eval_once SKM[K n] SKM[K n]
-  | s_rfl        : is_eval_once SKM[S n] SKM[S n]
   | m_rfl        : is_eval_once SKM[M n] SKM[M n]
+  | s_rfl        : is_eval_once SKM[S n] SKM[S n]
 
-inductive is_normal_n : ℕ → Expr → Expr → Prop
-  | one  : is_eval_once e e          → is_normal_n 1 e e
-  | succ : n > 1 → is_eval_once e e' → is_normal_n (n - 1) e' e_final → is_normal_n n e e_final
+inductive is_eval_once_weak : Expr → Expr → Prop
+  | k x y n      : is_eval_once_weak SKM[((K n x) y)] x
+  | s x y z n    : is_eval_once_weak SKM[(((S n x) y) z)] SKM[((x z) (y z))]
+  | m e t n      : valid_judgment_weak e t
+    → is_eval_once_weak SKM[((M n) e)] t
+  | left         : is_eval_once_weak lhs lhs'
+    → is_eval_once_weak SKM[(lhs rhs)] SKM[(lhs' rhs)]
+  | right        : is_eval_once_weak rhs rhs'
+    → is_eval_once_weak SKM[(lhs rhs)] SKM[(lhs rhs')]
+  | k_rfl        : is_eval_once_weak SKM[K n] SKM[K n]
+  | m_rfl        : is_eval_once_weak SKM[M n] SKM[M n]
+  | s_rfl        : is_eval_once_weak SKM[S n] SKM[S n]
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | rfl                       : beta_eq e e
@@ -266,6 +275,10 @@ inductive valid_judgment_weak : Expr → Expr → Prop
       ))
 
 end
+
+inductive is_normal_n : ℕ → Expr → Expr → Prop
+  | one  : is_eval_once e e               → is_normal_n 1 e e
+  | succ : n.succ > 1 → is_eval_once e e' → is_normal_n n e' e_final → is_normal_n n.succ e e_final
 
 mutual
 
@@ -516,16 +529,13 @@ lemma eval_preserves_judgment_hard : ∀ e e' t, valid_judgment_weak e t → is_
   cases h_t
   case k n =>
     cases h_eval
-    case k_rfl =>
-      apply valid_judgment_weak.k
+    apply valid_judgment_weak.k
   case s =>
     cases h_eval
-    case s_rfl =>
-      apply valid_judgment_weak.s
+    apply valid_judgment_weak.s
   case m =>
     cases h_eval
-    case m_rfl =>
-      apply valid_judgment_weak.m
+    apply valid_judgment_weak.m
   case call lhs rhs h_u h_t_lhs h_t_rhs  =>
     match h₀ : h_eval with
       | .k lhs' rhs' n =>
@@ -612,6 +622,7 @@ lemma sn_reverse_execution : sn e' → is_eval_once e e' → sn e := by
 lemma sn_imp_n_steps_eval_normal (e : Expr) : sn e → ∃ n e', is_normal_n n e e' := by
   intro h_sn
   induction h_sn
+  case zero 
   case trivial e h =>
     use 1
     use e
@@ -634,8 +645,8 @@ lemma normal_forms_sn : n > 0 → is_normal_n n e e' → sn e' := by
   case one h =>
     apply sn.trivial
     exact h
-  case succ e'' h_step h_eval h_normal =>
-    exact (@normal_forms_sn (n - 1) _ _ (by omega) h_normal)
+  case succ e'' n h_step h_eval h_normal =>
+    exact (@normal_forms_sn (n) _ _ (by omega) h_normal)
 termination_by n
 
 def is_candidate_for_weak (e : Expr) (t : Expr) : Prop := valid_judgment_weak e t ∧ e.valid_universes
@@ -643,12 +654,10 @@ def is_candidate_for_weak (e : Expr) (t : Expr) : Prop := valid_judgment_weak e 
 lemma k_eval_def_eq : is_eval_once SKM[(K n)] e → e = SKM[(K n)] := by
   intro h
   cases h
-  simp
 
 lemma s_eval_def_eq : is_eval_once SKM[(S n)] e → e = SKM[(S n)] := by
   intro h
   cases h
-  simp
 
 lemma m_eval_def_eq : is_eval_once SKM[(M n)] e → e = SKM[(M n)] := by
   intro h
@@ -742,6 +751,58 @@ theorem all_well_typed_candidate : valid_judgment_weak e t → is_candidate_for_
     apply valid_judgment_imp_valid_universes
     exact h_t_rhs
 
+theorem sum_universes_decrease_normal_form : n > 1 → valid_judgment_weak e t → is_normal_n n e e' → e.max_universe > e'.max_universe := by
+  intro h_n h_t h_normal
+  induction h_normal
+  case one =>
+    contradiction
+  case succ e'' e''' n_step e_final h_n h_step h_normal h =>
+    simp_all
+    if h_n_eq : n_step > 1 then
+      have h_t_e'' := eval_preserves_judgment_hard e'' e''' t h_t h_step
+      simp_all
+      cases h_step
+      simp [Expr.max_universe]
+      omega
+      case s x y z n =>
+        contradiction
+      case m e n h_t =>
+        contradiction
+      case left =>
+        contradiction
+      case right =>
+        contradiction
+      case k_rfl =>
+        simp [Expr.max_universe] at *
+        linarith
+      case s_rfl =>
+        simp [Expr.max_universe] at *
+        linarith
+      case m_rfl =>
+        simp [Expr.max_universe] at *
+        linarith
+    else
+      simp_all
+      have h_n : n_step = 1 := by
+        linarith
+      cases h_step
+      simp [Expr.max_universe]
+      contradiction
+      simp [Expr.max_universe]
+      contradiction
+      simp [Expr.max_universe]
+      contradiction
+      simp [Expr.max_universe]
+      contradiction
+      simp [Expr.max_universe]
+      contradiction
+      simp [Expr.max_universe]
+      cases h_normal
+      cases h_t
+      simp_all
+      
+      sorry
+
 theorem all_candidates_sn (e : Expr) : is_candidate_for_weak e t → sn e := by
   intro h
   unfold is_candidate_for_weak at h
@@ -783,6 +844,18 @@ theorem all_candidates_sn (e : Expr) : is_candidate_for_weak e t → sn e := by
         apply is_eval_once.s
         have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t_e'
         have h_e'_candidate := all_well_typed_candidate h_t_e'
+        have h_lhs_candidate : is_candidate_for_weak SKM[(x z)] t_lhs := by
+          apply all_well_typed_candidate
+          exact h_t_lhs
+        have h_rhs_candidate : is_candidate_for_weak SKM[(y z)] t_rhs := by
+          apply all_well_typed_candidate
+          exact h_t_rhs
+        have h_sn_lhs : sn SKM[(x z)] := by
+          apply all_candidates_sn
+          exact h_lhs_candidate
+        have h_sn_rhs : sn SKM[(y z)] := by
+          apply all_candidates_sn
+          exact h_rhs_candidate
         
     | SKM[(M n e)] =>
       sorry
