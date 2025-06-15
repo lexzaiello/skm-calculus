@@ -628,22 +628,13 @@ lemma valid_judgment_weak_imp_valid_judgment : valid_judgment_weak e t → valid
     apply valid_judgment_weak_imp_valid_judgment
     exact h_t_rhs
 
-lemma valid_judgment_call_imp_judgment_lhs_rhs_easy : valid_judgment SKM[(lhs rhs)] t → (∃ t_lhs, valid_judgment lhs t_lhs) ∧ (∃ t_rhs, valid_judgment rhs t_rhs) := by
+lemma valid_judgment_call_imp_judgment_lhs_rhs_easy : valid_judgment_weak SKM[(lhs rhs)] t → (∃ t_lhs, valid_judgment_weak lhs t_lhs) ∧ (∃ t_rhs, valid_judgment_weak rhs t_rhs) := by
   intro h_t
   cases h_t
   case call h_t_lhs h_t_rhs h_u =>
     constructor
     use (.call (.mk (.m (.mk lhs.max_universe.succ)) lhs))
     use (.call (.mk (.m (.mk rhs.max_universe.succ)) rhs))
-  case beta_eq t₂ h_t₂ h_t_beq =>
-    have h := congr_m h_t₂
-    constructor
-    cases h_t₂
-    case left.call =>
-      use (.call (.mk (.m (.mk lhs.max_universe.succ)) lhs))
-    case left.beta_eq =>
-      
-    sorry
 
 lemma valid_judgment_call_imp_judgment_lhs_rhs : valid_judgment SKM[(lhs rhs)] t → (∃ t_lhs, valid_judgment lhs t_lhs) ∧ (∃ t_rhs, valid_judgment rhs t_rhs) := by
   intro h_t
@@ -653,7 +644,8 @@ lemma valid_judgment_call_imp_judgment_lhs_rhs : valid_judgment SKM[(lhs rhs)] t
     use (.call (.mk (.m (.mk lhs.max_universe.succ)) lhs))
     use (.call (.mk (.m (.mk rhs.max_universe.succ)) rhs))
   case beta_eq t₂ h_t₂ h_t_beq =>
-    have h := congr_m h_t₂
+    have h_t₃ := valid_judgment.beta_eq _ _ _ h_t₂ h_t_beq
+    
     constructor
     cases h_t₂
     case left.call =>
@@ -731,15 +723,94 @@ lemma eval_preserves_judgment_hard' : ∀ e e' t, valid_judgment e t → is_eval
     cases h_eval
     apply valid_judgment.m
   case call lhs rhs h_u h_t_lhs h_t_rhs  =>
-    match e' with
+    match h_e'_eq : e' with
       | .m (.mk n) =>
         apply valid_judgment.beta_eq
         apply valid_judgment.m
         apply beta_eq.symm
-        apply congr_m at h_eval
+        have h_eval_beq := beta_eq.eval h_eval
+        apply beta_eq.trans
+        apply beta_eq.left
+        apply beta_eq.eval
+        apply is_eval_once.m
+        exact h_t_lhs
+        apply beta_eq.symm
+        apply beta_eq.trans
+        apply beta_eq.symm
+        apply beta_eq.eval
+        apply is_eval_once.m
+        use n
+        apply valid_judgment.m
+        apply beta_eq.trans
+        apply beta_eq.right
+        exact (beta_eq.symm h_eval_beq)
+        apply beta_eq.trans
+        apply beta_eq.eval
+        apply is_eval_once.m
+        apply valid_judgment.call
+        exact h_u
+        exact h_t_lhs
+        exact h_t_rhs
+        apply beta_eq.rfl
+      | .k (.mk n) =>
+        apply valid_judgment.beta_eq
+        apply valid_judgment.k
+        apply beta_eq.symm
+        have h_eval_beq := beta_eq.eval h_eval
+        apply beta_eq.trans
+        apply beta_eq.left
+        apply beta_eq.eval
+        apply is_eval_once.m
+        exact h_t_lhs
+        apply beta_eq.symm
+        apply beta_eq.trans
+        apply beta_eq.symm
+        apply beta_eq.eval
+        apply is_eval_once.m
+        use n
+        apply valid_judgment.k
+        apply beta_eq.trans
+        apply beta_eq.right
+        exact (beta_eq.symm h_eval_beq)
+        apply beta_eq.trans
+        apply beta_eq.eval
+        apply is_eval_once.m
+        apply valid_judgment.call
+        exact h_u
+        exact h_t_lhs
+        exact h_t_rhs
+        apply beta_eq.rfl
+      | .s (.mk n) =>
+        apply valid_judgment.beta_eq
+        apply valid_judgment.s
+        apply beta_eq.symm
+        have h_eval_beq := beta_eq.eval h_eval
+        apply beta_eq.trans
+        apply beta_eq.left
+        apply beta_eq.eval
+        apply is_eval_once.m
+        exact h_t_lhs
+        apply beta_eq.symm
+        apply beta_eq.trans
+        apply beta_eq.symm
+        apply beta_eq.eval
+        apply is_eval_once.m
+        use n
+        apply valid_judgment.s
+        apply beta_eq.trans
+        apply beta_eq.right
+        exact (beta_eq.symm h_eval_beq)
+        apply beta_eq.trans
+        apply beta_eq.eval
+        apply is_eval_once.m
+        apply valid_judgment.call
+        exact h_u
+        exact h_t_lhs
+        exact h_t_rhs
+        apply beta_eq.rfl
+      | .call (.mk lhs' rhs') =>
         
         sorry
-    sorry
 
 lemma all_sn_eval_once : ∀ e, sn e → ∃ e', is_eval_once e e' := by
   intro e h
@@ -891,7 +962,7 @@ lemma membership_candidate_preserved : valid_judgment_weak e t → is_candidate_
     case right.call c =>
       match c with
         | .mk lhs' rhs' =>
-          have ⟨⟨t_lhs, h_t_lhs'⟩, ⟨t_rhs, h_t_rhs'⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs (valid_judgment_weak_imp_valid_judgment h_t_e')
+          have ⟨⟨t_lhs, h_t_lhs'⟩, ⟨t_rhs, h_t_rhs'⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs_easy h_t_e'
           apply Expr.valid_universes.call
           apply valid_judgment_call_imp_n_bounds at h_t_e'
           exact h_t_e'
@@ -947,7 +1018,7 @@ theorem sum_universes_decrease_normal_form : valid_judgment_weak SKM[(lhs rhs)] 
       contradiction
     else if h_n_eq : n > 2 then
       have h_t_e'' := eval_preserves_judgment_hard SKM[(lhs rhs)] e_next t h_t h_step
-      have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t
+      have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs_easy h_t
       simp_all
       cases e'
       case m m =>
@@ -1078,7 +1149,7 @@ theorem all_candidates_sn (e : Expr) : is_candidate_for_weak e t → sn e := by
       case call h_t_lhs h_t_rhs h_u =>
         have x_sn : sn x := by
           simp_all
-          apply valid_judgment_call_imp_judgment_lhs_rhs at h_t_lhs
+          apply valid_judgment_call_imp_judgment_lhs_rhs_easy at h_t_lhs
           have ⟨_, ⟨t_x, h_t_x⟩⟩ := h_t_lhs
           apply @all_candidates_sn t_x x
           unfold is_candidate_for_weak
@@ -1093,90 +1164,7 @@ theorem all_candidates_sn (e : Expr) : is_candidate_for_weak e t → sn e := by
       -- We know that lhs and rhs are both typed.
       -- We know as a consequence that both are candidates
       -- and by extension, both are sn
-      have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t
-      have candidate_lhs := all_well_typed_candidate h_t_lhs
-      have candidate_rhs := all_well_typed_candidate h_t_rhs
-      have sn_lhs := all_candidates_sn _ candidate_lhs
-      have sn_rhs := all_candidates_sn _ candidate_rhs
-
-      -- However, evaluation could potentially produce a new term which is not SN.
-      -- We know that since the lhs is sn, it has a normal form
-      -- which is smaller in size than its predecessor
-      -- or it is rfl
-      -- We also know that the rhs has a normal form which is smaller.
-      -- We can use the is_eval_once rules to establish that the left-hand-side
-      -- evaluates to the next-step in finding a normal form
-      -- This isn't necessarily smaller in size.
-      -- This means we will have to use the beta_eq sn rule
-      -- to "jump" to the normal form
-      have ⟨n_eval_lhs, lhs', h_eval_lhs⟩ := sn_imp_n_steps_eval_normal lhs sn_lhs
-      have ⟨n_eval_rhs, rhs', h_eval_rhs⟩ := sn_imp_n_steps_eval_normal rhs sn_rhs
-      have h_terminal_lhs := sum_universes_decrease_normal_form_hard h_t_lhs h_eval_lhs
-      have h_terminal_rhs := sum_universes_decrease_normal_form_hard h_t_rhs h_eval_rhs
-      cases h_terminal_lhs
-      case inl h =>
-        cases h_terminal_rhs
-        case inl h' =>
-          cases h_eval_lhs
-          case one h_eval_lhs' =>
-            contradiction
-          case succ h_eval_lhs' =>
-            contradiction
-        case inr h' =>
-          contradiction
-      case inr h =>
-        contradiction
-
-theorem all_candidates_sn_hard (e : Expr) : is_candidate_for e t → sn e := by
-  intro h
-  unfold is_candidate_for at h
-  have ⟨h_t, h_u⟩ := h
-  match h_e_eq : e with
-    | .k _ =>
-      apply sn.trivial
-      cases h_t
-      apply is_eval_once.k_rfl
-      case a.beta_eq a₂ t₁ h_t₁ h_beq =>
-        match a₂ with
-          | .mk _ =>
-            apply is_eval_once.k_rfl
-    | .m _ =>
-      apply sn.trivial
-      cases h_t
-      apply is_eval_once.m_rfl
-      case a.beta_eq a₂ t₁ h_t₁ h_beq =>
-        match a₂ with
-          | .mk _ =>
-            apply is_eval_once.m_rfl
-    | .s _ =>
-      apply sn.trivial
-      cases h_t
-      apply is_eval_once.s_rfl
-      case a.beta_eq a₂ t₁ h_t₁ h_beq =>
-        match a₂ with
-          | .mk _ =>
-            apply is_eval_once.s_rfl
-    | SKM[(((K n) x) y)] =>
-      cases h_t
-      case call h_t_lhs h_t_rhs h_u =>
-        have x_sn : sn x := by
-          simp_all
-          apply valid_judgment_call_imp_judgment_lhs_rhs at h_t_lhs
-          have ⟨_, ⟨t_x, h_t_x⟩⟩ := h_t_lhs
-          apply @all_candidates_sn t_x x
-          unfold is_candidate_for_weak
-          constructor
-          exact h_t_x
-          apply valid_judgment_imp_valid_universes at h_t_x
-          exact h_t_x
-        apply sn.hard
-        apply is_eval_once.k
-        exact x_sn
-    | SKM[(lhs rhs)] =>
-      -- We know that lhs and rhs are both typed.
-      -- We know as a consequence that both are candidates
-      -- and by extension, both are sn
-      have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs h_t
+      have ⟨⟨t_lhs, h_t_lhs⟩, ⟨t_rhs, h_t_rhs⟩⟩ := valid_judgment_call_imp_judgment_lhs_rhs_easy h_t
       have candidate_lhs := all_well_typed_candidate h_t_lhs
       have candidate_rhs := all_well_typed_candidate h_t_rhs
       have sn_lhs := all_candidates_sn _ candidate_lhs
@@ -1216,11 +1204,54 @@ theorem all_well_typed_sn_weak : ∀ e t, valid_judgment_weak e t → sn e := by
   have h_sn := all_candidates_sn _ h_candidate
   exact h_sn
 
-theorem all_well_typed_sn_hard : ∀ e t, valid_judgment e t → sn e := by
+theorem all_types_decideable : ∀ e t, valid_judgment e t → ∃ e, valid_judgment_weak e t := by
   intro e t h_t
-  have h_candidate := all_well_typed_candidate_hard h_t
-  have h_sn := all_candidates_sn_hard _ h_candidate
-  exact h_sn
+  cases h_t
+  case k n =>
+    use SKM[K n]
+    apply valid_judgment_weak.k
+  case s n =>
+    use SKM[S n]
+    apply valid_judgment_weak.s
+  case m n =>
+    use SKM[M n]
+    apply valid_judgment_weak.m
+  case call lhs rhs h_u h_t_lhs h_t_rhs =>
+    apply all_types_decideable at h_t_lhs
+    apply all_types_decideable at h_t_rhs
+    have ⟨lhs', h_t_lhs'⟩ := h_t_lhs
+    have ⟨rhs', h_t_rhs'⟩ := h_t_rhs
+    use SKM[(lhs' rhs')]
+    cases h_t_lhs'
+  case beta_eq t' h_t' h_eq =>
+    cases e
+    case m =>
+      sorry
+    case k =>
+      sorry
+    case s =>
+      sorry
+    case call c =>
+      match c with
+        | .mk lhs rhs =>
+          
+          sorry
+
+theorem all_well_typed_sn : ∀ e t, valid_judgment e t → sn e := by
+  intro e t h_t
+  cases h_t
+  case k =>
+    apply sn.trivial
+    apply is_eval_once.k_rfl
+  case s =>
+    apply sn.trivial
+    apply is_eval_once.s_rfl
+  case m =>
+    apply sn.trivial
+    apply is_eval_once.m_rfl
+  case call lhs rhs h_u h_t_lhs h_t_rhs =>
+    apply all_well_typed_sn_weak
+    
   sorry
 
 /-
