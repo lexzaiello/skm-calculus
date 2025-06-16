@@ -44,26 +44,28 @@ We make use of a small DSL for legibility.
 -/
 
 declare_syntax_cat skmexpr
-syntax "K" ident               : skmexpr
-syntax "S" ident               : skmexpr
-syntax "M" ident               : skmexpr
+syntax "K" term                : skmexpr
+syntax "S" term                : skmexpr
+syntax "M" term                : skmexpr
 syntax "K" num                 : skmexpr
 syntax "S" num                 : skmexpr
 syntax "M" num                 : skmexpr
 syntax "(" skmexpr skmexpr ")" : skmexpr
 syntax ident                   : skmexpr
+syntax "#" term                : skmexpr
 syntax "(" skmexpr ")"         : skmexpr
 
 syntax " ⟪ " skmexpr " ⟫ "     : term
 
 macro_rules
-  | `(⟪ K $u:ident ⟫)                     => `(Expr.k (.mk $u))
-  | `(⟪ S $u:ident ⟫)                     => `(Expr.s (.mk $u))
-  | `(⟪ M $u:ident ⟫)                     => `(Expr.m (.mk $u))
+  | `(⟪ K $u:term ⟫)                      => `(Expr.k (.mk $u))
+  | `(⟪ S $u:term ⟫)                      => `(Expr.s (.mk $u))
+  | `(⟪ M $u:term ⟫)                      => `(Expr.m (.mk $u))
   | `(⟪ K $u:num ⟫)                       => `(Expr.k (.mk $u))
   | `(⟪ S $u:num ⟫)                       => `(Expr.s (.mk $u))
   | `(⟪ M $u:num ⟫)                       => `(Expr.m (.mk $u))
   | `(⟪ $e:ident ⟫)                       => `($e)
+  | `(⟪ # $e:term ⟫)                      => `($e)
   | `(⟪ ($e:skmexpr) ⟫)                   => `(⟪$e⟫)
   | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)      => `(Expr.call (.mk ⟪ $e₁ ⟫ ⟪ $e₂ ⟫))
 
@@ -155,21 +157,34 @@ $$
 -/
 
 mutual
+
 inductive is_eval_once : Expr → Expr → Prop
-  | k x y n      : is_eval_once SKM[((K n x) y)] x
-  | s x y z n    : is_eval_once SKM[(((S n x) y) z)] SKM[((x z) (y z))]
+  | k x y n      : is_eval_once SKM[(((K n) x) y)] x
+  | s x y z n    : is_eval_once SKM[((((S n) x) y) z)] SKM[((x z) (y z))]
   | m e t n      : valid_judgment e t
     → is_eval_once SKM[((M n) e)] t
   | left         : is_eval_once lhs lhs'
     → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
+  | right        : is_eval_once rhs rhs'
+    → is_eval_once SKM[(lhs rhs)] SKM[(lhs rhs')]
 
 inductive is_eval_once_weak : Expr → Expr → Prop
-  | k x y n      : is_eval_once_weak SKM[((K n x) y)] x
-  | s x y z n    : is_eval_once_weak SKM[(((S n x) y) z)] SKM[((x z) (y z))]
+  | k x y n      : is_eval_once_weak SKM[(((K n) x) y)] x
+  | s x y z n    : is_eval_once_weak SKM[((((S n) x) y) z)] SKM[((x z) (y z))]
   | m e t n      : valid_judgment_weak e t
     → is_eval_once_weak SKM[((M n) e)] t
   | left         : is_eval_once_weak lhs lhs'
     → is_eval_once_weak SKM[(lhs rhs)] SKM[(lhs' rhs)]
+  | right        : is_eval_once_weak rhs rhs'
+    → is_eval_once_weak SKM[(lhs rhs)] SKM[(lhs rhs')]
+
+inductive beta_eq : SkExpr → SkExpr → Prop
+  | rfl                       : beta_eq e e
+  | eval                      : is_eval_once e₁ e₂ → beta_eq e₁ e₂
+  | left                      : beta_eq lhs lhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs' rhs)]
+  | right                     : beta_eq rhs rhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs rhs')]
+  | trans                     : beta_eq e₁ e₂      → beta_eq e₂ e₃ → beta_eq e₁ e₃
+  | symm                      : beta_eq e₁ e₂      → beta_eq e₂ e₁
 
 inductive valid_judgment : Expr → Expr → Prop
   | k n                       : valid_judgment SKM[K n] (.k (.mk n.succ))
@@ -189,7 +204,7 @@ inductive valid_judgment : Expr → Expr → Prop
           rhs
         ))
       ))
-  | step_beta_eq e t₁ t₂           : valid_judgment e t₂ → is_eval_once t₁ t₂ → valid_judgment e t₁
+  | step_beta_eq e t₁ t₂           : valid_judgment e t₁ → beta_eq t₁ t₂ → valid_judgment e t₂
 
 inductive valid_judgment_weak : Expr → Expr → Prop
   | k n                       : valid_judgment_weak SKM[K n] (.k (.mk n.succ))
@@ -211,12 +226,6 @@ inductive valid_judgment_weak : Expr → Expr → Prop
       ))
 
 end
-
-inductive beta_eq : SkExpr → SkExpr → Prop
-  | rfl                       : beta_eq e e
-  | eval                      : is_eval_once e₁ e₂ → beta_eq e₁ e₂
-  | left                      : beta_eq lhs lhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs' rhs)]
-  | trans                     : beta_eq e₁ e₂      → beta_eq e₂ e₃ → beta_eq e₁ e₃
 
 inductive is_normal_n : ℕ → Expr → Expr → Prop
   | stuck : (¬(∃ e', is_eval_once e e'))                 → is_normal_n 0 e e
