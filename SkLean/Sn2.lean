@@ -7,11 +7,36 @@ inductive sn : Expr → Prop
 
 namespace sn
 
-lemma call_k : sn SKM[(((K n) x) y)] → sn x := by
+lemma k : sn SKM[K n] := by
+  apply sn.hard
+  intro e' h_eval
+  cases h_eval
+
+lemma s : sn SKM[S n] := by
+  apply sn.hard
+  intro e' h_eval
+  cases h_eval
+
+lemma m : sn SKM[M n] := by
+  apply sn.hard
+  intro e' h_eval
+  cases h_eval
+
+lemma call_k : sn SKM[(((K n) x) y)] ↔ sn x := by
+  constructor
   intro h_sn
   match h_sn with
     | .hard h_step =>
       exact h_step x (by apply is_eval_once.k)
+  intro h_sn
+  apply sn.hard
+  intro e' h_eval
+  cases h_eval
+  exact h_sn
+  case mpr.a.left lhs' h =>
+    cases h
+    case left lhs' h =>
+      cases h
 
 lemma call_s : sn SKM[((((S n) x) y) z)] → sn SKM[((x z) (y z))] := by
   intro h_sn
