@@ -1,41 +1,11 @@
 import Mathlib.Tactic
 
-mutual
-
-inductive M where
-  | mk :  ℕ → M
-deriving Repr
-
-inductive S where
-  | mk : ℕ → S
-deriving DecidableEq, Repr, BEq
-
-inductive K where
-  | mk : ℕ → K
-deriving DecidableEq, Repr, BEq
-
-inductive Call where
-  | mk : Expr → Expr → Call
-deriving DecidableEq, Repr, BEq
-
 inductive Expr where
-  | m    : M → Expr
-  | k    : K → Expr
-  | s    : S → Expr
-  | call : Call → Expr
+  | m    : ℕ → Expr
+  | k    : ℕ → Expr
+  | s    : ℕ → Expr
+  | call : Expr → Expr → Expr
 deriving DecidableEq, Repr, BEq
-
-end
-
-namespace Call
-
-def lhs : Call → Expr
-  | .mk lhs _ => lhs
-
-def rhs : Call → Expr
-  | .mk _ rhs => rhs
-
-end Call
 
 /-
 ## DSL
@@ -58,16 +28,16 @@ syntax "(" skmexpr ")"         : skmexpr
 syntax " ⟪ " skmexpr " ⟫ "     : term
 
 macro_rules
-  | `(⟪ K $u:term ⟫)                      => `(Expr.k (.mk $u))
-  | `(⟪ S $u:term ⟫)                      => `(Expr.s (.mk $u))
-  | `(⟪ M $u:term ⟫)                      => `(Expr.m (.mk $u))
-  | `(⟪ K $u:num ⟫)                       => `(Expr.k (.mk $u))
-  | `(⟪ S $u:num ⟫)                       => `(Expr.s (.mk $u))
-  | `(⟪ M $u:num ⟫)                       => `(Expr.m (.mk $u))
+  | `(⟪ K $u:term ⟫)                      => `(Expr.k $u)
+  | `(⟪ S $u:term ⟫)                      => `(Expr.s $u)
+  | `(⟪ M $u:term ⟫)                      => `(Expr.m $u)
+  | `(⟪ K $u:num ⟫)                       => `(Expr.k $u)
+  | `(⟪ S $u:num ⟫)                       => `(Expr.s $u)
+  | `(⟪ M $u:num ⟫)                       => `(Expr.m $u)
   | `(⟪ $e:ident ⟫)                       => `($e)
   | `(⟪ # $e:term ⟫)                      => `($e)
   | `(⟪ ($e:skmexpr) ⟫)                   => `(⟪$e⟫)
-  | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)      => `(Expr.call (.mk ⟪ $e₁ ⟫ ⟪ $e₂ ⟫))
+  | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)      => `(Expr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
 
 syntax "SKM[ " skmexpr " ] "        : term
 syntax "SKC[" skmexpr skmexpr "]" : term
@@ -157,23 +127,14 @@ $$
 -/
 
 inductive valid_judgment : Expr → Expr → Prop
-  | k n                       : valid_judgment SKM[K n] (.k (.mk n.succ))
-  | s n                       : valid_judgment SKM[S n] (.s (.mk n.succ))
-  | m n                       : valid_judgment SKM[M n] (.m (.mk n.succ))
+  | k n                       : valid_judgment SKM[K n] SKM[K n.succ]
+  | s n                       : valid_judgment SKM[S n] SKM[S n.succ]
+  | m n                       : valid_judgment SKM[M n] SKM[M n.succ]
   | call lhs rhs              : lhs.max_universe > rhs.max_universe
-    → valid_judgment lhs (.call (.mk (Expr.m (.mk lhs.max_universe.succ)) lhs))
-    → valid_judgment rhs (.call (.mk (Expr.m (.mk rhs.max_universe.succ)) rhs))
+    → valid_judgment lhs SKM[((M lhs.max_universe.succ) lhs)]
+    → valid_judgment rhs SKM[((M rhs.max_universe.succ) rhs)]
     → valid_judgment SKM[(lhs rhs)]
-      (.call (.mk
-        (.call (.mk
-          (Expr.m (.mk lhs.max_universe.succ))
-          lhs
-        ))
-        (.call (.mk
-          (Expr.m (.mk rhs.max_universe.succ))
-          rhs
-        ))
-      ))
+      SKM[(((M lhs.max_universe.succ) lhs) ((M rhs.max_universe.succ) rhs))]
 
 inductive is_eval_once : Expr → Expr → Prop
   | k x y n            : is_eval_once SKM[(((K n) x) y)] x
