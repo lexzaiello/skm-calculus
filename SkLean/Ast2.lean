@@ -156,32 +156,6 @@ M\ K\ K = K\ K\ (K\ K) = K
 $$
 -/
 
-mutual
-
-inductive is_eval_once : Expr → Expr → Prop
-  | k x y n      : is_eval_once SKM[(((K n) x) y)] x
-  | s x y z n    : is_eval_once SKM[((((S n) x) y) z)] SKM[((x z) (y z))]
-  | m e t n      : valid_judgment e t
-    → is_eval_once SKM[((M n) e)] t
-  | left         : is_eval_once lhs lhs'
-    → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
-
-inductive is_eval_once_weak : Expr → Expr → Prop
-  | k x y n      : is_eval_once_weak SKM[(((K n) x) y)] x
-  | s x y z n    : is_eval_once_weak SKM[((((S n) x) y) z)] SKM[((x z) (y z))]
-  | m e t n      : valid_judgment_weak e t
-    → is_eval_once_weak SKM[((M n) e)] t
-  | left         : is_eval_once_weak lhs lhs'
-    → is_eval_once_weak SKM[(lhs rhs)] SKM[(lhs' rhs)]
-
-inductive beta_eq : SkExpr → SkExpr → Prop
-  | rfl                       : beta_eq e e
-  | eval                      : is_eval_once e₁ e₂ → beta_eq e₁ e₂
-  | left                      : beta_eq lhs lhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs' rhs)]
-  | right                     : beta_eq rhs rhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs rhs')]
-  | trans                     : beta_eq e₁ e₂      → beta_eq e₂ e₃ → beta_eq e₁ e₃
-  | symm                      : beta_eq e₁ e₂      → beta_eq e₂ e₁
-
 inductive valid_judgment : Expr → Expr → Prop
   | k n                       : valid_judgment SKM[K n] (.k (.mk n.succ))
   | s n                       : valid_judgment SKM[S n] (.s (.mk n.succ))
@@ -200,28 +174,25 @@ inductive valid_judgment : Expr → Expr → Prop
           rhs
         ))
       ))
-  | step_beta_eq e t₁ t₂           : valid_judgment e t₁ → beta_eq t₁ t₂ → valid_judgment e t₂
 
-inductive valid_judgment_weak : Expr → Expr → Prop
-  | k n                       : valid_judgment_weak SKM[K n] (.k (.mk n.succ))
-  | s n                       : valid_judgment_weak SKM[S n] (.s (.mk n.succ))
-  | m n                       : valid_judgment_weak SKM[M n] (.m (.mk n.succ))
-  | call lhs rhs              : lhs.max_universe > rhs.max_universe
-    → valid_judgment_weak lhs (.call (.mk (Expr.m (.mk lhs.max_universe.succ)) lhs))
-    → valid_judgment_weak rhs (.call (.mk (Expr.m (.mk rhs.max_universe.succ)) rhs))
-    → valid_judgment_weak SKM[(lhs rhs)]
-      (.call (.mk
-        (.call (.mk
-          (Expr.m (.mk lhs.max_universe.succ))
-          lhs
-        ))
-        (.call (.mk
-          (Expr.m (.mk rhs.max_universe.succ))
-          rhs
-        ))
-      ))
+inductive is_eval_once : Expr → Expr → Prop
+  | k x y n            : is_eval_once SKM[(((K n) x) y)] x
+  | s x y z n          : is_eval_once SKM[((((S n) x) y) z)] SKM[((x z) (y z))]
+  | m_final e t        : valid_judgment e t
+    → is_eval_once SKM[((M e.max_universe.succ) e)] t
+  | m_step             : is_eval_once e e'
+    → is_eval_once SKM[((M e.max_universe.succ) e)] SKM[((M e'.max_universe.succ) e')]
+  | left         : is_eval_once lhs lhs'
+    → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
 
-end
+inductive beta_eq : SkExpr → SkExpr → Prop
+  | rfl                       : beta_eq e e
+  | eval                      : is_eval_once e₁ e₂ → beta_eq e₁ e₂
+  | left                      : beta_eq lhs lhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs' rhs)]
+  | right                     : beta_eq rhs rhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs rhs')]
+  | trans                     : beta_eq e₁ e₂      → beta_eq e₂ e₃ → beta_eq e₁ e₃
+  | symm                      : beta_eq e₁ e₂      → beta_eq e₂ e₁
+
 
 inductive is_normal_n : ℕ → Expr → Expr → Prop
   | stuck : (¬(∃ e', is_eval_once e e'))                 → is_normal_n 0 e e
@@ -250,57 +221,3 @@ lemma s_stuck : is_normal_n 0 SKM[S n] SKM[S n] := by
 
 end is_normal_n
 
-namespace is_eval_once
-
-lemma unique : is_eval_once_weak e e₂ → is_eval_once_weak e e₃ → e₂ = e₃ := by
-  intro h₁ h₂
-  cases h₁
-  cases h₂
-  rfl
-  case k.left h =>
-    cases h
-    case left h =>
-      cases h
-  cases h₂
-  rfl
-  case s.left h =>
-    cases h
-    case left h =>
-      cases h
-      case left h =>
-        cases h
-  cases h₂
-  case m.left h =>
-    cases h
-  case m.m h₁ h₂ =>
-    cases h₁
-    cases h₂
-    rfl
-    cases h₂
-    rfl
-    cases h₂
-    rfl
-    case call lhs rhs h_u h_t_lhs h_t_rhs =>
-      simp_all
-      cases h₂
-      rfl
-  case left lhs lhs' rhs h_eval =>
-    cases h₂
-    cases h_eval
-    case k.left h =>
-      cases h
-    case s n =>
-      cases h_eval
-      case left h =>
-        cases h
-        case left h =>
-          cases h
-    case m n =>
-      cases h_eval
-    case left lhs' h_eval' =>
-      simp_all
-      apply unique
-      exact h_eval
-      exact h_eval'
-
-end is_eval_once
