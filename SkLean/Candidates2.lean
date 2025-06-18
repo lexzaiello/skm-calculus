@@ -48,9 +48,31 @@ lemma imp_sn : is_candidate_for e t → sn e := fun ⟨h_t_lhs, h_t_rhs⟩ => by
     simp_all
     match h : SKM[(lhs rhs)] with
       | SKM[(((K n) x) y)] =>
-        
-        sorry
-    sorry
+        simp_all
+        cases h_t_lhs
+        case intro h_left _ =>
+          cases h_left
+      | SKM[((((S n) x) y) z)] =>
+        simp_all
+        cases h_t_lhs
+        case intro h_left _ =>
+          cases h_left
+      | SKM[((M n) e)] =>
+        simp_all
+        cases h_t_lhs
+        case intro h_left _ =>
+          cases h_left
+      | SKM[(lhs rhs)] =>
+        simp_all
+        cases h_t_lhs
+        case intro h_left _ =>
+          cases h_left
+      | SKM[S rhs] =>
+        simp_all
+      | SKM[K rhs] =>
+        simp_all
+      | SKM[M rhs] =>
+        simp_all
 
 lemma imp_judgment : is_candidate_for e t → valid_judgment e t :=
   fun ⟨h_t_lh, _⟩ => h_t_lh
@@ -60,3 +82,12 @@ lemma imp_valid_universes : is_candidate_for e t → e.valid_universes :=
 
 end is_candidate_for
 
+namespace valid_judgment
+
+theorem imp_sn : valid_judgment e t → sn e := by
+  intro h_t
+  apply is_candidate_for.imp_sn
+  apply imp_is_candidate_for
+  exact h_t
+
+end valid_judgment
