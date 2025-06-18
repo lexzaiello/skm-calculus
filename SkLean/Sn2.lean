@@ -38,11 +38,23 @@ lemma call_k : sn SKM[(((K n) x) y)] ↔ sn x := by
     case left lhs' h =>
       cases h
 
-lemma call_s : sn SKM[((((S n) x) y) z)] → sn SKM[((x z) (y z))] := by
+lemma call_s : sn SKM[((((S n) x) y) z)] ↔ sn SKM[((x z) (y z))] := by
+  constructor
   intro h_sn
   match h_sn with
     | .hard h_step =>
       exact h_step SKM[((x z) (y z))] (by apply is_eval_once.s)
+  intro h_sn
+  apply sn.hard
+  intro e' h_eval
+  cases h_eval
+  exact h_sn
+  case mpr.a.left lhs' h =>
+    cases h
+    case left lhs' h =>
+      cases h
+      case left lhs' h =>
+        cases h
 
 lemma call_m : sn SKM[((M e.max_universe.succ) e)] → valid_judgment e t → sn t := by
   intro h_sn h_t
