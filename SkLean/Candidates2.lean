@@ -30,6 +30,7 @@ lemma preserved : is_candidate_n n e e_final → is_eval_once e e' → ∃ n, is
     sorry
   case succ e₁ e'' e''' n e_final h_eval h_u h_step =>
     cases h_u
+    have h_trans := is_eval_once.trans e_final h_beq
     
 
 lemma imp_judgment : is_candidate_for e t → valid_judgment e t := by

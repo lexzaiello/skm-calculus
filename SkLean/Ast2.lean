@@ -252,7 +252,7 @@ end is_normal_n
 
 namespace is_eval_once
 
-lemma trans : is_eval_once e e₂ → is_eval_once e e₃ → e₂ = e₃ := by
+lemma unique : is_eval_once_weak e e₂ → is_eval_once_weak e e₃ → e₂ = e₃ := by
   intro h₁ h₂
   cases h₁
   cases h₂
@@ -261,5 +261,46 @@ lemma trans : is_eval_once e e₂ → is_eval_once e e₃ → e₂ = e₃ := by
     cases h
     case left h =>
       cases h
+  cases h₂
+  rfl
+  case s.left h =>
+    cases h
+    case left h =>
+      cases h
+      case left h =>
+        cases h
+  cases h₂
+  case m.left h =>
+    cases h
+  case m.m h₁ h₂ =>
+    cases h₁
+    cases h₂
+    rfl
+    cases h₂
+    rfl
+    cases h₂
+    rfl
+    case call lhs rhs h_u h_t_lhs h_t_rhs =>
+      simp_all
+      cases h₂
+      rfl
+  case left lhs lhs' rhs h_eval =>
+    cases h₂
+    cases h_eval
+    case k.left h =>
+      cases h
+    case s n =>
+      cases h_eval
+      case left h =>
+        cases h
+        case left h =>
+          cases h
+    case m n =>
+      cases h_eval
+    case left lhs' h_eval' =>
+      simp_all
+      apply unique
+      exact h_eval
+      exact h_eval'
 
 end is_eval_once
