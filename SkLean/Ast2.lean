@@ -165,8 +165,6 @@ inductive is_eval_once : Expr → Expr → Prop
     → is_eval_once SKM[((M n) e)] t
   | left         : is_eval_once lhs lhs'
     → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
-  | right        : is_eval_once rhs rhs'
-    → is_eval_once SKM[(lhs rhs)] SKM[(lhs rhs')]
 
 inductive is_eval_once_weak : Expr → Expr → Prop
   | k x y n      : is_eval_once_weak SKM[(((K n) x) y)] x
@@ -175,8 +173,6 @@ inductive is_eval_once_weak : Expr → Expr → Prop
     → is_eval_once_weak SKM[((M n) e)] t
   | left         : is_eval_once_weak lhs lhs'
     → is_eval_once_weak SKM[(lhs rhs)] SKM[(lhs' rhs)]
-  | right        : is_eval_once_weak rhs rhs'
-    → is_eval_once_weak SKM[(lhs rhs)] SKM[(lhs rhs')]
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | rfl                       : beta_eq e e
@@ -253,3 +249,17 @@ lemma s_stuck : is_normal_n 0 SKM[S n] SKM[S n] := by
   cases h_eval
 
 end is_normal_n
+
+namespace is_eval_once
+
+lemma trans : is_eval_once e e₂ → is_eval_once e e₃ → e₂ = e₃ := by
+  intro h₁ h₂
+  cases h₁
+  cases h₂
+  rfl
+  case k.left h =>
+    cases h
+    case left h =>
+      cases h
+
+end is_eval_once
