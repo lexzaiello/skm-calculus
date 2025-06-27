@@ -39,43 +39,10 @@ macro_rules
   | `(⟪ ($e:skmexpr) ⟫)                   => `(⟪$e⟫)
   | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)      => `(Expr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
 
-syntax "SKM[ " skmexpr " ] "        : term
-syntax "SKC[" skmexpr skmexpr "]" : term
+syntax "SKM[ " skmexpr " ] "      : term
 
 macro_rules
   | `(SKM[ $e:skmexpr ]) => `(⟪ $e ⟫)
-
-macro_rules
-  | `(SKC[ $e₁:skmexpr $e₂:skmexpr ]) => `(Call.mk ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
-
-namespace Expr
-
-def max_universe (e : Expr) : ℕ :=
-  match e with
-    | SKM[(K n)] => n
-    | SKM[(S n)] => n
-    | SKM[(M n)] => n
-    | SKM[(lhs rhs)] =>
-      (max_universe lhs) + (max_universe rhs)
-
-def min_universe (e : Expr) : ℕ :=
-  match e with
-    | SKM[(K n)] => n
-    | SKM[(S n)] => n
-    | SKM[(M n)] => n
-    | SKM[(lhs rhs)] =>
-      min (max_universe lhs) (max_universe rhs)
-
-inductive valid_universes : Expr → Prop
-  | k    : valid_universes SKM[(K n)]
-  | s    : valid_universes SKM[(S n)]
-  | m    : valid_universes SKM[(M n)]
-  | call : lhs.max_universe > rhs.max_universe
-    → valid_universes lhs
-    → valid_universes rhs
-    → valid_universes SKM[(lhs rhs)]
-
-end Expr
 
 /-
 ## Judgment Rules
@@ -126,25 +93,26 @@ M\ K\ K = K\ K\ (K\ K) = K
 $$
 -/
 
-inductive valid_judgment : Expr → Expr → Prop
-  | k n                       : valid_judgment SKM[K n] SKM[K n.succ]
-  | s n                       : valid_judgment SKM[S n] SKM[S n.succ]
-  | m n                       : valid_judgment SKM[M n] SKM[M n.succ]
-  | call lhs rhs              : lhs.max_universe > rhs.max_universe
-    → valid_judgment lhs SKM[((M lhs.max_universe.succ) lhs)]
-    → valid_judgment rhs SKM[((M rhs.max_universe.succ) rhs)]
-    → valid_judgment SKM[(lhs rhs)]
-      SKM[(((M lhs.max_universe.succ) lhs) ((M rhs.max_universe.succ) rhs))]
+namespace Expr
+
+def sum_universes (e : Expr) : ℕ :=
+  match e with
+    | SKM[(K n)] => n
+    | SKM[(S n)] => n
+    | SKM[(M n)] => n
+    | SKM[(lhs rhs)] => sum_universes lhs + sum_universes rhs
+
+end Expr
 
 inductive is_eval_once : Expr → Expr → Prop
-  | k x y n            : is_eval_once SKM[(((K n) x) y)] x
-  | s x y z n          : is_eval_once SKM[((((S n) x) y) z)] SKM[((x z) (y z))]
-  | m_final e t        : valid_judgment e t
-    → is_eval_once SKM[((M e.max_universe.succ) e)] t
-  | m_step             : is_eval_once e e'
-    → is_eval_once SKM[((M e.max_universe.succ) e)] SKM[((M e'.max_universe.succ) e')]
-  | left         : is_eval_once lhs lhs'
-    → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
+  | k x y n      : is_eval_once SKM[(((K n) x) y)] x
+  | s x y z n    : is_eval_once SKM[((((S n) x) y) z)] SKM[((x z) (y z))]
+  | m_k          : is_eval_once SKM[((M n) (K n₂))] SKM[(K n₂.succ)]
+  | m_s          : is_eval_once SKM[((M n) (S n₂))] SKM[(S n₂.succ)]
+  | m_m          : is_eval_once SKM[((M n) (M n₂))] SKM[(M n₂.succ)]
+  | m_call       : is_eval_once SKM[((M n) (lhs rhs))]
+    SKM[(((M lhs.sum_universes.succ) lhs) ((M rhs.sum_universes.succ) rhs))]
+  | left         : is_eval_once lhs lhs' → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
 
 inductive beta_eq : SkExpr → SkExpr → Prop
   | rfl                       : beta_eq e e
@@ -154,6 +122,17 @@ inductive beta_eq : SkExpr → SkExpr → Prop
   | trans                     : beta_eq e₁ e₂      → beta_eq e₂ e₃ → beta_eq e₁ e₃
   | symm                      : beta_eq e₁ e₂      → beta_eq e₂ e₁
 
+def trivial_typing (e : Expr) : Expr := SKM[((M e.sum_universes.succ) e)]
+
+inductive valid_judgment : Expr → Expr → Prop
+  | k n                       : valid_judgment SKM[K n] (trivial_typing SKM[(K n)])
+  | s n                       : valid_judgment SKM[S n] (trivial_typing SKM[(S n)])
+  | m n                       : valid_judgment SKM[M n] (trivial_typing SKM[(M n)])
+  | call_k                    : valid_judgment x t_x
+    → valid_judgment SKM[(((K n) x) y)] (trivial_typing SKM[(((K n) x) y)])
+  | call_s                    : valid_judgment SKM[((x z) (y z))] t_call
+    → SKM[((x z) (y z))].sum_universes < SKM[(((((S n) x) y) z))].sum_universes
+    → valid_judgment SKM[((((S n) x) y) z)] (trivial_typing SKM[((((S n) x) y) z)])
 
 inductive is_normal_n : ℕ → Expr → Expr → Prop
   | stuck : (¬(∃ e', is_eval_once e e'))                 → is_normal_n 0 e e
@@ -181,4 +160,3 @@ lemma s_stuck : is_normal_n 0 SKM[S n] SKM[S n] := by
   cases h_eval
 
 end is_normal_n
-
