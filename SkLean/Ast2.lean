@@ -104,13 +104,16 @@ def sum_universes (e : Expr) : ℕ :=
 
 end Expr
 
+@[simp]
+abbrev trivial_typing (e : Expr) : Expr := SKM[((M e.sum_universes.succ) e)]
+
 inductive is_eval_once : Expr → Expr → Prop
   | k x y n      : is_eval_once SKM[(((K n) x) y)] x
   | s x y z n    : is_eval_once SKM[((((S n) x) y) z)] SKM[((x z) (y z))]
-  | m_k          : is_eval_once SKM[((M n) (K n₂))] SKM[(K n₂.succ)]
-  | m_s          : is_eval_once SKM[((M n) (S n₂))] SKM[(S n₂.succ)]
-  | m_m          : is_eval_once SKM[((M n) (M n₂))] SKM[(M n₂.succ)]
-  | m_call       : is_eval_once SKM[((M n) (lhs rhs))]
+  | m_k          : is_eval_once SKM[((M n.succ) (K n))] SKM[(K n.succ)]
+  | m_s          : is_eval_once SKM[((M n.succ) (S n))] SKM[(S n.succ)]
+  | m_m          : is_eval_once SKM[((M n.succ) (M n))] SKM[(M n.succ)]
+  | m_call       : is_eval_once SKM[((M SKM[(lhs rhs)].sum_universes.succ) (lhs rhs))]
     SKM[(((M lhs.sum_universes.succ) lhs) ((M rhs.sum_universes.succ) rhs))]
   | left         : is_eval_once lhs lhs' → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
 
@@ -122,8 +125,6 @@ inductive beta_eq : SkExpr → SkExpr → Prop
   | trans                     : beta_eq e₁ e₂      → beta_eq e₂ e₃ → beta_eq e₁ e₃
   | symm                      : beta_eq e₁ e₂      → beta_eq e₂ e₁
 
-def trivial_typing (e : Expr) : Expr := SKM[((M e.sum_universes.succ) e)]
-
 inductive valid_judgment : Expr → Expr → Prop
   | k n                       : valid_judgment SKM[K n] (trivial_typing SKM[(K n)])
   | s n                       : valid_judgment SKM[S n] (trivial_typing SKM[(S n)])
@@ -133,10 +134,19 @@ inductive valid_judgment : Expr → Expr → Prop
   | call_s                    : valid_judgment SKM[((x z) (y z))] t_call
     → SKM[((x z) (y z))].sum_universes < SKM[(((((S n) x) y) z))].sum_universes
     → valid_judgment SKM[((((S n) x) y) z)] (trivial_typing SKM[((((S n) x) y) z)])
+  | call_m                    : valid_judgment e t
+    → valid_judgment SKM[((M n) e)] (trivial_typing SKM[((M n) e)])
+  | call                      : valid_judgment lhs t_lhs
+    → valid_judgment rhs t_rhs
+    → is_eval_once SKM[(lhs rhs)] e'
+    → SKM[(lhs rhs)].sum_universes < e'.sum_universes
+    → valid_judgment SKM[(lhs rhs)] (trivial_typing SKM[(lhs rhs)])
+  | beta_eq                   : beta_eq t₁ t₂
+    → valid_judgment e t₁
+    → valid_judgment e t₂
 
 inductive is_normal_n : ℕ → Expr → Expr → Prop
   | stuck : (¬(∃ e', is_eval_once e e'))                 → is_normal_n 0 e e
-  | one   : is_eval_once e e                             → is_normal_n 1 e e
   | succ  : is_eval_once e e' → is_normal_n n e' e_final → is_normal_n n.succ e e_final
 
 namespace is_normal_n

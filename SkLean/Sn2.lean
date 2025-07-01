@@ -32,11 +32,14 @@ lemma call_k : sn SKM[(((K n) x) y)] ↔ sn x := by
   intro e' h_eval
   cases h_eval
   exact h_sn
+  case mpr.a.left lhs' h_eval =>
+    cases h_eval
+    case left lhs' h_eval =>
+      cases h_eval
 
 lemma call_s : sn SKM[((((S n) x) y) z)] ↔ sn SKM[((x z) (y z))] := by
   constructor
   intro h_sn
-
   match h_sn with
     | .hard h_step =>
       exact h_step SKM[((x z) (y z))] (by apply is_eval_once.s)
@@ -45,6 +48,12 @@ lemma call_s : sn SKM[((((S n) x) y) z)] ↔ sn SKM[((x z) (y z))] := by
   intro e' h_eval
   cases h_eval
   exact h_sn
+  case mpr.a.left lhs' h_eval =>
+    cases h_eval
+    case left lhs' h_eval =>
+      cases h_eval
+      case left lhs' h_eval =>
+        cases h_eval
 
 lemma preserved : sn e → is_eval_once e e' → sn e' := by
   intro h_sn h_eval
@@ -59,20 +68,67 @@ lemma preserved : sn e → is_eval_once e e' → sn e' := by
 
 lemma imp_n_steps_eval_normal (e : Expr) : valid_judgment e t → sn e → ∃ n e', is_normal_n n e e' := by
   intro h_t h_sn
-  induction e
-  case m n =>
-    use 0
-    use SKM[M n]
-    apply is_normal_n.m_stuck
+  induction h_t
   case k n =>
     use 0
-    use SKM[K n]
-    apply is_normal_n.k_stuck
+    use SKM[(K n)]
+    apply is_normal_n.stuck
+    intro h
+    cases h
+    case h.a.intro h =>
+      cases h
   case s n =>
     use 0
-    use SKM[S n]
-    apply is_normal_n.s_stuck
-  case call lhs rhs h₁ h₂ =>
-    sorry
+    use SKM[(S n)]
+    apply is_normal_n.stuck
+    intro h
+    cases h
+    case h.a.intro h =>
+      cases h
+  case m n =>
+    use 0
+    use SKM[(M n)]
+    apply is_normal_n.stuck
+    intro h
+    cases h
+    case h.a.intro h =>
+      cases h
+  case call_k x t_x n y h_t_x ih =>
+    have ⟨n_x_final, x_final, h_x_final⟩ := ih $ call_k.mp h_sn
+    use n_x_final.succ
+    use x_final
+    apply is_normal_n.succ
+    apply is_eval_once.k
+    exact h_x_final
+  case call_s x y z t_call n h_t_call h_u ih =>
+    have ⟨n_x_final, x_final, h_x_final⟩ := ih $ call_s.mp h_sn
+    use n_x_final.succ
+    use x_final
+    apply is_normal_n.succ
+    apply is_eval_once.s
+    exact h_x_final
 
 end sn
+
+namespace valid_judgment
+
+theorem imp_sn : valid_judgment e t → sn e := by
+  intro h_t
+  induction h_t
+  apply sn.k
+  apply sn.s
+  apply sn.m
+  case call_k x t_x n y h_t_x ih =>
+    apply sn.hard
+    intro e' h_eval'
+    have h_e'_eq : e' = x := by
+      cases h_eval'
+      rfl
+      case left lhs' h =>
+        cases h
+        case left lhs' h =>
+          cases h
+    rw [← h_e'_eq] at ih
+    exact ih
+
+end valid_judgment

@@ -2,29 +2,45 @@ import SkLean.Ast2
 
 namespace valid_judgment
 
+lemma imp_m : valid_judgment e t → _root_.beta_eq (trivial_typing e) t := by
+  intro h_t
+  induction h_t
+  repeat exact beta_eq.rfl
+  case beta_eq t₁ t₂ e' h_t₁ h_t₂ ih =>
+    apply beta_eq.symm
+    apply beta_eq.trans
+    exact (beta_eq.symm h_t₁)
+    exact (beta_eq.symm ih)
+
 theorem preservation_easy : valid_judgment e t → is_eval_once e e' → ∃ t', valid_judgment e' t' := by
   intro h_t h_eval
-  induction h_eval
-  cases h_t
-  case k.call_k _ _ t_x h_t_x =>
+  induction h_t
+  case k n =>
+    use trivial_typing SKM[K n]
+    cases h_eval
+  case s n =>
+    use trivial_typing SKM[S n]
+    cases h_eval
+  case m n =>
+    use trivial_typing SKM[M n]
+    cases h_eval
+  case call_k x t_x n y h_t_x ih =>
+    cases h_eval
     use t_x
-  case s x y z n =>
-    cases h_t
-    case call_s t_call h_t_call h_u =>
-      use t_call
-  cases h_t
-  cases h_t
-  cases h_t
-  cases h_t
-  case left lhs lhs' rhs h_eval ih =>
-    cases h_t
+    case left lhs' a =>
+      cases a
+      case left lhs' a =>
+        cases a
+  case call_s x z y t_call n h_t_call h_u ih =>
     cases h_eval
-    case call_k.left x t_x n h_t_ lhs' h_eval =>
-      cases h_eval
-    cases h_eval
-    case call_s.left x t_x n h_t_ lhs' h_eval =>
-      cases h_eval
-      case left x y z h_eval =>
-        cases h_eval
+    use t_call
+    case left lhs' a =>
+      cases a
+      case left lhs' a =>
+        cases a
+        case left lhs' a =>
+          cases a
+  case call_m e'' t' n h_t ih =>
+    
 
 end valid_judgment
