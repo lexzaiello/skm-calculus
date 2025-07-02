@@ -129,9 +129,20 @@ inductive valid_judgment : Expr → Expr → Prop
   | k n                       : valid_judgment SKM[K n] (trivial_typing SKM[(K n)])
   | s n                       : valid_judgment SKM[S n] (trivial_typing SKM[(S n)])
   | m n                       : valid_judgment SKM[M n] (trivial_typing SKM[(M n)])
+  | call_k₁                   : valid_judgment x t_x
+    → valid_judgment SKM[((K n) x)] (trivial_typing SKM[((K n) x)])
+  | call_s₁                   : valid_judgment x t_x
+    → valid_judgment SKM[((S n) x)] (trivial_typing SKM[((S n) x)])
+  | call_s₂                   : valid_judgment x t_x
+    → valid_judgment y t_y
+    → valid_judgment SKM[(((S n) x) y)] (trivial_typing SKM[(((S n) x) y)])
   | call_k                    : valid_judgment x t_x
+    → valid_judgment y t_y
     → valid_judgment SKM[(((K n) x) y)] (trivial_typing SKM[(((K n) x) y)])
   | call_s                    : valid_judgment SKM[((x z) (y z))] t_call
+    → valid_judgment x t_x
+    → valid_judgment y t_y
+    → valid_judgment z t_z
     → SKM[((x z) (y z))].sum_universes < SKM[(((((S n) x) y) z))].sum_universes
     → valid_judgment SKM[((((S n) x) y) z)] (trivial_typing SKM[((((S n) x) y) z)])
   | call_m                    : valid_judgment e t
@@ -141,9 +152,6 @@ inductive valid_judgment : Expr → Expr → Prop
     → is_eval_once SKM[(lhs rhs)] e'
     → SKM[(lhs rhs)].sum_universes < e'.sum_universes
     → valid_judgment SKM[(lhs rhs)] (trivial_typing SKM[(lhs rhs)])
-  | beta_eq                   : beta_eq t₁ t₂
-    → valid_judgment e t₁
-    → valid_judgment e t₂
 
 inductive is_normal_n : ℕ → Expr → Expr → Prop
   | stuck : (¬(∃ e', is_eval_once e e'))                 → is_normal_n 0 e e
