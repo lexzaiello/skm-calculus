@@ -1,0 +1,13 @@
+#+NAME: Todo
+#+AUTHOR: Dowland Aiello
+
+* TODO Todo
+** Lazy value instantiation of combinators
+** Inference of type 2
+*** Recall, each combinator is explicitly typed
+*** We would like to specify a value for =K= for example, without necessarily knowing the second type
+*** Or we would like to infer it before compile time
+**** Inference algorithm
+**** Simple case
+=K \Nat ? 0=
+

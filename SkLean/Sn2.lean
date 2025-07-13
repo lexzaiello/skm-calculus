@@ -32,10 +32,6 @@ lemma call_k : sn SKM[(((K n) x) y)] ↔ sn x := by
   intro e' h_eval
   cases h_eval
   exact h_sn
-  case mpr.a.left lhs' h_eval =>
-    cases h_eval
-    case left lhs' h_eval =>
-      cases h_eval
 
 lemma call_s : sn SKM[((((S n) x) y) z)] ↔ sn SKM[((x z) (y z))] := by
   constructor
@@ -48,12 +44,6 @@ lemma call_s : sn SKM[((((S n) x) y) z)] ↔ sn SKM[((x z) (y z))] := by
   intro e' h_eval
   cases h_eval
   exact h_sn
-  case mpr.a.left lhs' h_eval =>
-    cases h_eval
-    case left lhs' h_eval =>
-      cases h_eval
-      case left lhs' h_eval =>
-        cases h_eval
 
 lemma preserved : sn e → is_eval_once e e' → sn e' := by
   intro h_sn h_eval
@@ -93,15 +83,15 @@ lemma imp_n_steps_eval_normal (e : Expr) : valid_judgment e t → sn e → ∃ n
     cases h
     case h.a.intro h =>
       cases h
-  case call_k x t_x n y h_t_x ih =>
-    have ⟨n_x_final, x_final, h_x_final⟩ := ih $ call_k.mp h_sn
+  case call_k x t_x y t_y n h_t_x h_t_y ih₁ ih₂ =>
+    have ⟨n_x_final, x_final, h_x_final⟩ := ih₁ $ call_k.mp h_sn
     use n_x_final.succ
     use x_final
     apply is_normal_n.succ
     apply is_eval_once.k
     exact h_x_final
-  case call_s x y z t_call n h_t_call h_u ih =>
-    have ⟨n_x_final, x_final, h_x_final⟩ := ih $ call_s.mp h_sn
+  case call_s x y z t_call t_x t_y t_z n h_t_call h_t_x h_t_y h_t_z h_u ih₁ ih₂ ih₃ ih₄ =>
+    have ⟨n_x_final, x_final, h_x_final⟩ := ih₁ $ call_s.mp h_sn
     use n_x_final.succ
     use x_final
     apply is_normal_n.succ
