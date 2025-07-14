@@ -8,6 +8,7 @@ inductive LExpr where
   | s     : LExpr
   | k     : LExpr
   | const : String → LExpr
+  | hole  : LExpr
 
 inductive SkExpr where
   | s     : ℕ      → SkExpr
@@ -95,6 +96,7 @@ end SkExpr
 partial def normalize' (e : SkExpr) : SkExpr :=
   match e with
     | .lam (.var 0) => SKM[((((((S 0) ?) ?) ?) (((K 0) ?) ?)) (((K 0) ?) ?))]
+    | .lam (.var $ n + 1) => SKM[((((K 0) ?) ?) #(.var n))]
     | .k n => SKM[(K n)]
     | .m n => SKM[(M n)]
     | .s n => SKM[(S n)]
@@ -102,22 +104,23 @@ partial def normalize' (e : SkExpr) : SkExpr :=
     | .lam x => SKM[((((K 0) ?) ?) #(normalize' x))]
     | .const c => .const c
     | .call lhs rhs => SKM[(#(normalize' lhs) #(normalize' rhs))]
-    | .var (v + 1) => normalize' $ .var v
-    | .var 0       => .var 0
+    | .var n       => .var n
     | .hole => .hole
 
 partial def to_sk (e : LExpr) : SkExpr :=
   match e with
     | .lam (.var 0) => SKM[((((((S 0) ?) ?) ?) (((K 0) ?) ?)) (((K 0) ?) ?))]
+    | .lam (.var $ n + 1) => normalize' (.lam SKM[((((K 0) ?) ?) #(.var n))])
     | .k => SKM[K 0]
     | .m => SKM[M 0]
     | .s => SKM[S 0]
     | (.app lhs rhs) => normalize' SKM[((#(to_sk lhs)) #(to_sk rhs))]
     | .lam (.app lhs rhs) => normalize' SKM[(((((((S 0) ?) ?) ?) #(.lam $ to_sk lhs))) #(.lam $ to_sk rhs))]
-    | .lam x => SKM[((((K 0) ?) ?) #(to_sk x))]
+    | .lam x => normalize' (.lam SKM[#(normalize' ∘ to_sk $ x)])
     | .const c => .const c
-    | .var (v + 1) => normalize' $ .var v
     | .var 0       => .var 0
+    | .var v       => .var v
+    | .hole        => .hole
 
-#eval (.app (.app (LExpr.app (.app (.lam (.lam (.app (.app (.app .k (.app .m (.var 1))) (.var 0)) (.var 1)))) (.const "α")) (.const "β")) (.const "x")) (.const "y"))
-  |> (SkExpr.eval_n 10) ∘ to_sk
+#eval (LExpr.app ((LExpr.app (.lam (.lam (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))) (.const "α"))) (.const "β")
+  |> SkExpr.eval_n 20 ∘ normalize' ∘ to_sk
