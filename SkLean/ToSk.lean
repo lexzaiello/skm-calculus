@@ -58,6 +58,7 @@ def toStringImpl : SkExpr → String
     | .k n          => s!"K {n}"
     | .m n          => s!"M {n}"
     | .ty           => s!"Ty"
+    | SKM[((((K 0) ((M 0) β)) α) β_e)] => s!"{α.toStringImpl} → {β.toStringImpl}"
     | .call lhs rhs => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
     | .const str    => s!"{str}"
     | .hole         => "_"
@@ -221,44 +222,64 @@ Remember. no type can have the type K₀. K₀ is our Prop.
 
 def arrow_type := SKM[((((K 0) Ty) Ty) Ty)]
 
+def mk_arrow (α β : SkExpr) := SKM[((((K 0) ((M 0) β)) α) β)]
+
+infix:20 "~>" => mk_arrow
+
 def arrow := (.lam (.lam (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))
   |> normalize' ∘ to_sk
 
+#eval SKM[S 0] ~> SKM[K 0]
+
 def extract_in (t : SkExpr) : SkExpr :=
   match t with
-    | SKM[((((((K n) _α) α) β)))] => α
+    | SKM[((((((K n) _β) α) β)))] => α
     | x => (.const s!"bruh1 : {x}")
 
 def extract_out (t : SkExpr) : SkExpr :=
   match t with
-    | SKM[((((((K n) _α) α) β)))] => β
+    | SKM[((((((K n) _β) α) β)))] => β
     | x => (.const s!"bruh2 : {x}")
 
+#eval extract_in $ SKM[S 0] ~> SKM[K 0]
+#eval extract_out $ SKM[S 0] ~> SKM[K 0]
+
+-- This only works for nondependent functions.
+-- we can write a proper typechecker once we computer
+-- the explicit typings for all expressions inside ->
 def derive_typings (e : SkExpr) (t : SkExpr) : SkExpr :=
-  match e with
+  match e, t with
     -- lhs is some function of type t. t is of the form A -> B.
     -- we can exetract the output and input
     -- logically, the type of lhs is some other function that takes in a type
     -- and produces a new type
     -- the entire expression is a function type
     -- the left hand side produces a function type
-    | SKM[(lhs ?)] =>
-      let in_t := extract_in t
-      let lhs' := derive_typings lhs $ SKM[((((K 0) ((M 0) in_t)) t) in_t)]
+    | SKM[(lhs ?)], t =>
+      let hole_e := extract_in t
+      let lhs' := derive_typings lhs $ SKM[((M 0) hole_e)] ~> t
 
-      SKM[(lhs' in_t)]
-    | SKM[(lhs rhs)] =>
+      SKM[(lhs' hole_e)]
+    -- App producing a function
+    -- this is kind of like the hole rule above
+    | SKM[(lhs rhs)], f_t@SKM[((((K n) _β) α) β)] =>
+      let lhs' := derive_typings lhs $ SKM[((M 0) rhs)] ~> f_t
+
+      SKM[(lhs rhs)]
+    | SKM[(lhs rhs)], t =>
       let in_t := extract_in t
       let out_t := extract_out t
 
-      let rhs' := derive_typings lhs SKM[((((K 0) ((M 0) in_t)) in_t) out_t)]
-      let lhs' := derive_typings rhs out_t
+      let lhs' := derive_typings lhs $ in_t ~> out_t
+      let rhs' := derive_typings rhs out_t
 
       SKM[(lhs' rhs')]
-    | x => x
+    | x, _ => x
 
 #eval arrow_type
 
 #eval (.lam (.lam (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))
   |> (derive_typings . arrow_type) ∘ normalize' ∘ to_sk
 
+#eval SKM[Ty] ~> SKM[Ty]
+#eval derive_typings SKM[((((((S 0) ?) ?) ?) (((K 0) ?) ?)) (((K 0) ?) ?))] $ SKM[Ty] ~> SKM[Ty]
