@@ -229,19 +229,24 @@ def extract_in (t : SkExpr) : SkExpr :=
     | SKM[((((((K n) _α) α) β)))] => α
     | x => (.const s!"bruh1 : {x}")
 
-def ty_f (f_t : SkExpr) : SkExpr :=
-  match f_t with
-    | 
-
 def extract_out (t : SkExpr) : SkExpr :=
   match t with
     | SKM[((((((K n) _α) α) β)))] => β
-    | x => (.const "bruh2")
+    | x => (.const s!"bruh2 : {x}")
 
 def derive_typings (e : SkExpr) (t : SkExpr) : SkExpr :=
   match e with
+    -- lhs is some function of type t. t is of the form A -> B.
+    -- we can exetract the output and input
+    -- logically, the type of lhs is some other function that takes in a type
+    -- and produces a new type
+    -- the entire expression is a function type
+    -- the left hand side produces a function type
     | SKM[(lhs ?)] =>
-      SKM[(lhs #(extract_in t))]
+      let in_t := extract_in t
+      let lhs' := derive_typings lhs $ SKM[((((K 0) ((M 0) in_t)) t) in_t)]
+
+      SKM[(lhs' in_t)]
     | SKM[(lhs rhs)] =>
       let in_t := extract_in t
       let out_t := extract_out t
@@ -252,5 +257,8 @@ def derive_typings (e : SkExpr) (t : SkExpr) : SkExpr :=
       SKM[(lhs' rhs')]
     | x => x
 
+#eval arrow_type
+
 #eval (.lam (.lam (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))
   |> (derive_typings . arrow_type) ∘ normalize' ∘ to_sk
+
