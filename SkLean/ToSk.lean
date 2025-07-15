@@ -19,7 +19,7 @@ inductive SkExpr where
   | call  : SkExpr → SkExpr → SkExpr
   | hole  : SkExpr
   | const : String → SkExpr
-  | lam   : SkExpr → SkExpr
+  | lam   : SkExpr → SkExpr → SkExpr
   | var   : ℕ      → SkExpr
   | ty    : SkExpr
 deriving BEq, Nonempty
@@ -68,7 +68,7 @@ def toStringImpl : SkExpr → String
     | .call lhs rhs => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
     | .const str    => s!"{str}"
     | .hole         => "_"
-    | .lam body     => s!"λ {body.toStringImpl}"
+    | .lam t body  => s!"λ :{t.toStringImpl} . {body.toStringImpl}"
     | .var v        => s!"var {v}"
 
 instance : ToString SkExpr where
@@ -90,14 +90,23 @@ end SkExpr
 
 partial def normalize' (e : SkExpr) : SkExpr :=
   match e with
-    | .lam (.var 0) => SKM[((((((S 0) ?) ?) ?) (((K 0) ?) ?)) (((K 0) ?) ?))]
-    | .lam (.var $ n + 1) => SKM[((((K 0) ?) ?) #(.var n))]
+    | .lam t (.var 0) =>
+      let t' := normalize' t
+
+      SKM[((((((S 0) #(t' ~> (t' ~> t'))) #(t' ~> t')) t') (((K 0) #(normalize' t')) ?)) (((K 0) #(normalize' t')) ?))]
+    | .lam t (.var $ n + 1) =>
+      let t' := normalize' t
+
+      SKM[((((K 0) t') ?) #(.var n))]
     | .k n => SKM[(K n)]
     | .ty  => SKM[Ty]
     | .m n => SKM[(M n)]
     | .s n => SKM[(S n)]
-    | .lam (.call lhs rhs) => normalize' SKM[((((((S 0) ?) ?) ?) #(normalize' (.lam lhs))) #(normalize' (.lam rhs)))]
-    | .lam x => SKM[((((K 0) ?) ?) #(normalize' x))]
+    | .lam t (.call lhs rhs) =>
+      let t' := normalize' t
+
+      normalize' SKM[((((((S 0) ?) ?) t') #(normalize' (.lam t' lhs))) #(normalize' (.lam t' rhs)))]
+    | .lam t x => SKM[((((K 0) #(normalize' t)) ?) #(normalize' x))]
     | .const c => .const c
     | .call lhs rhs => SKM[(#(normalize' lhs) #(normalize' rhs))]
     | .var n       => .var n
@@ -106,23 +115,29 @@ partial def normalize' (e : SkExpr) : SkExpr :=
 partial def to_sk (e : LExpr) : SkExpr :=
   match e with
     | .ty => .ty
-    | .lam bind_ty (.var 0) =>
-      let bind_ty_e := to_sk bind_ty
+    | .lam t (.var 0) =>
+      let t' := to_sk t
 
       SKM[
-           ((((((S 0) ?) ?) bind_ty_e)
-             (((K 0) bind_ty_e) #(bind_ty_e ~> bind_ty_e)))
-             (((K 0) bind_ty_e) bind_ty_e))
+           ((((((S 0) ?) ?) t')
+             (((K 0) t') #(t' ~> t')))
+             (((K 0) t') t'))
       ]
-    | .lam bind_ty (.var $ n + 1) => normalize' (.lam SKM[((((K 0) #(to_sk bind_ty)) ?) #(.var n))])
+    | .lam t (.var $ n + 1) =>
+      let t' := to_sk t
+
+      normalize' (.lam t' SKM[((((K 0) ?) ?) #(.var n))])
     | .k => SKM[K 0]
     | .m => SKM[M 0]
     | .s => SKM[S 0]
     | (.app lhs rhs) => normalize' SKM[((#(to_sk lhs)) #(to_sk rhs))]
-    | .lam bind_ty (.app lhs rhs) =>
-      let bind_ty_e := to_sk bind_ty
-      normalize' SKM[(((((((S 0) ?) ?) bind_ty_e) #(.lam $ to_sk lhs))) #(.lam $ to_sk rhs))]
-    | .lam _ x => normalize' (.lam SKM[#(normalize' ∘ to_sk $ x)])
+    | .lam t (.app lhs rhs) =>
+      let t' := to_sk t
+      normalize' SKM[(((((((S 0) ?) ?) t') #(.lam t' $ to_sk lhs))) #(.lam t' $ to_sk rhs))]
+    | .lam t x =>
+      let t' := to_sk t
+
+      normalize' (.lam t' SKM[#(normalize' ∘ to_sk $ x)])
     | .const c => .const c
     | .var 0       => .var 0
     | .var v       => .var v
@@ -242,3 +257,5 @@ def extract_out (t : SkExpr) : SkExpr :=
 #eval extract_out $ SKM[S 0] ~> SKM[K 0]
 
 -- S₁ : Ty, K₁ : Ty, but S₁ : K₁ is not true.
+
+#eval SKM[((arrow Ty) Ty)] |> SkExpr.eval_n 20
