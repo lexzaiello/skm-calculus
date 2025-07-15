@@ -27,6 +27,7 @@ inductive Expr where
   | k       : ℕ    → Expr
   | s       : ℕ    → Expr
   | call    : Expr → Expr → Expr
+  | ty      : Expr
 deriving DecidableEq, Repr, BEq
 
 namespace Expr

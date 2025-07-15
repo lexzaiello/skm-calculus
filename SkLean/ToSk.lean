@@ -19,6 +19,7 @@ inductive SkExpr where
   | const : String → SkExpr
   | lam   : SkExpr → SkExpr
   | var   : ℕ      → SkExpr
+  | ty    : SkExpr
 deriving BEq, Nonempty
 
 declare_syntax_cat skmexpr
@@ -42,6 +43,7 @@ macro_rules
   | `(⟪ K $e:term ⟫)                 => `(SkExpr.k $e)
   | `(⟪ S $e:term ⟫)                 => `(SkExpr.s $e)
   | `(⟪ M $e:term ⟫)                 => `(SkExpr.m $e)
+  | `(⟪ Ty ⟫)                        => `(SkExpr.ty)
   | `(⟪ ? ⟫)                         => `(SkExpr.hole)
   | `(⟪ $e:ident ⟫)                  => `($e)
   | `(⟪ # $e:term ⟫)                 => `($e)
@@ -55,6 +57,7 @@ def toStringImpl : SkExpr → String
     | .s n          => s!"S {n}"
     | .k n          => s!"K {n}"
     | .m n          => s!"M {n}"
+    | .ty           => s!"Ty"
     | .call lhs rhs => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
     | .const str    => s!"{str}"
     | .hole         => "_"
@@ -98,6 +101,7 @@ partial def normalize' (e : SkExpr) : SkExpr :=
     | .lam (.var 0) => SKM[((((((S 0) ?) ?) ?) (((K 0) ?) ?)) (((K 0) ?) ?))]
     | .lam (.var $ n + 1) => SKM[((((K 0) ?) ?) #(.var n))]
     | .k n => SKM[(K n)]
+    | .ty  => SKM[Ty]
     | .m n => SKM[(M n)]
     | .s n => SKM[(S n)]
     | .lam (.call lhs rhs) => normalize' SKM[((((((S 0) ?) ?) ?) #(normalize' (.lam lhs))) #(normalize' (.lam rhs)))]
@@ -167,9 +171,55 @@ We could theoretically do this with a fixpoint. This could be how we do inductiv
 
 Ok, another idea. -> A B : Type? I don't really know how this makes sense, because literally everything is a type.
 except K₀. K₀ is not a type. it's just an expression. K₁ is though. WAIT A SECOND.....
+the thing is though, if we add a type expression, then literally everything is a type.
+like what. then we can just have an escape hatch in the language. we don't want to do that.
+
+I mean, we could say that M : Type. This is another important question, because like...
+what the fuck is M?
+
+M : Type????? Also .... typing of M? M is necessarily polymorphic. like it is untyped.
+M works with any expression. it doesn't have a coherent typing.
+M₀ : M₁. This could be our escape hatch.
+
+M₀ e : M₁ (M₁ e).
+
+smth like this fr.
+
+but how do we capture the input type of this function? input types are kind of ammbiguous.
+They're explicit for K and S via the arrow expression, but still kinda confusing, since
+we don't have any notion of a "Type" epxression. so the typing of M is also obscure.
+whenever we do a function call we need to match up the input types.
+orrrrrrr.... we can just check if (e : t) arg (t arg : ?) t arg typechecks.
+This could work. yeah. based. this bubbles up.
+this could potentially simplify everything.
+but what's our base case? realistically we need some way to properly encode the input type explicitly.
+but M is necessarily polymoprhic. if we specify the input type to M, we have literally defeated the entire
+point of M. this could potentially just be our like base case.
+
+we could say that M e for anything is well-typed if e has a type.
+yeah. this works. so M is polymorphic. any argument works, as long as that argument is well-typed.
+
+so, what's the type of ->? -> A B = K (M A) B A.
+fixpoint idea again. could theoretically have -> be similar, and rely on M.
+
+-> : M. -> A B = (M A B). This is not good.
+we want -> to typecheck similarly to M where any two arguments work, so long as they have a valid type.
+
+so, ideally we want to rely only on M and -> in our typing of ->.
+
+-> : M ->?
+-> : -> M?
+
+Only two possibilities. -> A B : M -> A B. bruhhhhh. that's based. genuinely based. like holy shit.
+
+Why do we need an explicit typing of ->? Because we want it to propogate down to the actual calls within.
+So we need a legit concrete type. Realistically, we don't need an actual expression to represent this.
+We just need an expression to encapsulate all types.
+Honestly I think type is fine. Type is a universe containing all K_{n} and S_{n} where n > 0.
+Remember. no type can have the type K₀. K₀ is our Prop.
 -/
 
-def arrow_type : SKM[M 
+def arrow_type : SKM[(((K₀ (M Type)) Type) Type)]
 
 #eval (.lam (.lam (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))
   |> fill_types [] ∘ normalize' ∘ to_sk
