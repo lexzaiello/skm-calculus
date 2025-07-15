@@ -122,5 +122,25 @@ partial def to_sk (e : LExpr) : SkExpr :=
     | .var v       => .var v
     | .hole        => .hole
 
-#eval (LExpr.app ((LExpr.app (.lam (.lam (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))) (.const "α"))) (.const "β")
-  |> SkExpr.eval_n 20 ∘ normalize' ∘ to_sk
+/-
+We want -> : Type → Type → Type. But we don't really have a way to represent Type.
+One possible solution is adding a universe expression that contains all combinators of a given order.
+But then what do we do with expressions whose universe level is not immediately clear?
+We don't want to have separate arrow expression typings for different combinators, ideally.
+We want one. And we don't want to just add a fucking hole in the language that makes -> polymorphic.
+That's very hacky. Intuitively, this is something with M. One way to do this is with a fixpoint.
+This seems kind of complicated, but if -> has access to its own type (is "inductive"), then we can
+type it, since M gives us the type of something. This seems like it won't really work though.
+However, this could be how we add inductive types to the language! With a fixpoint.
+
+New arrow expression (lc, convert to SKM):
+
+\(a : M a, a)
+
+bruhhhh momento. The question is, does this adhere to our current typing?
+-/
+
+def arrow_type : SKM[M 
+
+#eval (.lam (.lam (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))
+  |> fill_types [] ∘ normalize' ∘ to_sk

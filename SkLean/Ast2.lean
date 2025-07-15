@@ -23,10 +23,10 @@ $$
 -/
 
 inductive Expr where
-  | m    : ℕ → Expr
-  | k    : ℕ → Expr
-  | s    : ℕ → Expr
-  | call : Expr → Expr → Expr
+  | m       : ℕ    → Expr
+  | k       : ℕ    → Expr
+  | s       : ℕ    → Expr
+  | call    : Expr → Expr → Expr
 deriving DecidableEq, Repr, BEq
 
 namespace Expr
