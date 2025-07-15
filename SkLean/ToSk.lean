@@ -138,6 +138,35 @@ New arrow expression (lc, convert to SKM):
 \(a : M a, a)
 
 bruhhhh momento. The question is, does this adhere to our current typing?
+We already know that the type of any expression is e : M e, if it is well-typed.
+There is no reason why we can't do this for ->....
+HOWEVER, M e only works if there is a valid typing of it.
+This is circular, and doesn't work. We ought to have some explict typing of this.
+This is kinda ass though. We need some like concrete typing.
+
+Perhaps some way to represent any arbitrary type? But we're constrained by universe levels, too.
+And we don't want to add an expression to the language that just adds an escape hole.
+Because we will be able to use that expression in nother places.
+
+\\(M\\) is the obvious candidate. M is well-typed.
+I don't see why we can't type -> similarly. HOWEVER, we are modifying the typing of M.
+We are still using universe hierarchies, but not K₀ : K₁. K₀ : S₀ (->)
+((K₀ ℕ ℝ) : (S₀ (->) ℕ ℝ = -> ℝ (ℕ ℕ))).
+
+Essentially, we just want the type of any expression to be something like
+
+K (M a) B a.
+
+theoretically, we could do this for the arrow expression itself, but then we're recursing
+like I said, we could just make its type M a, but then we can't typecheck it.
+We don't want any holes in the language. So what is the type of ->? I mean, we don't really have to explicitly type it.
+
+We can just derive the type from its value, I guess. This is kinda ass though. We want at the top level to know what its type is.
+
+We could theoretically do this with a fixpoint. This could be how we do inductive types.
+
+Ok, another idea. -> A B : Type? I don't really know how this makes sense, because literally everything is a type.
+except K₀. K₀ is not a type. it's just an expression. K₁ is though. WAIT A SECOND.....
 -/
 
 def arrow_type : SKM[M 
