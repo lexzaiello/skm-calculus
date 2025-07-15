@@ -219,7 +219,34 @@ Honestly I think type is fine. Type is a universe containing all K_{n} and S_{n}
 Remember. no type can have the type K₀. K₀ is our Prop.
 -/
 
-def arrow_type : SKM[(((K₀ (M Type)) Type) Type)]
+def arrow_type := SKM[((((K 0) Ty) Ty) Ty)]
+
+def arrow := (.lam (.lam (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))
+  |> normalize' ∘ to_sk
+
+def extract_in (t : SkExpr) : Option SkExpr :=
+  match t with
+    | SKM[((((((K n) ((M n) α)) _α) β)))] => some α
+    | x => none
+
+def extract_out (t : SkExpr) : Option SkExpr :=
+  match t with
+    | SKM[((((((K n) ((M n) α)) _α) β)))] => some β
+    | x => none
+
+def derive_typings (e : SkExpr) (t : SkExpr) : Option SkExpr :=
+  match e with
+    | SKM[(lhs ?)] => do
+      SKM[(lhs #(← extract_in t))]
+    | SKM[(lhs rhs)] => do
+      let in_t ← extract_in t
+      let out_t ← extract_out t
+
+      let rhs' ← derive_typings lhs out_t
+      let lhs' ← derive_typings rhs SKM[((((K 0) ((M 0) in_t)) in_t) out_t)]
+
+      SKM[(lhs' rhs')]
+    | x => x
 
 #eval (.lam (.lam (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))
   |> fill_types [] ∘ normalize' ∘ to_sk
