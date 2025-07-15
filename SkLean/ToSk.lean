@@ -224,29 +224,33 @@ def arrow_type := SKM[((((K 0) Ty) Ty) Ty)]
 def arrow := (.lam (.lam (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))
   |> normalize' ∘ to_sk
 
-def extract_in (t : SkExpr) : Option SkExpr :=
+def extract_in (t : SkExpr) : SkExpr :=
   match t with
-    | SKM[((((((K n) ((M n) α)) _α) β)))] => some α
-    | x => none
+    | SKM[((((((K n) _α) α) β)))] => α
+    | x => (.const s!"bruh1 : {x}")
 
-def extract_out (t : SkExpr) : Option SkExpr :=
+def ty_f (f_t : SkExpr) : SkExpr :=
+  match f_t with
+    | 
+
+def extract_out (t : SkExpr) : SkExpr :=
   match t with
-    | SKM[((((((K n) ((M n) α)) _α) β)))] => some β
-    | x => none
+    | SKM[((((((K n) _α) α) β)))] => β
+    | x => (.const "bruh2")
 
-def derive_typings (e : SkExpr) (t : SkExpr) : Option SkExpr :=
+def derive_typings (e : SkExpr) (t : SkExpr) : SkExpr :=
   match e with
-    | SKM[(lhs ?)] => do
-      SKM[(lhs #(← extract_in t))]
-    | SKM[(lhs rhs)] => do
-      let in_t ← extract_in t
-      let out_t ← extract_out t
+    | SKM[(lhs ?)] =>
+      SKM[(lhs #(extract_in t))]
+    | SKM[(lhs rhs)] =>
+      let in_t := extract_in t
+      let out_t := extract_out t
 
-      let rhs' ← derive_typings lhs out_t
-      let lhs' ← derive_typings rhs SKM[((((K 0) ((M 0) in_t)) in_t) out_t)]
+      let rhs' := derive_typings lhs SKM[((((K 0) ((M 0) in_t)) in_t) out_t)]
+      let lhs' := derive_typings rhs out_t
 
       SKM[(lhs' rhs')]
     | x => x
 
 #eval (.lam (.lam (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))
-  |> fill_types [] ∘ normalize' ∘ to_sk
+  |> (derive_typings . arrow_type) ∘ normalize' ∘ to_sk
