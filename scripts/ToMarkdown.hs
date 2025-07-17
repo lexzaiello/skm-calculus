@@ -6,7 +6,7 @@ import Data.Maybe
 
 blockstart = "```lean"
 blockend   = "```"
-mkfooter s = s ++ "/-\nMade by [<b>Dowland Aiello</b>](https://github.com/dowlandaiello).\n-/"
+mkfooter s = s ++ "/-\nMade by [<b>Alexandra Zaldivar Aiello</b>](https://github.com/lexzaiello).\n-/"
 
 step ::[String] -> [String]
 step [] = []

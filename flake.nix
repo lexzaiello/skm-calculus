@@ -11,7 +11,8 @@
         pkgs = import nixpkgs { inherit system; };
         booktoml = ''
           [book]
-          title = "Strong Normalization of the Dependently-Typed SK Combinators in Lean"
+          title = "The Dependently-Typed SK(M) Calculus"
+          author = "Alexandra Zaldivar Aiello"
 
           [output.html]
           mathjax-support = true
@@ -62,21 +63,10 @@
             - [Strong Normalization](./SnLc.lean.md)
             - [SK Combinators](./SkRaw.lean.md)
 
-            # Existing Work
-            - [Typed SK Combinators & Strong Normalization](./ExistingTypedSk.md)
+            # Dependent Typing in SK
+            - [Translation from CoC to SK(M)](./CocToSkm.lean)
 
-            # Polymorphic Type Discipline
-            - [AST](./Ast.lean.md)
-            - [DSL](./Dsl.lean.md)
-            - [Type Inference](./Typing.lean.md)
-
-            # Strong Normaliztaion Proof
-            - [Definitions](./Sn.lean.md)
-            - [Reducibility Candidates](./Candidates.lean.md)
-            - [Preservation](./Preservation.lean.md)
-
-            # Dependent SK
-            - [Examples](./DependentExamples.lean.md)
+            # Strong Normalization Proof
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";

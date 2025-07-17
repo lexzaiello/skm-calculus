@@ -5,12 +5,12 @@ inductive LExpr where
   | app   : LExpr → LExpr → LExpr
   -- type, body
   | lam   : LExpr → LExpr → LExpr
-  | m     : LExpr
-  | s     : LExpr
-  | k     : LExpr
+  | m     : ℕ → LExpr
+  | s     : ℕ → LExpr
+  | k     : ℕ → LExpr
   | const : String → LExpr
   | hole  : LExpr
-  | ty    : LExpr
+  | ty    : ℕ → LExpr
 
 inductive SkExpr where
   | s     : ℕ      → SkExpr
@@ -21,22 +21,23 @@ inductive SkExpr where
   | const : String → SkExpr
   | lam   : SkExpr → SkExpr → SkExpr
   | var   : ℕ      → SkExpr
-  | ty    : SkExpr
+  | ty    : ℕ → SkExpr
 deriving BEq, Nonempty
 
 declare_syntax_cat skmexpr
-syntax "K" term                    : skmexpr
-syntax "S" term                    : skmexpr
-syntax "M" term                    : skmexpr
-syntax "(" skmexpr skmexpr ")"     : skmexpr
-syntax "?"                         : skmexpr
-syntax ident                       : skmexpr
-syntax "#" term                    : skmexpr
-syntax "λ" ":" skmexpr "." skmexpr : skmexpr
-syntax "(" skmexpr ")"             : skmexpr
+syntax "K" term                                                        : skmexpr
+syntax "S" term                                                        : skmexpr
+syntax "M" term                                                        : skmexpr
+syntax "Ty" term                                                       : skmexpr
+syntax "(" skmexpr skmexpr ")" : skmexpr
+syntax "?"                                                             : skmexpr
+syntax ident                                                           : skmexpr
+syntax "#" term                                                        : skmexpr
+syntax "λ" ":" skmexpr "." skmexpr                                     : skmexpr
+syntax "(" skmexpr ")"                                                 : skmexpr
 
-syntax " ⟪ " skmexpr " ⟫ "         : term
-syntax "SKM[ " skmexpr " ] "       : term
+syntax " ⟪ " skmexpr " ⟫ "                                             : term
+syntax "SKM[ " skmexpr " ] "                                           : term
 
 macro_rules
   | `(SKM[ $e:skmexpr ]) => `(⟪ $e ⟫)
@@ -45,13 +46,13 @@ macro_rules
   | `(⟪ K $e:term ⟫)                   => `(SkExpr.k $e)
   | `(⟪ S $e:term ⟫)                   => `(SkExpr.s $e)
   | `(⟪ M $e:term ⟫)                   => `(SkExpr.m $e)
-  | `(⟪ Ty ⟫)                          => `(SkExpr.ty)
+  | `(⟪ Ty $e:term ⟫)                  => `(SkExpr.ty $e)
   | `(⟪ ? ⟫)                           => `(SkExpr.hole)
   | `(⟪ $e:ident ⟫)                    => `($e)
   | `(⟪ # $e:term ⟫)                   => `($e)
   | `(⟪ ($e:skmexpr) ⟫)                => `(⟪$e⟫)
   | `(⟪ λ : $t:skmexpr . $e:skmexpr ⟫) => `(SkExpr.lam ⟪$t⟫ ⟪$e⟫)
-  | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)   => `(SkExpr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
+  | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫) => `(SkExpr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
 
 def mk_arrow (α β : SkExpr) := SKM[((((K 0) ((M 0) β)) α) β)]
 
@@ -63,8 +64,8 @@ def toStringImpl : SkExpr → String
     | .s n          => s!"S {n}"
     | .k n          => s!"K {n}"
     | .m n          => s!"M {n}"
-    | .ty           => s!"Ty"
-    | SKM[((((K 0) ((M 0) β)) α) β_e)] => s!"{α.toStringImpl} → {β.toStringImpl}"
+    | .ty n         => s!"Ty {n}"
+    | SKM[(((((K 0) ((M 0) β)) α)) β_e)] => s!"{α.toStringImpl} → {β.toStringImpl}"
     | .call lhs rhs => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
     | .const str    => s!"{str}"
     | .hole         => "_"
@@ -88,56 +89,100 @@ partial def eval_n (n : ℕ) (e : SkExpr) : SkExpr :=
 
 end SkExpr
 
-partial def normalize' (e : SkExpr) : SkExpr :=
-  match e with
-    | .lam t (.var 0) =>
-      let t' := normalize' t
+def extract_in (t : SkExpr) : SkExpr :=
+  match t with
+    | SKM[((((((K n) _β) α) β)))] => α
+    | x => (.const s!"bruh1 : {x}")
 
-      SKM[((((((S 0) #(t' ~> (t' ~> t'))) #(t' ~> t')) t') (((K 0) #(normalize' t')) ?)) (((K 0) #(normalize' t')) ?))]
+def extract_out_lam (t : LExpr) : LExpr :=
+  match t with
+    | (.lam _ t_out) => t_out
+    | _ => .hole
+
+def extract_out (t : SkExpr) : SkExpr :=
+  match t with
+    | SKM[((((((K n) _β) α) β)))] => β
+    | x => (.const s!"bruh2 : {x}")
+
+partial def normalize' (e : SkExpr) (t : SkExpr) : SkExpr :=
+  match e with
+    | .lam t_in (.var 0) =>
+      let t' := normalize' t SKM[((M 0) t)]
+
+      SKM[((((((S 0) #(t' ~> (t' ~> t'))) #(t' ~> t')) t') (((K 0) t') #(t' ~> t'))) (((K 0) t') t'))]
     | .lam t (.var $ n + 1) =>
-      let t' := normalize' t
+      let t' := normalize' t SKM[((M 0) t)]
 
       SKM[((((K 0) t') ?) #(.var n))]
-    | .k n => SKM[(K n)]
-    | .ty  => SKM[Ty]
+    | .k n  => SKM[(K n)]
+    | .ty n => SKM[Ty n]
     | .m n => SKM[(M n)]
     | .s n => SKM[(S n)]
-    | .lam t (.call lhs rhs) =>
-      let t' := normalize' t
+    | .lam t_in (.call lhs rhs) =>
+      let t_in' := normalize' t_in SKM[((M 0) t_in)]
+      let t_out := extract_out t
 
-      normalize' SKM[((((((S 0) ?) ?) t') #(normalize' (.lam t' lhs))) #(normalize' (.lam t' rhs)))]
-    | .lam t x => SKM[((((K 0) #(normalize' t)) ?) #(normalize' x))]
+      -- Note that it's not exactly clear what the type of lhs is
+      -- since it could theoretically be something besides a lambda abstraction
+      -- we can't derive it top down. we don't have enough information from
+      -- the type of the parent abstraction to know the "in-between" type
+      -- in the children.
+
+      normalize' SKM[((((((S 0)
+        #(t_in' ~> (SKM[?] ~> t_out)))
+        #(t_in' ~> SKM[?])) t_in')
+        #(normalize' (.lam t_in' lhs) (t_in' ~> (SKM[?] ~> t_out))))
+        #(normalize' (.lam t_in' rhs) (t_in' ~> SKM[?])))] t
+    | .lam t x => SKM[((((K 0) #(normalize' t SKM[((M 0) t)])) ?) #(normalize' x SKM[?]))]
     | .const c => .const c
-    | .call lhs rhs => SKM[(#(normalize' lhs) #(normalize' rhs))]
-    | .var n       => .var n
+    | .call lhs rhs =>
+      let t_rhs := SKM[((M 0) rhs)]
+
+      SKM[(#(normalize' lhs (t_rhs ~> t)) #(normalize' rhs t_rhs))]
+    | .var n => .var n
     | .hole => .hole
 
 partial def to_sk (e : LExpr) : SkExpr :=
   match e with
-    | .ty => .ty
+    | .ty n => .ty n
     | .lam t (.var 0) =>
-      let t' := to_sk t
+      let t' := to_sk t (.app (.m 0) t)
 
       SKM[
-           ((((((S 0) ?) ?) t')
+           ((((((S 0) #(t' ~> (t' ~> t'))) #(t' ~> t')) t')
              (((K 0) t') #(t' ~> t')))
              (((K 0) t') t'))
       ]
-    | .lam t (.var $ n + 1) =>
-      let t' := to_sk t
+    | .lam t_in (.var $ n + 1) =>
+      let t_in' := to_sk t_in (.app (.m 0) t_in)
+      let inner_lifted_cnst := SKM[((((K 0) ?) ?) #(.var n))]
 
-      normalize' (.lam t' SKM[((((K 0) ?) ?) #(.var n))])
-    | .k => SKM[K 0]
-    | .m => SKM[M 0]
-    | .s => SKM[S 0]
-    | (.app lhs rhs) => normalize' SKM[((#(to_sk lhs)) #(to_sk rhs))]
+      normalize' (.lam t_in' inner_lifted_cnst) (t_in' ~> SKM[((M 0) inner_lifted_cnst)])
+    | .k n => SKM[K n]
+    | .m n => SKM[M n]
+    | .s n => SKM[S n]
+    | (.app lhs rhs) =>
+      let t_rhs := (.app (.m 0) rhs)
+      let t_lhs := (.lam t_rhs t)
+
+      normalize' SKM[((#(to_sk lhs t_lhs)) #(to_sk rhs t_rhs))] $ to_sk t (.app (.m 0) t)
     | .lam t (.app lhs rhs) =>
-      let t' := to_sk t
-      normalize' SKM[(((((((S 0) ?) ?) t') #(.lam t' $ to_sk lhs))) #(.lam t' $ to_sk rhs))]
-    | .lam t x =>
-      let t' := to_sk t
+      let t' := to_sk t (.app (.m 0) t)
 
-      normalize' (.lam t' SKM[#(normalize' ∘ to_sk $ x)])
+      let out_t := extract_out_lam t
+
+      let t_rhs := (.app (.m 0) rhs)
+      let t_lhs := (.lam t_rhs out_t)
+
+      normalize' SKM[(((((((S 0) ?) ?) t') #(.lam t' $ to_sk lhs t_lhs))) #(.lam t' $ to_sk rhs t_rhs))] t
+    | .lam t_in x =>
+      let t_in' := to_sk t_in (.app (.m 0) t_in)
+      let out_t := extract_out_lam t
+      let x' := to_sk x out_t
+      let out_t' := to_sk out_t (.app (.m 0) out_t)
+      let t' := to_sk t (.app (.m 0) t)
+
+      normalize' (.lam t_in' SKM[#(normalize' x' out_t')]) t'
     | .const c => .const c
     | .var 0       => .var 0
     | .var v       => .var v
@@ -236,26 +281,12 @@ Honestly I think type is fine. Type is a universe containing all K_{n} and S_{n}
 Remember. no type can have the type K₀. K₀ is our Prop.
 -/
 
-def arrow_type := SKM[((((K 0) Ty) Ty) Ty)]
-
-def arrow := (.lam .ty (.lam .ty (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))
+def arrow := (LExpr.lam (.ty (.lam .ty (.app (.app (.app .k (.app .m (.var 0))) (.var 1)) (.var 0))))
   |> normalize' ∘ to_sk
 
 #eval SKM[S 0] ~> SKM[K 0]
 
-def extract_in (t : SkExpr) : SkExpr :=
-  match t with
-    | SKM[((((((K n) _β) α) β)))] => α
-    | x => (.const s!"bruh1 : {x}")
-
-def extract_out (t : SkExpr) : SkExpr :=
-  match t with
-    | SKM[((((((K n) _β) α) β)))] => β
-    | x => (.const s!"bruh2 : {x}")
-
 #eval extract_in $ SKM[S 0] ~> SKM[K 0]
 #eval extract_out $ SKM[S 0] ~> SKM[K 0]
 
--- S₁ : Ty, K₁ : Ty, but S₁ : K₁ is not true.
-
-#eval SKM[((arrow Ty) Ty)] |> SkExpr.eval_n 20
+#eval arrow
