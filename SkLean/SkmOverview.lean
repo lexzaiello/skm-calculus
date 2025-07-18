@@ -95,4 +95,5 @@ $$
 This is not exactly what we need. \\(\beta\\) should be the second argument to the inenr \\(\rightarrow\\) call. We can lift this expression to achieve this. We will do so using the well-established method of translation from the untyped \\(\lambda\\)-calculus to \\(SK\\).
 
 In the next chapter, I utilize the typical translation from the \\(\lambda\\)-calculus to \\(SK\\) to make our \\(\rightarrow\\) expression and typign of \\(K\\) point-free.
+
 -/
