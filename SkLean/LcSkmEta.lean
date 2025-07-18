@@ -281,4 +281,9 @@ This evaluates to \\(\text{Type} \rightarrow \text{Type}\\). Furthermore, it beh
 
 #eval ((fun e => eval_n 10 SKM[(((e (Ty 0)) (Ty 0)) S)]) <$> arrow 0)
 
+/-
+In the next chapter, we will see how we can explicitly type \\(K\\) using this \\(\rightarrow\\) expression derived from our combinators.
+
+-/
+
 
