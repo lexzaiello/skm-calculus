@@ -20,8 +20,8 @@ In this way, there is a "canonical" type for every \\(e\\) that is well-typed.
 I extend the \\(S\\) and\\(K\\) combinators with explicit typing while preserving their original meaning.
 
 $$
-S\ \alpha\ \beta\ \gamma\ x\ y\ z\ = (x z) (y z) \\\\
-K\ \alpha\ \beta\ x\ y\ = x
+S \alpha \beta \gamma x y z = (x z) (y z) \\\\
+K \alpha \beta x y = x
 $$
 
 ### K Dependent Typing
