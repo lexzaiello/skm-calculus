@@ -65,7 +65,7 @@
 
             # Dependent Typing in SK
             - [Overview](./SkmOverview.lean.md)
-            - [Synthesizing Expressions with Eta-Reduction](./LcSkmEta.lean.md)
+            - [Synthesizing Expressions with Eta-Reduction](./oLcSkmEta.lean.md)
 
             # Strong Normalization Proof
           '';
