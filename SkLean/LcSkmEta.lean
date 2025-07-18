@@ -240,6 +240,31 @@ We can now define the \\(\rightarrow\\) expression using our \\(\lambda\\)-calcu
 
 def arrow_lc (u : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty u) (.call (.call (.call .k (.call .m (.var 0))) (.var 1)) (.var 0))))
 
-def arrow (u : ℕ) := arrow_lc u |> (lift [] .)
+def arrow (u : ℕ) := arrow_lc u |> (lift [] . >>= to_sk)
 
 #eval arrow 0
+
+/-
+For testing purposes, we will write `partial` evaluation and typing functions:
+-/
+
+def eval_n (n : ℕ) (e : Expr) : Expr :=
+  if n = 0 then
+    e
+ else
+   let e' := match e with
+     | SKM[((((K _α) _β) x) y)] => x
+     | SKM[((((((S _α) _β) _γ) x) y) z)] => SKM[((x z) (y z))]
+     | SKM[(lhs rhs)] =>
+       SKM[((#(eval_n n.pred lhs)) rhs)]
+     | x => x
+
+   eval_n n.pred e'
+
+def parse_arrow (e : Expr) : Option String :=
+  match e with
+    | SKM[(((K _b) a) b)] =>
+      pure $ s!"{a} -> {b}"
+    | _ => none
+
+#eval ((fun e => eval_n 20 SKM[((e K) K)]) <$> arrow 0) >>= parse_arrow
