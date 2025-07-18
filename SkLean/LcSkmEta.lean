@@ -1,5 +1,3 @@
-import Mathlib.Tactic
-
 /-
 # Synthesizing Expressions with Eta-Reduction
 
@@ -9,6 +7,9 @@ In the previous chapter, we saw that we can create an expression representing th
 
 As outlined prior, our core language consists only of the objects \\(S\\), \\(K\\), \\(M\\), and \\(\text{Type}_{n}\\). I define the syntax-tree in Lean as such:
 -/
+
+import Mathlib.Tactic
+
 
 inductive Expr where
   | s    : Expr
