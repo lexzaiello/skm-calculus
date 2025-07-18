@@ -1,5 +1,5 @@
 /-
-# Synthesizing Expressions with Eta-Reduction
+# Synthesizing Expressions with \\(\eta\\)-Reduction
 
 In the previous chapter, we saw that we can create an expression representing the nondependent \\(\rightarrow\\) type. However, \\(K\\) and \\(S\\) are dependent. I make use of a translation algorithm to generate point-free expressions involving only \\(S\\), \\(K\\), and \\(M\\) for these expressions.
 
@@ -127,7 +127,7 @@ For brevity, I have omitted explicit typing calls to the combinators in some pla
 
 ### Lean Implementation
 
-Note that in order to represent explicit typing in (nondependent) \\(\lambda\\)-abstraction types, we require an \\(\Eta\\)-expanded representation of \\(A \rightarrow B\\). I use the same definition I outlined prior:
+Note that in order to represent explicit typing in (nondependent) \\(\lambda\\)-abstraction types, we require an \\(\eta\\)-expanded representation of \\(A \rightarrow B\\). I use the same definition I outlined prior:
 -/
 
 -- Neither here are point-free
