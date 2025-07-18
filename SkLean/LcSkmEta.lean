@@ -93,6 +93,8 @@ For brevity, I have omitted explicit typing calls to the combinators in some pla
 Note that in order to represent explicit typing in (nondependent) \\(\lambda\\)-abstraction types, we require an \\(\Eta\\)-expanded representation of \\(A \rightarrow B\\). I use the same definition I outlined prior:
 -/
 
+-- Neither here are point-free
+-- This is what we are trying to generate
 def mk_arrow_lc (a b : LExpr) : LExpr :=
   (.call (.call (.call .k (.call .m b)) a) b)
 
@@ -101,10 +103,20 @@ def mk_arrow (a b : Expr) : Expr := SKM[(((K (M b)) a) b)]
 infix:20 "l~>" => mk_arrow_lc
 infix:20 "~>"  => mk_arrow
 
+-- To eliminate λ-abstraction as much as possible
 def lift (e : LExpr) : LExpr :=
   match e with
     | (.lam t (.var 0)) =>
-      (.call (.call (.call .s 
+      (.call
+        (.call
+          -- Duplicator S
+          (.call (.call (.call .s (t l~> ((t l~> t) l~> t))) (t l~> (t l~> t))) t)
+          -- First K, takes (x : t) and (K x)
+          (.call (.call .k t) (t l~> t)))
+          -- Second K, takes only one (x : t)
+          (.call (.call k t) t)
+        )
+      )
       sorry
     | (.lam t (.call e₁ e₂)) =>
       sorry
