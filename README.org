@@ -3,3 +3,7 @@
 In this repository, I define a dependent typing for the SK combinators by adding a "reflection" combinator (the "M" combinator).
 
 See the [[https://dowlandaiello.com/sk-lean][book]] for more.
+
+** Table of contents
+- *Background* - general information about the lambda calculus and SK required for understanding this paper.
+- *Dependent Typing in SK* - how dependent typing is achieved, including a possible translation algorithm from a dependently-typed lambda calculus to SK(M).

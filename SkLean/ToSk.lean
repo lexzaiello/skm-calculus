@@ -290,3 +290,70 @@ def arrow := (LExpr.lam (.ty (.lam .ty (.app (.app (.app .k (.app .m (.var 0))) 
 #eval extract_out $ SKM[S 0] ~> SKM[K 0]
 
 #eval arrow
+
+/-
+Issue with Type expression.
+
+Type n is supposed to contain every expression with a universe level of n.
+For example, K₀ α β : K₁ (M β) α
+
+"Type" expression is kind of synonymous with M.
+
+K₀ is our "prop". Or rather, all universe levels < 0 are prop.
+You cannot construct an expression of type K₀.
+We essentially want a name for every expression which is a possible type.
+
+We are in combinator land after all. Why don't we make the type of
+
+we want the type of any "callable" expression to
+eventually reduce to something of the form K_{some n} (M b) a b
+
+K₀ : K₁
+(K₀ α β : K₁
+
+K₀ : ->
+
+K₀ A B : (-> A B = K (M B) A B)
+
+K₀ A B should be A -> B -> A
+
+A is duplicated
+
+K₀ A B : 
+
+Why do we need universes again?
+
+What if we had some way to "wrap" a type to feed it into K?
+And we can say unify K, S, under this type?
+
+Idea: M (-> x y) = Type
+-> x y = K (M y) y x = y
+
+WAIT A MINUTE.
+Any expression which is not computable is a type
+M (K α) = Type
+M K = Type
+
+Or, we want K (M
+
+Ok switch things up again.
+
+-> is ∀. So -> should return the type of x in
+K x y = x
+-> α β = K (M β) α β
+
+Yeah this is still fine. This works for everything.
+
+But we still want (-> α β : Type).
+K (M β) α β is another "incomplete" expression.
+or "noncomputable"
+
+K (M β) α β does not actually evaluate to anything.
+
+What about computable types? CoC has computation in types?
+We can still have a judgment rule that permits this.
+
+-> A B : Type
+
+I think this is good.
+-/

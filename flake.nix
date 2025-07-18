@@ -64,7 +64,7 @@
             - [SK Combinators](./SkRaw.lean.md)
 
             # Dependent Typing in SK
-            - [Translation from CoC to SK(M)](./CocToSkm.lean)
+            - [Translation from CoC to SK(M)](./CocToSkm.lean.md)
 
             # Strong Normalization Proof
           '';
