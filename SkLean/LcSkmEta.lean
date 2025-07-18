@@ -264,8 +264,6 @@ def arrow_lc (u : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty u) (.call (.call (.ca
 
 def arrow (u : ℕ) := arrow_lc u |> (lift [] . >>= to_sk)
 
-#eval arrow 0
-
 /-
 For testing purposes, we will write `partial` evaluation and typing functions:
 -/
@@ -301,8 +299,6 @@ Here is \\(\text{Type} \rightarrow \text{Type}\\):
 -/
 
 #eval ((fun e => eval_n 20 SKM[((e (Ty 0)) (Ty 1))]) <$> arrow 0) >>= parse_arrow
-
-#eval arrow 0
 
 /-
 This evaluates to \\(\text{Type} \rightarrow \text{Type}\\). Furthermore, it behaves similarly to \\(\forall\\), in that "substitution" (application) produces the output type:
