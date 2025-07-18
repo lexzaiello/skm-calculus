@@ -256,7 +256,7 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
      | SKM[((((K _α) _β) x) y)] => x
      | SKM[((((((S _α) _β) _γ) x) y) z)] => SKM[((x z) (y z))]
      | SKM[(lhs rhs)] =>
-       SKM[((#(eval_n n.pred lhs)) rhs)]
+       SKM[((#(eval_n n.pred lhs)) #(eval_n n.pred rhs))]
      | x => x
 
    eval_n n.pred e'
@@ -267,4 +267,18 @@ def parse_arrow (e : Expr) : Option String :=
       pure $ s!"{a} -> {b}"
     | _ => none
 
-#eval ((fun e => eval_n 20 SKM[((e K) K)]) <$> arrow 0) >>= parse_arrow
+/-
+As a test, let's see if we can construct an arrow from \\(\text{Type} \rightarrow \text{Type}\\). Note that these examples are not intended to typecheck, merely to demonstrate that the translation is coherent.
+
+Here is \\(\text{Type} \rightarrow \text{Type}\\):
+-/
+
+#eval ((fun e => eval_n 20 SKM[((e (Ty 0)) (Ty 0))]) <$> arrow 0) >>= parse_arrow
+
+/-
+This evaluates to \\(\text{Type} \rightarrow \text{Type}\\). Furthermore, it behaves similarly to \\(\forall\\), in that "substitution" (application) produces the output type:
+-/
+
+#eval ((fun e => eval_n 10 SKM[(((e (Ty 0)) (Ty 0)) S)]) <$> arrow 0)
+
+
