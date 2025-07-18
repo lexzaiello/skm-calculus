@@ -162,20 +162,25 @@ def type_of (ctx : List LExpr) (e : LExpr) : Option LExpr :=
       match type_of ctx lhs with
         | .some (.arrow _ out_t) =>
           some out_t
-        | _ => none
+        | _ =>
+          none
     | .var n =>
       ctx[n]?
 
 -- So that when we remove a λ abstraction, vars are bound correctly
-def dec_vars (e : LExpr) : LExpr :=
+def dec_vars (depth : ℕ) (e : LExpr) : LExpr :=
   match e with
-    | (.var $ n + 1) => .var n
+    | .var n =>
+      if n ≥ depth then
+        .var n.pred
+      else
+        .var n
     | .lam t body =>
-      .lam t $ dec_vars body
+      .lam t $ dec_vars depth.succ body
     | .call lhs rhs =>
-      .call (dec_vars lhs) (dec_vars rhs)
+      .call (dec_vars depth lhs) (dec_vars depth rhs)
     | .arrow t_in t_out =>
-      .arrow (dec_vars t_in) (dec_vars t_out)
+      .arrow (dec_vars depth t_in) (dec_vars depth t_out)
     | x => x
 
 -- To eliminate λ-abstraction as much as possible
@@ -191,8 +196,8 @@ partial def lift (ctx : List LExpr) (e : LExpr) : Option LExpr :=
           -- Second K, takes only one (x : t)
         (.call (.call .k t) t))
     | (.lam t (.call e₁ e₂)) => do
-      let lam_e₁' ← lift ctx (.lam t e₁)
-      let lam_e₂' ← lift ctx (.lam t e₂)
+      let lam_e₁' ← lift (t :: ctx) (.lam t e₁)
+      let lam_e₂' ← lift (t :: ctx) (.lam t e₂)
 
       let t_e₁' ← type_of ctx lam_e₁'
       let t_e₂' ← type_of ctx lam_e₂'
@@ -205,8 +210,10 @@ partial def lift (ctx : List LExpr) (e : LExpr) : Option LExpr :=
         lam_e₁')
         lam_e₂')
     | (.lam t c) => do
-      let c' := dec_vars $ (← lift (t :: ctx) c)
-      let t_c ← type_of (t :: ctx) c'
+      let c' := dec_vars ctx.length c
+      let c'  ← lift ctx c'
+      let t_c ← type_of ctx c'
+
       pure (.call (.call (.call .k t_c) t) c')
     | (.call e₁ e₂) => do
       pure (.call (← lift ctx e₁) (← lift ctx e₂))
