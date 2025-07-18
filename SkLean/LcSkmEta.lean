@@ -288,5 +288,3 @@ This evaluates to `Type 0`.
 In the next chapter, we will see how we can explicitly type \\(K\\) using this \\(\rightarrow\\) expression derived from our combinators.
 
 -/
-
-
