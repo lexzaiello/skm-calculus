@@ -276,6 +276,8 @@ Here is \\(\text{Type} \rightarrow \text{Type}\\):
 
 #eval ((fun e => eval_n 20 SKM[((e (Ty 0)) (Ty 0))]) <$> arrow 0) >>= parse_arrow
 
+#eval arrow 0
+
 /-
 This evaluates to \\(\text{Type} \rightarrow \text{Type}\\). Furthermore, it behaves similarly to \\(\forall\\), in that "substitution" (application) produces the output type:
 -/
@@ -286,5 +288,7 @@ This evaluates to \\(\text{Type} \rightarrow \text{Type}\\). Furthermore, it beh
 This evaluates to `Type 0`.
 
 In the next chapter, we will see how we can explicitly type \\(K\\) using this \\(\rightarrow\\) expression derived from our combinators.
+
+I persist the definition of \\(\rightarrow\\) to a file in this repository.
 
 -/
