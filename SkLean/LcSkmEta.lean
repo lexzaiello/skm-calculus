@@ -180,7 +180,6 @@ def is_free (depth : ℕ) (e : LExpr) : Bool :=
     | .arrow t_in t_out => is_free depth t_in ∨ is_free depth t_out
     | _ => false
 
--- So that when we remove a λ abstraction, vars are bound correctly
 def dec_vars (depth : ℕ) (e : LExpr) : LExpr :=
   match e with
     | .var n =>
@@ -314,3 +313,5 @@ In the next chapter, we will see how we can explicitly type \\(K\\) using this \
 I persist the definition of \\(\rightarrow\\) to a file in this repository.
 
 -/
+
+#eval arrow 0
