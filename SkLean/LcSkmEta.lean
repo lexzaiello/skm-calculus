@@ -236,7 +236,7 @@ def to_sk (e : LExpr) : Option Expr :=
     | _ => none
 
 /-
-We can now define the \\(\rightarrow\\) expression using our \\(\lambda\\)-calculus AST and translate to \\(SK(M)\\) using our `lift` and `to_sk` functions. Note that since universes are stratified, \\(->\\) is polymorphic at the meta level to universe levels. In practice, the compiler generates an \\(->\\) expression for all universes used in the program. Furthermore, universes above \\(1\\) are rarely used.
+We can now define the \\(\rightarrow\\) expression using our \\(\lambda\\)-calculus AST and translate to \\(SK(M)\\) using our `lift` and `to_sk` functions. Note that since universes are stratified, \\(\rightarrow\\) is polymorphic at the meta level to universe levels. In practice, the compiler generates an \\(\rightarrow\\) expression for all universes used in the program. Furthermore, universes above \\(1\\) are rarely used.
 -/
 
 def arrow_lc (u : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty u) (.call (.call (.call .k (.call .m (.var 0))) (.var 1)) (.var 0))))
