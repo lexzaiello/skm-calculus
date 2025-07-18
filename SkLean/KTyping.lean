@@ -48,4 +48,4 @@ More explicitly in Lean using \\(\lambda\\)-transformation:
 def lc_type_bad (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw arrow₀) (.var 1)) (.call (.call (.raw arrow₀) (.var 0)) (.var 1)))))
 
 
-#eval lc_type_bad 0 0 |> (lift [] . >>= to_sk >>= (fun e => parse_arrow $ eval_n 15 SKM[((e K) K)]))
+#eval lc_type_bad 0 0 |> (lift [] . >>= to_sk >>= (fun e => parse_arrow $ eval_n 20 SKM[((e K) S)]))

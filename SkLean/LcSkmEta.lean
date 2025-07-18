@@ -55,7 +55,7 @@ namespace LExpr
 
 def toStringImpl (e : LExpr) : String :=
   match e with
-    | .var n            => s!"{n}"
+    | .var n            => s!"var {n}"
     | .raw e            => s!"{e}"
     | .call e₁ e₂       => s!"({e₁.toStringImpl} {e₂.toStringImpl})"
     | .lam t body       => s!"λ :{t.toStringImpl}.{body.toStringImpl}"
@@ -142,10 +142,10 @@ infix:20 "~>"  => mk_arrow
 I make use of a simple, partial `type_of` function which is required to derive the "in-between" and output type in the \\(S\\) transformation, since only the input type is known.
 -/
 
-def type_of (ctx : List LExpr) (e : LExpr) : Option LExpr :=
-  match e with
+def type_of (ctx : List LExpr) (e : LExpr) : LExpr :=
+  (match e with
     | .raw e =>
-      some $ .call .m (.raw e)
+      some $ LExpr.call .m (.raw e)
     | (.lam t (.var 0)) =>
       some $ .arrow t t
     | (.lam t (.var n)) => do
@@ -165,18 +165,26 @@ def type_of (ctx : List LExpr) (e : LExpr) : Option LExpr :=
     | .m => pure $ .call .m .m
     | .call lhs _ =>
       match type_of ctx lhs with
-        | .some (.arrow _ out_t) =>
+        | (.arrow _ out_t) =>
           some out_t
         | _ =>
           none
     | .var n =>
-      ctx[n]?
+      ctx[n]?).getD (.call .m e)
+
+def is_free (depth : ℕ) (e : LExpr) : Bool :=
+  match e with
+    | .var n => n == depth
+    | .lam _ body => is_free depth.succ body
+    | .call lhs rhs => is_free depth lhs ∨ is_free depth rhs
+    | .arrow t_in t_out => is_free depth t_in ∨ is_free depth t_out
+    | _ => false
 
 -- So that when we remove a λ abstraction, vars are bound correctly
 def dec_vars (depth : ℕ) (e : LExpr) : LExpr :=
   match e with
     | .var n =>
-      if n ≥ depth then
+      if n > depth then
         .var n.pred
       else
         .var n
@@ -189,40 +197,48 @@ def dec_vars (depth : ℕ) (e : LExpr) : LExpr :=
     | x => x
 
 -- To eliminate λ-abstraction as much as possible
+-- This function abstracts variable 0 from a lambda-free body.
+def abstract (ctx : List LExpr) (t : LExpr) (body : LExpr) : Option LExpr :=
+  if ¬(is_free 0 body) then do
+    let body_shifted := dec_vars 0 body
+    let t_body ← type_of ctx body_shifted
+
+    pure $ .call (.call (.call .k t_body) t) body_shifted
+  else
+    match body with
+      | .var 0 =>
+        pure $ .call
+          (.call
+            (.call (.call (.call .s (.arrow t (.arrow (.arrow t t) t))) (.arrow t (.arrow t t))) t)
+            (.call (.call .k t) (.arrow t t)))
+          (.call (.call .k t) t)
+
+      | .call e₁ e₂ => do
+        let abs_e₁ ← abstract ctx t e₁
+        let abs_e₂ ← abstract ctx t e₂
+
+        let t_e₁' ← type_of ctx abs_e₁
+        let t_e₂' ← type_of ctx abs_e₂
+
+        pure $ LExpr.call
+          (.call (.call (.call (.call .s t_e₁') t_e₂') t) abs_e₁)
+          abs_e₂
+
+      | _ => none
+
 partial def lift (ctx : List LExpr) (e : LExpr) : Option LExpr :=
   match e with
-    | (.lam t (.var 0)) =>
-      pure (.call
-        (.call
-          -- Duplicator S
-          (.call (.call (.call .s (.arrow t (.arrow (.arrow t t) t))) (.arrow t (.arrow t t))) t)
-          -- First K, takes (x : t) and (K x)
-          (.call (.call .k t) (.arrow t t)))
-          -- Second K, takes only one (x : t)
-        (.call (.call .k t) t))
-    | (.lam t (.call e₁ e₂)) => do
-      let lam_e₁' ← lift (t :: ctx) (.lam t e₁)
-      let lam_e₂' ← lift (t :: ctx) (.lam t e₂)
-
-      let t_e₁' ← type_of ctx lam_e₁'
-      let t_e₂' ← type_of ctx lam_e₂'
-
-      pure (LExpr.call
-        -- S duplicator: e₁ takes in duplicated arg, retains its type
-        -- same with e₂
-        -- we combine them
-        (.call (.call (.call (.call .s t_e₁') t_e₂') t)
-        lam_e₁')
-        lam_e₂')
-    | (.lam t c) => do
-      let c' := dec_vars ctx.length c
-      let c'  ← lift ctx c'
-      let t_c ← type_of ctx c'
-
-      pure (.call (.call (.call .k t_c) t) c')
-    | (.call e₁ e₂) => do
-      pure (.call (← lift ctx e₁) (← lift ctx e₂))
-    | x => x
+  | .lam t body => do
+      -- 1. Recursively lift the body first (inside-out).
+      let lifted_body ← lift (t :: ctx) body
+      -- 2. Abstract the variable from the now lambda-free body.
+      abstract ctx t lifted_body
+  | .call lhs rhs => do
+      -- Recursively lift both sides of an application.
+      pure (.call (← lift ctx lhs) (← lift ctx rhs))
+  | .arrow t_in t_out => do
+      pure (.arrow (← lift ctx t_in) (← lift ctx t_out))
+  | x => pure x -- Base cases (vars, K, S, M) are already "lifted".
 
 def to_sk (e : LExpr) : Option Expr :=
   match e with
@@ -269,10 +285,14 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
 
 def parse_arrow (e : Expr) : Option String :=
   match e with
-    | SKM[(((K _b) a) b)] =>
-      let a' := parse_arrow 
-      pure $ s!"{a} -> {b}"
+    | SKM[(((K (M _b)) a) b)] =>
+      let a' := (parse_arrow a).getD (s!"{a}")
+      let b' := (parse_arrow b).getD (s!"{b}")
+
+      pure $ s!"({a'} -> {b'})"
     | _ => none
+
+#eval (.call (.call (.lam (.ty 1) (.lam (.ty 1) (.var 0))) (.ty 1)) (.ty 0)) |> (lift [] . >>= to_sk >>= fun e => pure $ eval_n 10 e)
 
 /-
 As a test, let's see if we can construct an arrow from \\(\text{Type} \rightarrow \text{Type}\\). Note that these examples are not intended to typecheck, merely to demonstrate that the translation is coherent.
@@ -280,7 +300,7 @@ As a test, let's see if we can construct an arrow from \\(\text{Type} \rightarro
 Here is \\(\text{Type} \rightarrow \text{Type}\\):
 -/
 
-#eval ((fun e => eval_n 20 SKM[((e (Ty 0)) (Ty 0))]) <$> arrow 0) >>= parse_arrow
+#eval ((fun e => eval_n 20 SKM[((e (Ty 0)) (Ty 1))]) <$> arrow 0) >>= parse_arrow
 
 #eval arrow 0
 
