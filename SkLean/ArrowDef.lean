@@ -1,6 +1,6 @@
 import SkLean.LcSkmEta
 
-def arrow_0 := (Expr.call
+def arrow₀ := (Expr.call
   (Expr.call
     (Expr.call
       (Expr.k)
