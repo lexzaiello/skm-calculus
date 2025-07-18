@@ -57,7 +57,7 @@ $$
 \rightarrow : \text{Type} \rightarrow (\text{Type} \rightarrow \text{Type})
 $$
 
-This appears circular. However, inline, eta-expanded calls to \\(\rightarrow\\) have an obvious, immediate representation, as defined above.
+This appears circular. However, inline, \\(\eta\\)-expanded calls to \\(\rightarrow\\) have an obvious, immediate representation, as defined above.
 
 Obviously, expressions of the form \\(\rightarrow\ A\ B\\) are of type \\(\text{Type}\\). Notably, it appears that all expressions of type \\(\text{Type}\\) are noncomputable. That is, they are well-typed, yet make no progress.
 
@@ -92,5 +92,7 @@ K : S\ \rightarrow\ \rightarrow \\\\
 K\ \alpha\ \beta : ((\rightarrow \alpha\ (\rightarrow \alpha))\ \beta)
 $$
 
-This is not exactly what we need. \\(\beta\\) should be the second argument to the inenr \\(\rightarrow\\) call. We can lift this expression to achieve this. We will do so using the well-established method of translation from the untyped \\(\lambda\\)-calculus to SK. 
+This is not exactly what we need. \\(\beta\\) should be the second argument to the inenr \\(\rightarrow\\) call. We can lift this expression to achieve this. We will do so using the well-established method of translation from the untyped \\(\lambda\\)-calculus to \\(SK\\).
+
+In the next chapter, I utilize the typical translation from the \\(\lambda\\)-calculus to \\(SK\\) to make our \\(\rightarrow\\) expression and typign of \\(K\\) point-free.
 -/
