@@ -41,6 +41,7 @@ For translation purposes, I define an AST for the (optionally) simply-typed \\(\
 inductive LExpr where
   | var   : ℕ     → LExpr
   | call  : LExpr → LExpr → LExpr
+  | raw   : Expr  → LExpr
   -- Abstraction with binder type
   | lam  : LExpr → LExpr → LExpr
   | m     : LExpr
@@ -55,6 +56,7 @@ namespace LExpr
 def toStringImpl (e : LExpr) : String :=
   match e with
     | .var n            => s!"{n}"
+    | .raw e            => s!"{e}"
     | .call e₁ e₂       => s!"({e₁.toStringImpl} {e₂.toStringImpl})"
     | .lam t body       => s!"λ :{t.toStringImpl}.{body.toStringImpl}"
     | .m                => "M"
@@ -142,6 +144,8 @@ I make use of a simple, partial `type_of` function which is required to derive t
 
 def type_of (ctx : List LExpr) (e : LExpr) : Option LExpr :=
   match e with
+    | .raw e =>
+      some $ .call .m (.raw e)
     | (.lam t (.var 0)) =>
       some $ .arrow t t
     | (.lam t (.var n)) => do
@@ -233,6 +237,7 @@ def to_sk (e : LExpr) : Option Expr :=
       let t_out' ← to_sk t_out
 
       pure $ t_in' ~> t_out'
+    | .raw e => some e
     | _ => none
 
 /-
@@ -265,6 +270,7 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
 def parse_arrow (e : Expr) : Option String :=
   match e with
     | SKM[(((K _b) a) b)] =>
+      let a' := parse_arrow 
       pure $ s!"{a} -> {b}"
     | _ => none
 
