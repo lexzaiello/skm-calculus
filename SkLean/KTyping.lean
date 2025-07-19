@@ -49,7 +49,7 @@ def k_t (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw $
 #eval (LExpr.call (.call (k_t 0 0) (.ty 2)) (.ty 3))
   |> lift []
   |> to_sk_unsafe
-  |> eval_n 80
+  |> eval_n 30
   |> parse_arrow
 
 

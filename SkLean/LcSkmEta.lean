@@ -291,12 +291,6 @@ We can now define the \\(\rightarrow\\) expression using our \\(\lambda\\)-calcu
 
 def arrow_lc (u : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty u) (.call (.call (.call .k (.call .m (.var 0))) (.var 1)) (.var 0))))
 
-def arrow (u : ℕ) : Expr := arrow_lc u
-  |> lift []
-  |> to_sk_unsafe
-
-#eval arrow 0
-
 /-
 For testing purposes, we will write `partial` evaluation and typing functions:
 -/
@@ -318,6 +312,13 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
   |> lift []
   |> to_sk_unsafe
   |> eval_n 15
+
+def arrow (u : ℕ) : Expr := arrow_lc u
+  |> lift []
+  |> to_sk_unsafe
+  |> eval_n 30
+
+#eval arrow 0
 
 def parse_arrow (e : Expr) : String :=
   match e with
