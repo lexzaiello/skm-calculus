@@ -41,13 +41,15 @@ K\ \mathbb{N}\ \mathbb{R} : (S (\lambda r.(S \rightarrow) (\lambda r.(\rightarro
 K\ \mathbb{N}\ \mathbb{R} : (S (K\ (S \rightarrow) (S ((K \rightarrow) (SKS)))\)\ \mathbb{R}\ \mathbb{N} \\\\
 $$
 
-More explicitly in Lean using \\(\lambda\\)-transformation:
+More explicitly in Lean:
 -/
 
-def lc_type_bad (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw (arrow 0)) (.var 1)) (.call (.call (.raw arrow₀) (.var 0)) (.var 1)))))
+def k_t (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw $ arrow 0) (.var 1)) (.call (.call (.raw $ arrow 0) (.var 0)) (.var 1)))))
 
-def bruh (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw (arrow 0)) (.var 1)) (.var 0))))
+#eval (LExpr.call (.call (k_t 0 0) (.ty 2)) (.ty 3))
+  |> fun e => (lift [] e).getD (.ty 0)
+  |> to_sk_unsafe
+  |> eval_n 16
+  |> parse_arrow
 
-#eval (.call (.call (bruh 0 0) (.ty 2)) (.ty 3)) |> (lift [] . >>= to_sk)
 
-#eval (.call (.call (lc_type_bad 0 0) (.ty 2)) (.ty 3)) |> (lift [] . >>= to_sk >>= fun e => pure $ (parse_arrow ∘ eval_n 9) e)

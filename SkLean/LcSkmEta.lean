@@ -146,6 +146,7 @@ namespace Expr
 
 def type_of_unsafe (e : Expr) : Option Expr :=
   match e with
+    | .ty n => pure $ .ty n.succ
     | SKM[M] => pure SKM[(M M)]
     | SKM[K] => pure SKM[(M K)]
     | SKM[S] => pure SKM[(M S)]
@@ -153,16 +154,13 @@ def type_of_unsafe (e : Expr) : Option Expr :=
     | SKM[(((S α) β) γ)] => pure $ (α ~> (β ~> γ)) ~> ((α ~> β) ~> α)
     | SKM[(lhs _rhs)] =>
       match type_of_unsafe lhs with
-        | .some SKM[(((K (M _β)) α) β)] =>
+        | .some SKM[(((K _β) α) β)] =>
           β
         | _ => none
-    | .ty n => pure $ .ty n.succ
 
 end Expr
 
-mutual
-
-partial def type_of (ctx : List LExpr) (e : LExpr) : Option LExpr :=
+def type_of (ctx : List LExpr) (e : LExpr) : Option LExpr :=
   match e with
     | .raw e => (.raw .) <$> e.type_of_unsafe
     | (.lam t (.var 0)) =>
@@ -170,11 +168,9 @@ partial def type_of (ctx : List LExpr) (e : LExpr) : Option LExpr :=
     | (.lam t (.var n)) => do
       pure $ (.arrow t (← ctx[n.pred]?))
     | (.lam t body) => do
-      let t' := (lift ctx t).getD t
-
-      some (.arrow t $ (← type_of (t' :: ctx) body))
+      some (.arrow t $ (← type_of (t :: ctx) body))
     | .ty n => some $ .ty n.succ
-    | .arrow _ _ => some $ .ty 0
+    | a@(.arrow _ _) => some $ .call .m a
     | (.call (.call .k α) β) =>
       pure (.arrow α (.arrow β α))
     | (.call (.call (.call .s α) β) γ) =>
@@ -191,93 +187,52 @@ partial def type_of (ctx : List LExpr) (e : LExpr) : Option LExpr :=
         | _ => none
     | .var n => ctx[n]?
 
-partial def contains_no_vars (depth : ℕ) (e : LExpr) : Bool :=
-  match e with
-    | .var n => n == depth
-    | .lam _ body => contains_no_vars depth.succ body
-    | .call lhs rhs => contains_no_vars depth lhs ∨ contains_no_vars depth rhs
-    | .arrow t_in t_out => contains_no_vars depth t_in ∨ contains_no_vars depth t_out
-    | _ => false
-
-partial def dec_vars (depth : ℕ) (e : LExpr) : LExpr :=
-  match e with
-    | .var n =>
-      if n > depth then
-        .var n.pred
-      else
-        .var n
-    | .lam t body =>
-      .lam t $ dec_vars depth.succ body
-    | .call lhs rhs =>
-      .call (dec_vars depth lhs) (dec_vars depth rhs)
-    | .arrow t_in t_out =>
-      .arrow (dec_vars depth t_in) (dec_vars depth t_out)
-    | x => x
-
 -- To eliminate λ-abstraction as much as possible
 -- This function abstracts variable 0 from a lambda-free body.
-partial def abstract (ctx : List LExpr) (t : LExpr) (body : LExpr) : Option LExpr :=
-  match body with
-    | .raw e =>
-      some $ .raw e
-    | body =>
-      if ¬(contains_no_vars 0 body) then do
-        let body_shifted := dec_vars 0 body
-        let t_body ← type_of ctx body_shifted
-
-        pure $ .call (.call (.call .k t_body) t) body_shifted
-      else
-        match body with
-          | .var 0 =>
-            pure $ .call
-              (.call
-                (.call (.call (.call .s (.arrow t (.arrow (.arrow t t) t))) (.arrow t (.arrow t t))) t)
-                (.call (.call .k t) (.arrow t t)))
-              (.call (.call .k t) t)
-
-          | .call e₁ e₂ => do
-            let abs_e₁ ← abstract ctx t e₁
-            let abs_e₂ ← abstract ctx t e₂
-
-            let t_e₁' ← type_of ctx abs_e₁
-            let t_e₂' ← type_of ctx abs_e₂
-
-            pure $ LExpr.call
-              (.call (.call (.call (.call .s t_e₁') t_e₂') t) abs_e₁)
-              abs_e₂
-          | .raw e => pure $ .raw e
-          | x => pure x
-
-partial def lift (ctx : List LExpr) (e : LExpr) : Option LExpr :=
+partial def lift (ctx : List LExpr) (e : LExpr) : LExpr :=
   match e with
-    | .raw e => some $ .raw e
-    | .lam t body => do
-        let t' ← lift ctx t
-        let lifted_body ← lift (t' :: ctx) body
-        abstract ctx t lifted_body
-    | .call lhs rhs => do
-        pure (.call (← lift ctx lhs) (← lift ctx rhs))
-    | .arrow t_in t_out => do
-        pure (.arrow (← lift ctx t_in) (← lift ctx t_out))
-    | x => pure x
+    | .call lhs rhs =>
+      let t_lhs := (type_of ctx lhs).getD (.call .m lhs)
+      let t_rhs := (type_of ctx rhs).getD (.call .m rhs)
 
-end
+      (.call (.call (.call (.call (.call .s t_lhs) t_rhs) $ ctx[0]?.getD (.var 0)) (lift ctx lhs)) (lift ctx rhs))
+    | .arrow t_in t_out =>
+      let t_in'  := lift ctx t_in
+      let t_out' := lift ctx t_out
+
+      .arrow t_in' t_out'
+    | .var (n + 1) =>
+      let t' := ctx[n]?.getD (.call .m (.var $ n + 1))
+
+      if n = ctx.length then
+        (.call (.call (.call (.call
+          (.call .s ((.arrow t' (.arrow (.arrow t' t') t'))))
+            (.arrow t' (.arrow t' t'))) t')
+            (.call (.call .k t') (.arrow t' t')))
+              (.call (.call .k t') t'))
+      else
+        (.call .k (.call .m (.var n)))
+    | .lam t body =>
+      let t' := lift ctx t
+
+      (lift (t' :: ctx) body)
+    | e => e
 
 def to_sk (e : LExpr) : Option Expr :=
   match e with
-    | .ty n  => pure SKM[Ty n]
+    | .ty n  => SKM[Ty n]
     | .call lhs rhs => do
-      pure SKM[(#(← to_sk lhs) #(← to_sk rhs))]
-    | .k => pure SKM[K]
-    | .s => pure SKM[S]
-    | .m => pure SKM[M]
+      SKM[(#(← to_sk lhs) #(← to_sk rhs))]
+    | .k => SKM[K]
+    | .s => SKM[S]
+    | .m => SKM[M]
     | .arrow t_in t_out => do
-      let t_in' ← to_sk t_in
+      let t_in'  ← to_sk t_in
       let t_out' ← to_sk t_out
 
-      pure $ t_in' ~> t_out'
-    | .raw e => some e
-    | _ => none
+      t_in' ~> t_out'
+    | .raw e => e
+    | _ => SKM[Ty 0]
 
 def to_sk_unsafe (e : LExpr) : Expr :=
   match e with
@@ -302,7 +257,10 @@ We can now define the \\(\rightarrow\\) expression using our \\(\lambda\\)-calcu
 def arrow_lc (u : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty u) (.call (.call (.call .k (.call .m (.var 0))) (.var 1)) (.var 0))))
 
 def arrow (u : ℕ) : Expr := arrow_lc u
-  |> fun e => (lift [] e).getD e |> to_sk_unsafe
+  |> lift []
+  |> to_sk_unsafe
+
+#eval arrow 0
 
 /-
 For testing purposes, we will write `partial` evaluation and typing functions:
@@ -313,13 +271,13 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
     e
  else
    let e' := match e with
-     | SKM[((((K _α) _β) x) y)] => x
+     | SKM[((((K _α) _β) x) _y)] => x
      | SKM[((((((S _α) _β) _γ) x) y) z)] => SKM[((x z) (y z))]
      | SKM[(lhs rhs)] =>
-       SKM[((#(eval_n n.pred lhs)) #(eval_n n.pred rhs))]
+       SKM[((#(eval_n n.pred lhs)) #(eval_n n.pred.pred rhs))]
      | x => x
 
-   eval_n n.pred e'
+   eval_n n.pred.pred.pred e'
 
 def parse_arrow (e : Expr) : String :=
   match e with
@@ -338,7 +296,7 @@ As a test, let's see if we can construct an arrow from \\(\text{Type} \rightarro
 Here is \\(\text{Type} \rightarrow \text{Type}\\):
 -/
 
-#eval (parse_arrow ∘ eval_n 20) SKM[(((#(arrow 0)) (Ty 0)) (Ty 1))]
+#eval (parse_arrow ∘ eval_n 10) SKM[(((#(arrow 0)) (Ty 0)) (Ty 1))]
 
 /-
 This evaluates to \\(\text{Type} \rightarrow \text{Type}\\). Furthermore, it behaves similarly to \\(\forall\\), in that "substitution" (application) produces the output type:
@@ -355,4 +313,5 @@ I persist the definition of \\(\rightarrow\\) to a file in this repository.
 
 -/
 
-#eval arrow 0
+#eval (Expr.type_of_unsafe SKM[((((K (Ty 1)) (Ty 3)) (Ty 0)))]).map parse_arrow
+#eval ((Expr.type_of_unsafe) $ arrow 0).map parse_arrow
