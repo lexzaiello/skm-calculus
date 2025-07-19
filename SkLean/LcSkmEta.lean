@@ -168,7 +168,7 @@ partial def type_of (ctx : List LExpr) (e : LExpr) : Option LExpr :=
     | (.lam t (.var 0)) =>
       some $ LExpr.arrow t t
     | (.lam t (.var n)) => do
-      pure $ (.arrow t (← ctx[n]?))
+      pure $ (.arrow t (← ctx[n.pred]?))
     | (.lam t body) => do
       let t' := (lift ctx t).getD t
 
@@ -279,13 +279,30 @@ def to_sk (e : LExpr) : Option Expr :=
     | .raw e => some e
     | _ => none
 
+def to_sk_unsafe (e : LExpr) : Expr :=
+  match e with
+    | .ty n  => SKM[Ty n]
+    | .call lhs rhs =>
+      SKM[(#(to_sk_unsafe lhs) #(to_sk_unsafe rhs))]
+    | .k => SKM[K]
+    | .s => SKM[S]
+    | .m => SKM[M]
+    | .arrow t_in t_out =>
+      let t_in' := to_sk_unsafe t_in
+      let t_out' := to_sk_unsafe t_out
+
+      t_in' ~> t_out'
+    | .raw e => e
+    | _ => SKM[Ty 0]
+
 /-
 We can now define the \\(\rightarrow\\) expression using our \\(\lambda\\)-calculus AST and translate to \\(SK(M)\\) using our `lift` and `to_sk` functions. Note that since universes are stratified, \\(\rightarrow\\) is polymorphic at the meta level to universe levels. In practice, the compiler generates an \\(\rightarrow\\) expression for all universes used in the program. Furthermore, universes above \\(1\\) are rarely used.
 -/
 
 def arrow_lc (u : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty u) (.call (.call (.call .k (.call .m (.var 0))) (.var 1)) (.var 0))))
 
-def arrow (u : ℕ) := arrow_lc u |> (lift [] . >>= to_sk)
+def arrow (u : ℕ) : Expr := arrow_lc u
+  |> fun e => (lift [] e).getD e |> to_sk_unsafe
 
 /-
 For testing purposes, we will write `partial` evaluation and typing functions:
@@ -304,14 +321,14 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
 
    eval_n n.pred e'
 
-def parse_arrow (e : Expr) : Option String :=
+def parse_arrow (e : Expr) : String :=
   match e with
     | SKM[(((K (M _b)) a) b)] =>
-      let a' := (parse_arrow a).getD (s!"{a}")
-      let b' := (parse_arrow b).getD (s!"{b}")
+      let a' := (parse_arrow a)
+      let b' := (parse_arrow b)
 
-      pure $ s!"({a'} -> {b'})"
-    | _ => none
+      s!"({a'} -> {b'})"
+    | _ => s!"{e}"
 
 #eval (.call (.call (.lam (.ty 1) (.lam (.ty 1) (.var 0))) (.ty 1)) (.ty 0)) |> (lift [] . >>= to_sk >>= fun e => pure $ eval_n 10 e)
 
@@ -321,13 +338,13 @@ As a test, let's see if we can construct an arrow from \\(\text{Type} \rightarro
 Here is \\(\text{Type} \rightarrow \text{Type}\\):
 -/
 
-#eval ((fun e => eval_n 20 SKM[((e (Ty 0)) (Ty 1))]) <$> arrow 0) >>= parse_arrow
+#eval (parse_arrow ∘ eval_n 20) SKM[(((#(arrow 0)) (Ty 0)) (Ty 1))]
 
 /-
 This evaluates to \\(\text{Type} \rightarrow \text{Type}\\). Furthermore, it behaves similarly to \\(\forall\\), in that "substitution" (application) produces the output type:
 -/
 
-#eval ((fun e => eval_n 10 SKM[(((e (Ty 0)) (Ty 0)) S)]) <$> arrow 0)
+#eval eval_n 10 SKM[((((#(arrow 0)) (Ty 0)) (Ty 0)) S)]
 
 /-
 This evaluates to `Type 0`.

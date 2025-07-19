@@ -12,7 +12,6 @@ $$
 As we saw before, translation of the \\(\lambda\\)-calculus to \\(SK(M)\\) is possible. We can attempt to translate the \\(K\\) combinator as such:
 -/
 
-import SkLean.ArrowDef
 import SkLean.LcSkmEta
 
 def lc_dependent_k (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.lam (.var 1) (.lam (.var 2) (.var 1)))))
@@ -45,7 +44,10 @@ $$
 More explicitly in Lean using \\(\lambda\\)-transformation:
 -/
 
-def lc_type_bad (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw arrow₀) (.var 1)) (.call (.call (.raw arrow₀) (.var 0)) (.var 1)))))
+def lc_type_bad (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw (arrow 0)) (.var 1)) (.call (.call (.raw arrow₀) (.var 0)) (.var 1)))))
 
+def bruh (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw (arrow 0)) (.var 1)) (.var 0))))
 
-#eval lc_type_bad 0 0 |> (lift [] . >>= to_sk)
+#eval (.call (.call (bruh 0 0) (.ty 2)) (.ty 3)) |> (lift [] . >>= to_sk)
+
+#eval (.call (.call (lc_type_bad 0 0) (.ty 2)) (.ty 3)) |> (lift [] . >>= to_sk >>= fun e => pure $ (parse_arrow ∘ eval_n 9) e)
