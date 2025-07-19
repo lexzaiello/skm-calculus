@@ -187,36 +187,71 @@ def type_of (ctx : List LExpr) (e : LExpr) : Option LExpr :=
         | _ => none
     | .var n => ctx[n]?
 
+def dec_vars (depth : ℕ) (e : LExpr) : LExpr :=
+  match e with
+    | .var n =>
+      if n > depth then
+        .var n.pred
+      else
+        .var n
+    | .call lhs rhs => .call (dec_vars depth lhs) (dec_vars depth rhs)
+    | .arrow t_in t_out => .arrow (dec_vars depth t_in) (dec_vars depth t_out)
+    | .lam t body => .lam (dec_vars depth.succ t) (dec_vars depth.succ body)
+    | x => x
+
 -- To eliminate λ-abstraction as much as possible
 -- This function abstracts variable 0 from a lambda-free body.
 partial def lift (ctx : List LExpr) (e : LExpr) : LExpr :=
-  match e with
+  -- We shouldn't really do anything unless
+  -- the expression is a lambda abstraction
+  -- In the case of e₁ e₂ application,
+  -- we must lift both e₁ and e₂ first,
+  -- then apply the S-transformation
+  -- In the case of lambda abstraction with (.var 0)
+  -- as the body, apply the I-transformation
+  -- In the case of lambda abstraction with
+  -- any other variable which is not free
+  -- we decrement the index, since
+  -- one abstraction has been removed
+  let e' := match e with
     | .call lhs rhs =>
-      let t_lhs := (type_of ctx lhs).getD (.call .m lhs)
-      let t_rhs := (type_of ctx rhs).getD (.call .m rhs)
+      (.call (lift ctx lhs) (lift ctx rhs))
+    | .lam t_in (.call lhs rhs) =>
+      let lhs' := lift (t_in :: ctx) lhs |> dec_vars 0 |> fun body => .lam t_in body
+      let rhs' := lift (t_in :: ctx) rhs |> dec_vars 0 |> fun body => .lam t_in body
 
-      (.call (.call (.call (.call (.call .s t_lhs) t_rhs) $ ctx[0]?.getD (.var 0)) (lift ctx lhs)) (lift ctx rhs))
+      let t_lhs := (type_of ctx lhs').getD (.call .m lhs')
+      let t_rhs := (type_of ctx rhs').getD (.call .m rhs')
+
+      lift ctx (.call (.call (.call (.call (.call .s t_lhs) t_rhs) t_in) lhs') rhs')
     | .arrow t_in t_out =>
       let t_in'  := lift ctx t_in
       let t_out' := lift ctx t_out
 
       .arrow t_in' t_out'
-    | .var (n + 1) =>
-      let t' := ctx[n]?.getD (.call .m (.var $ n + 1))
+    | .lam t (.var 0) =>
+      let t' := lift ctx t
 
-      if n = ctx.length then
-        (.call (.call (.call (.call
+      (.call (.call (.call (.call
           (.call .s ((.arrow t' (.arrow (.arrow t' t') t'))))
             (.arrow t' (.arrow t' t'))) t')
             (.call (.call .k t') (.arrow t' t')))
               (.call (.call .k t') t'))
-      else
-        (.call .k (.call .m (.var n)))
-    | .lam t body =>
-      let t' := lift ctx t
+    | .lam t_in₀ (.lam t_in₁ x') =>
+      let t_in₀' := lift ctx t_in₀
 
-      (lift (t' :: ctx) body)
+      let body' := lift (t_in₀' :: ctx) (.lam t_in₁ x')
+
+      lift ctx (.lam t_in₀' body')
+    | .lam t_in x =>
+      let t_in' := lift ctx t_in
+      let x' := lift ctx x |> dec_vars 0
+      let t_x' := (type_of (t_in' :: ctx) x').getD (.call .m x')
+
+      lift ctx (.call (.call (.call .k t_x') t_in') x')
     | e => e
+
+    e'
 
 def to_sk (e : LExpr) : Option Expr :=
   match e with
@@ -279,6 +314,11 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
 
    eval_n n.pred.pred.pred e'
 
+#eval (.call (.call (.lam (.ty 0) (.lam (.ty 0) (.var 0))) (.ty 2)) (.ty 3))
+  |> lift []
+  |> to_sk_unsafe
+  |> eval_n 15
+
 def parse_arrow (e : Expr) : String :=
   match e with
     | SKM[(((K (M _b)) a) b)] =>
@@ -296,7 +336,7 @@ As a test, let's see if we can construct an arrow from \\(\text{Type} \rightarro
 Here is \\(\text{Type} \rightarrow \text{Type}\\):
 -/
 
-#eval (parse_arrow ∘ eval_n 10) SKM[(((#(arrow 0)) (Ty 0)) (Ty 1))]
+#eval (parse_arrow ∘ eval_n 8) SKM[(((#(arrow 0)) (Ty 0)) (Ty 1))]
 
 /-
 This evaluates to \\(\text{Type} \rightarrow \text{Type}\\). Furthermore, it behaves similarly to \\(\forall\\), in that "substitution" (application) produces the output type:
