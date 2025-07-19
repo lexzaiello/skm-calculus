@@ -142,16 +142,37 @@ infix:20 "~>"  => mk_arrow
 I make use of a simple, partial `type_of` function which is required to derive the "in-between" and output type in the \\(S\\) transformation, since only the input type is known.
 -/
 
-def type_of (ctx : List LExpr) (e : LExpr) : LExpr :=
-  (match e with
-    | .raw e =>
-      some $ LExpr.call .m (.raw e)
+namespace Expr
+
+def type_of_unsafe (e : Expr) : Option Expr :=
+  match e with
+    | SKM[M] => pure SKM[(M M)]
+    | SKM[K] => pure SKM[(M K)]
+    | SKM[S] => pure SKM[(M S)]
+    | SKM[((K α) β)] => pure $ α ~> (β ~> α)
+    | SKM[(((S α) β) γ)] => pure $ (α ~> (β ~> γ)) ~> ((α ~> β) ~> α)
+    | SKM[(lhs _rhs)] =>
+      match type_of_unsafe lhs with
+        | .some SKM[(((K (M _β)) α) β)] =>
+          β
+        | _ => none
+    | .ty n => pure $ .ty n.succ
+
+end Expr
+
+mutual
+
+partial def type_of (ctx : List LExpr) (e : LExpr) : Option LExpr :=
+  match e with
+    | .raw e => (.raw .) <$> e.type_of_unsafe
     | (.lam t (.var 0)) =>
-      some $ .arrow t t
+      some $ LExpr.arrow t t
     | (.lam t (.var n)) => do
       pure $ (.arrow t (← ctx[n]?))
     | (.lam t body) => do
-      some (.arrow t $ (← type_of (t :: ctx) body))
+      let t' := (lift ctx t).getD t
+
+      some (.arrow t $ (← type_of (t' :: ctx) body))
     | .ty n => some $ .ty n.succ
     | .arrow _ _ => some $ .ty 0
     | (.call (.call .k α) β) =>
@@ -163,24 +184,22 @@ def type_of (ctx : List LExpr) (e : LExpr) : LExpr :=
     | .k => pure $ .call .m .k
     | .s => pure $ .call .m .s
     | .m => pure $ .call .m .m
-    | .call lhs _ =>
-      match type_of ctx lhs with
-        | (.arrow _ out_t) =>
-          some out_t
-        | _ =>
-          none
-    | .var n =>
-      ctx[n]?).getD (.call .m e)
+    | .call lhs _ => do
+      match ← type_of ctx lhs with
+        | (.arrow _ out_t) => pure out_t
+        | .raw SKM[(((K (M _β)) α) β)] => pure $ .raw β
+        | _ => none
+    | .var n => ctx[n]?
 
-def is_free (depth : ℕ) (e : LExpr) : Bool :=
+partial def contains_no_vars (depth : ℕ) (e : LExpr) : Bool :=
   match e with
     | .var n => n == depth
-    | .lam _ body => is_free depth.succ body
-    | .call lhs rhs => is_free depth lhs ∨ is_free depth rhs
-    | .arrow t_in t_out => is_free depth t_in ∨ is_free depth t_out
+    | .lam _ body => contains_no_vars depth.succ body
+    | .call lhs rhs => contains_no_vars depth lhs ∨ contains_no_vars depth rhs
+    | .arrow t_in t_out => contains_no_vars depth t_in ∨ contains_no_vars depth t_out
     | _ => false
 
-def dec_vars (depth : ℕ) (e : LExpr) : LExpr :=
+partial def dec_vars (depth : ℕ) (e : LExpr) : LExpr :=
   match e with
     | .var n =>
       if n > depth then
@@ -197,47 +216,52 @@ def dec_vars (depth : ℕ) (e : LExpr) : LExpr :=
 
 -- To eliminate λ-abstraction as much as possible
 -- This function abstracts variable 0 from a lambda-free body.
-def abstract (ctx : List LExpr) (t : LExpr) (body : LExpr) : Option LExpr :=
-  if ¬(is_free 0 body) then do
-    let body_shifted := dec_vars 0 body
-    let t_body ← type_of ctx body_shifted
+partial def abstract (ctx : List LExpr) (t : LExpr) (body : LExpr) : Option LExpr :=
+  match body with
+    | .raw e =>
+      some $ .raw e
+    | body =>
+      if ¬(contains_no_vars 0 body) then do
+        let body_shifted := dec_vars 0 body
+        let t_body ← type_of ctx body_shifted
 
-    pure $ .call (.call (.call .k t_body) t) body_shifted
-  else
-    match body with
-      | .var 0 =>
-        pure $ .call
-          (.call
-            (.call (.call (.call .s (.arrow t (.arrow (.arrow t t) t))) (.arrow t (.arrow t t))) t)
-            (.call (.call .k t) (.arrow t t)))
-          (.call (.call .k t) t)
+        pure $ .call (.call (.call .k t_body) t) body_shifted
+      else
+        match body with
+          | .var 0 =>
+            pure $ .call
+              (.call
+                (.call (.call (.call .s (.arrow t (.arrow (.arrow t t) t))) (.arrow t (.arrow t t))) t)
+                (.call (.call .k t) (.arrow t t)))
+              (.call (.call .k t) t)
 
-      | .call e₁ e₂ => do
-        let abs_e₁ ← abstract ctx t e₁
-        let abs_e₂ ← abstract ctx t e₂
+          | .call e₁ e₂ => do
+            let abs_e₁ ← abstract ctx t e₁
+            let abs_e₂ ← abstract ctx t e₂
 
-        let t_e₁' ← type_of ctx abs_e₁
-        let t_e₂' ← type_of ctx abs_e₂
+            let t_e₁' ← type_of ctx abs_e₁
+            let t_e₂' ← type_of ctx abs_e₂
 
-        pure $ LExpr.call
-          (.call (.call (.call (.call .s t_e₁') t_e₂') t) abs_e₁)
-          abs_e₂
-
-      | _ => none
+            pure $ LExpr.call
+              (.call (.call (.call (.call .s t_e₁') t_e₂') t) abs_e₁)
+              abs_e₂
+          | .raw e => pure $ .raw e
+          | x => pure x
 
 partial def lift (ctx : List LExpr) (e : LExpr) : Option LExpr :=
   match e with
-  | .lam t body => do
-      -- 1. Recursively lift the body first (inside-out).
-      let lifted_body ← lift (t :: ctx) body
-      -- 2. Abstract the variable from the now lambda-free body.
-      abstract ctx t lifted_body
-  | .call lhs rhs => do
-      -- Recursively lift both sides of an application.
-      pure (.call (← lift ctx lhs) (← lift ctx rhs))
-  | .arrow t_in t_out => do
-      pure (.arrow (← lift ctx t_in) (← lift ctx t_out))
-  | x => pure x -- Base cases (vars, K, S, M) are already "lifted".
+    | .raw e => some $ .raw e
+    | .lam t body => do
+        let t' ← lift ctx t
+        let lifted_body ← lift (t' :: ctx) body
+        abstract ctx t lifted_body
+    | .call lhs rhs => do
+        pure (.call (← lift ctx lhs) (← lift ctx rhs))
+    | .arrow t_in t_out => do
+        pure (.arrow (← lift ctx t_in) (← lift ctx t_out))
+    | x => pure x
+
+end
 
 def to_sk (e : LExpr) : Option Expr :=
   match e with
