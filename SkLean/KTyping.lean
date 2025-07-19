@@ -47,9 +47,10 @@ More explicitly in Lean:
 def k_t (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw $ arrow 0) (.var 1)) (.call (.call (.raw $ arrow 0) (.var 0)) (.var 1)))))
 
 #eval (LExpr.call (.call (k_t 0 0) (.ty 2)) (.ty 3))
-  |> fun e => (lift [] e).getD (.ty 0)
+  |> lift []
   |> to_sk_unsafe
-  |> eval_n 16
+  |> eval_n 80
   |> parse_arrow
+
 
 

@@ -217,8 +217,8 @@ partial def lift (ctx : List LExpr) (e : LExpr) : LExpr :=
     | .call lhs rhs =>
       (.call (lift ctx lhs) (lift ctx rhs))
     | .lam t_in (.call lhs rhs) =>
-      let lhs' := lift (t_in :: ctx) lhs |> dec_vars 0 |> fun body => .lam t_in body
-      let rhs' := lift (t_in :: ctx) rhs |> dec_vars 0 |> fun body => .lam t_in body
+      let lhs' := lift (t_in :: ctx) lhs |> fun body => .lam t_in body
+      let rhs' := lift (t_in :: ctx) rhs |> fun body => .lam t_in body
 
       let t_lhs := (type_of ctx lhs').getD (.call .m lhs')
       let t_rhs := (type_of ctx rhs').getD (.call .m rhs')
@@ -336,7 +336,7 @@ As a test, let's see if we can construct an arrow from \\(\text{Type} \rightarro
 Here is \\(\text{Type} \rightarrow \text{Type}\\):
 -/
 
-#eval (parse_arrow ∘ eval_n 8) SKM[(((#(arrow 0)) (Ty 0)) (Ty 1))]
+#eval (parse_arrow ∘ eval_n 25) SKM[(((#(arrow 0)) (Ty 0)) (Ty 1))]
 
 /-
 This evaluates to \\(\text{Type} \rightarrow \text{Type}\\). Furthermore, it behaves similarly to \\(\forall\\), in that "substitution" (application) produces the output type:
