@@ -289,7 +289,7 @@ def to_sk_unsafe (e : LExpr) : Expr :=
 We can now define the \\(\rightarrow\\) expression using our \\(\lambda\\)-calculus AST and translate to \\(SK(M)\\) using our `lift` and `to_sk` functions. Note that since universes are stratified, \\(\rightarrow\\) is polymorphic at the meta level to universe levels. In practice, the compiler generates an \\(\rightarrow\\) expression for all universes used in the program. Furthermore, universes above \\(1\\) are rarely used.
 -/
 
-def arrow_lc (u : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty u) (.call (.call (.call .k (.call .m (.var 0))) (.var 1)) (.var 0))))
+def arrow_lc (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.call .k (.call .m (.var 0))) (.var 1)) (.var 0))))
 
 /-
 For testing purposes, we will write `partial` evaluation and typing functions:
@@ -313,12 +313,12 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
   |> to_sk_unsafe
   |> eval_n 15
 
-def arrow (u : ℕ) : Expr := arrow_lc u
+def arrow (u v : ℕ) : Expr := arrow_lc u v
   |> lift []
   |> to_sk_unsafe
   |> eval_n 30
 
-#eval arrow 0
+#eval arrow 0 0
 
 def parse_arrow (e : Expr) : String :=
   match e with
@@ -337,13 +337,13 @@ As a test, let's see if we can construct an arrow from \\(\text{Type} \rightarro
 Here is \\(\text{Type} \rightarrow \text{Type}\\):
 -/
 
-#eval (parse_arrow ∘ eval_n 25) SKM[(((#(arrow 0)) (Ty 0)) (Ty 1))]
+#eval (parse_arrow ∘ eval_n 25) SKM[(((#(arrow 0 1)) (Ty 0)) (Ty 1))]
 
 /-
 This evaluates to \\(\text{Type} \rightarrow \text{Type}\\). Furthermore, it behaves similarly to \\(\forall\\), in that "substitution" (application) produces the output type:
 -/
 
-#eval eval_n 10 SKM[((((#(arrow 0)) (Ty 0)) (Ty 0)) S)]
+#eval eval_n 10 SKM[((((#(arrow 0 0)) (Ty 0)) (Ty 0)) S)]
 
 /-
 This evaluates to `Type 0`.
@@ -355,4 +355,4 @@ I persist the definition of \\(\rightarrow\\) to a file in this repository.
 -/
 
 #eval (Expr.type_of_unsafe SKM[((((K (Ty 1)) (Ty 3)) (Ty 0)))]).map parse_arrow
-#eval ((Expr.type_of_unsafe) $ arrow 0).map parse_arrow
+#eval ((Expr.type_of_unsafe) $ arrow 0 0).map parse_arrow

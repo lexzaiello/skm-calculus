@@ -44,13 +44,19 @@ $$
 More explicitly in Lean:
 -/
 
-def k_t (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw $ arrow 0) (.var 1)) (.call (.call (.raw $ arrow 0) (.var 0)) (.var 1)))))
+def k_t (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw $ arrow u.succ v.succ.succ) (.var 1)) (.call (.call (.raw $ arrow u.succ v.succ) (.var 0)) (.var 1)))))
 
-#eval (LExpr.call (.call (k_t 0 0) (.ty 2)) (.ty 3))
+#eval (LExpr.call (.call (k_t 3 4) (.ty 2)) (.ty 3))
   |> lift []
   |> to_sk_unsafe
   |> eval_n 30
   |> parse_arrow
 
+/-
+This produces the type `(Ty 2 -> (Ty 3 -> Ty 2))`.
+I define the canonical typing for the `K` combinator from this expression.
+
+In the next chapter, I will define the judgment rules for my combinator calculus using the \\(\rightarrow\\) expression.
+-/
 
 
