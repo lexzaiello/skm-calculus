@@ -236,7 +236,7 @@ lemma s_stuck : is_normal_n 0 SKM[S] SKM[S] := by
 
 lemma preservation : valid_judgment e t → is_eval_once e e' → valid_judgment_hard e' t := by
   intro h_t h_eval
-  induction h_eval
+  cases h_eval
   apply valid_judgment.weakening
   apply preservation_k
   exact h_t
@@ -279,3 +279,5 @@ lemma preservation : valid_judgment e t → is_eval_once e e' → valid_judgment
   case m_s.call h_t_lhs h_t_call h_eval =>
     cases h_t_lhs
     cases h_eval
+
+lemma progress : valid_judgment e t → 
