@@ -56,20 +56,22 @@ inductive beta_eq : Expr → Expr → Prop
   | symm  : beta_eq e₁ e₂      → beta_eq e₂ e₁
 
 inductive valid_judgment : Expr → Expr → Prop
-  | call : valid_judgment lhs t_f
-    → is_eval_once SKM[(t_f rhs)] t'
+  | call : valid_judgment lhs t_lhs
+    → valid_judgment SKM[(t_lhs rhs)] t_t_call
+    → is_eval_once SKM[(t_lhs rhs)] t'
     → valid_judgment SKM[(lhs rhs)] t'
   | s : valid_judgment SKM[S] SKM[(M S)]
   | k : valid_judgment SKM[K] SKM[(M K)]
   | m : valid_judgment SKM[M] SKM[(M M)]
 
 inductive valid_judgment_hard : Expr → Expr → Prop
-  | call    : valid_judgment_hard lhs t_f
-    → beta_eq SKM[(t_f rhs)] t'
+  | call : valid_judgment_hard lhs t_lhs
+    → valid_judgment_hard SKM[(t_lhs rhs)] t_t_call
+    → beta_eq SKM[(t_lhs rhs)] t'
     → valid_judgment_hard SKM[(lhs rhs)] t'
-  | s       : valid_judgment_hard SKM[S] SKM[(M S)]
-  | k       : valid_judgment_hard SKM[K] SKM[(M K)]
-  | m       : valid_judgment_hard SKM[M] SKM[(M M)]
+  | s : valid_judgment_hard SKM[S] SKM[(M S)]
+  | k : valid_judgment_hard SKM[K] SKM[(M K)]
+  | m : valid_judgment_hard SKM[M] SKM[(M M)]
   | beta_eq : valid_judgment_hard e t₁
     → beta_eq t₁ t₂
     → valid_judgment_hard e t₂
@@ -83,13 +85,13 @@ namespace valid_judgment
 lemma imp_m : valid_judgment e t → beta_eq SKM[(M e)] t := by
   intro h_t
   induction h_t
-  case call lhs t_f rhs t' h_t_f h_eval ih =>
+  case call lhs t_lhs rhs t_t_call t' h_t_lhs h_t_t_call h_eval ih₁ ih₂=>
     apply beta_eq.trans
     apply beta_eq.eval
     apply is_eval_once.m_call
     apply beta_eq.trans
     apply beta_eq.left
-    exact ih
+    exact ih₁
     exact beta_eq.eval h_eval
   repeat exact beta_eq.rfl
 
@@ -97,9 +99,11 @@ lemma weakening : valid_judgment e t → valid_judgment_hard e t := by
   intro h
   induction h
   apply valid_judgment_hard.call
+  case call.a h _ =>
+    exact h
   case call.a h =>
     exact h
-  case call.a h _ =>
+  case call.a h _ _ =>
     exact beta_eq.eval h
   apply valid_judgment_hard.s
   apply valid_judgment_hard.k
@@ -107,89 +111,89 @@ lemma weakening : valid_judgment e t → valid_judgment_hard e t := by
 
 end valid_judgment
 
-lemma preservation_k_reverse : valid_judgment x α → valid_judgment_hard SKM[((K x) y)] α := by
+lemma preservation_k : valid_judgment SKM[((K x) y)] α → valid_judgment x α := by
   intro h_t
-  apply valid_judgment_hard.beta_eq
-  apply valid_judgment_hard.call
-  apply valid_judgment_hard.call
-  apply valid_judgment_hard.k
-  apply beta_eq.symm
-  apply beta_eq.eval
-  apply is_eval_once.m_call
-  apply beta_eq.symm
-  apply beta_eq.eval
-  apply is_eval_once.m_call
-  apply beta_eq.trans
-  apply beta_eq.right
-  apply beta_eq.eval
-  apply is_eval_once.k
-  exact h_t.imp_m
-
-lemma preservation : valid_judgment e t → is_eval_once e e' → valid_judgment e' t := by
-  intro h_t h_eval
-  induction e
-  cases h_eval
-  cases h_eval
-  cases h_eval
-  case call lhs rhs ih₁ ih₂ =>
+  cases h_t
+  case call t_lhs t_t_call h_t_lhs h_t_t_call h_eval =>
     cases h_eval
-    cases h_t
-    case k.call t_f h_t_f h_eval =>
-      cases h_t_f
-      case call h _ =>
-        cases h
-        case k h =>
-          cases h
-    cases h_t
-    case s.call t_f h_t_f h_eval =>
-      cases h_t_f
-      case call h _ =>
-        cases h
-        case call h _ =>
-          cases h
-          case s h =>
-            cases h
-    cases h_t
-    case m_call.call t_f h_t_f h_eval =>
-      cases h_t_f
-      case m =>
-        cases h_eval
-    cases h_t
-    case m_m.call h _ =>
+    cases h_t_lhs
+    case k.call h =>
       cases h
-      case m h =>
+      case k h _ =>
         cases h
-    cases h_t
-    case m_k.call h _ =>
+    cases h_t_lhs
+    case s.call h _ _ =>
       cases h
-      case m h =>
+      case k h =>
         cases h
-    cases h_t
-    case m_s.call h _ =>
+    cases h_t_lhs
+    case m_call.call h =>
       cases h
-      case m h =>
+      case k h _ =>
         cases h
+    cases h_t_lhs
+    case m_m.call h =>
+      cases h
+      case k h _ =>
+        cases h
+    cases h_t_lhs
+    case m_k h =>
+      cases h
+      case k h _ =>
+        cases h
+    cases h_t_lhs
+    case m_s h =>
+      cases h
+      case k h _ =>
+        cases h
+
+lemma normal_beta_eq : is_normal_n n e e_final → beta_eq e e_final := by
+  intro h
+  induction h
+  apply beta_eq.rfl
+  case succ e e' n e_final h_eval h_norm h_eq =>
+    apply beta_eq.symm
+    apply beta_eq.trans
+    exact beta_eq.symm h_eq
+    apply beta_eq.symm
+    exact beta_eq.eval h_eval
+
+lemma m_stuck : is_normal_n 0 SKM[M] SKM[M] := by
+  apply is_normal_n.stuck
+  intro h
+  cases h
+  case a.intro h =>
+    cases h
+
+lemma k_stuck : is_normal_n 0 SKM[K] SKM[K] := by
+  apply is_normal_n.stuck
+  intro h
+  cases h
+  case a.intro h =>
+    cases h
+
+lemma s_stuck : is_normal_n 0 SKM[S] SKM[S] := by
+  apply is_normal_n.stuck
+  intro h
+  cases h
+  case a.intro h =>
+    cases h
 
 lemma progress : valid_judgment e t → ∃ e_final n, is_normal_n n e e_final := by
   intro h_t
-  induction e
-  use SKM[K]
-  use 0
-  apply is_normal_n.stuck
-  intro ⟨_, h⟩
-  cases h
-  use SKM[S]
-  use 0
-  apply is_normal_n.stuck
-  intro ⟨_, h⟩
-  cases h
-  use SKM[M]
-  use 0
-  apply is_normal_n.stuck
-  intro ⟨_, h⟩
-  cases h
-  case call lhs rhs ih₁ ih₂ =>
-    cases h_t
-    case call t_lhs h_t_lhs h_eval_t =>
-      
-      sorry
+  induction h_t
+  case call lhs t_f rhs t' h_t_lhs h_eval ih =>
+    
+    sorry
+  case s =>
+    use SKM[S]
+    use 0
+    apply s_stuck
+  case m =>
+    use SKM[M]
+    use 0
+    apply m_stuck
+  case k =>
+    use SKM[K]
+    use 0
+    apply k_stuck
