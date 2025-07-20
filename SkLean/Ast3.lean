@@ -47,6 +47,12 @@ inductive is_eval_once : Expr → Expr → Prop
   | m_k    : is_eval_once SKM[(M K)] SKM[((S (K M)) K)]
   | m_s    : is_eval_once SKM[(M S)] SKM[((S (K M)) S)]
 
+inductive is_eval_step : Expr → Expr → Prop
+  | left : is_eval_step lhs lhs'
+    → is_eval_step SKM[(lhs rhs)] SKM[(lhs' rhs)]
+  | step : is_eval_once e e'
+    → is_eval_step e e'
+
 inductive beta_eq : Expr → Expr → Prop
   | rfl   : beta_eq e e
   | eval  : is_eval_once e₁ e₂ → beta_eq e₁ e₂
@@ -332,26 +338,104 @@ lemma preservation : valid_judgment e t → is_eval_once e e' → valid_judgment
   apply beta_eq.m_distributes
   apply beta_eq.rfl
 
-lemma progress : valid_judgment e t → (is_normal_n 0 e e ∨ ∃ e', is_eval_once e e') := by
+lemma progress : valid_judgment e t → (is_normal_n 0 e e ∨ ∃ e', is_eval_step e e') := by
   intro h_t
   induction h_t
   case call lhs t_lhs rhs t_t_call t' h_t_lhs h_t_call h_eval ih₁ ih₂ =>
-    match h : SKM[(lhs rhs)] with
-      | SKM[((K x) y)] =>
-        right
-        use x
-        apply is_eval_once.k
-      | SKM[(((S x) y) z)] =>
-        right
-        use SKM[((x z) (y z))]
-        apply is_eval_once.s
-      | SKM[(M e)] =>
-        right
-        use t
-        apply valid_judgment.imp_m_eval
-      | SKM[(lhs rhs)] =>
-        sorry
-      | x => sorry
+    cases ih₁
+    case inl h_norm_lhs =>
+      match h : SKM[(lhs rhs)] with
+        | SKM[((K x) y)] =>
+          right
+          use x
+          apply is_eval_step.step
+          apply is_eval_once.k
+        | SKM[(((S x) y) z)] =>
+          right
+          use SKM[((x z) (y z))]
+          apply is_eval_step.step
+          apply is_eval_once.s
+        | SKM[(M (lhs rhs))] =>
+          right
+          use SKM[((M lhs) rhs)]
+          apply is_eval_step.step
+          apply is_eval_once.m_call
+        | SKM[(M M)] =>
+          right
+          use SKM[((S (K M)) M)]
+          apply is_eval_step.step
+          apply is_eval_once.m_m
+        | SKM[(M S)] =>
+          right
+          use SKM[((S (K M)) S)]
+          apply is_eval_step.step
+          apply is_eval_once.m_s
+        | SKM[(M K)] =>
+          right
+          use SKM[((S (K M)) K)]
+          apply is_eval_step.step
+          apply is_eval_once.m_k
+        | SKM[(lhs rhs)] =>
+          cases lhs
+          left
+          apply is_normal_n.stuck
+          intro h
+          cases h
+          case k.h.a.intro h =>
+            cases h
+          left
+          apply is_normal_n.stuck
+          intro h
+          cases h
+          case s.h.a.intro h =>
+            cases h
+          simp_all
+          cases h_t_lhs
+          cases ih₂
+          cases h
+          case m.m.inl.intro h _ _ =>
+            cases h
+            case stuck h =>
+              simp at h
+              have h' := (h SKM[(((K M) rhs) (M rhs))]) (by apply is_eval_once.s)
+              contradiction
+          case m.m.inr h =>
+            have ⟨e', h_step⟩ := h
+            right
+            cases e'
+            cases h_eval
+            cases h_step
+            case h.k.s.step h =>
+              cases h
+            cases h_step
+            case h.s.step h =>
+              cases h
+            cases h_step
+            case h.m.step h =>
+              cases h
+            cases h_step
+            case h.call.left h =>
+              cases h_eval
+              cases h_t_call
+              case s.call h _ _ =>
+                cases h
+                case call h =>
+                  cases h
+            case h.call.step h =>
+              cases h_eval
+              cases h_t_call
+              case s.call h _ _ =>
+                cases h
+                case call h =>
+                  cases h
+            
+          sorry
+    case inr h_step_lhs =>
+      let ⟨lhs', h_eval_lhs⟩ := h_step_lhs
+      right
+      use SKM[(lhs' rhs)]
+      apply is_eval_step.left
+      exact h_eval_lhs
   case s =>
     left
     apply s_stuck
