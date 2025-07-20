@@ -89,10 +89,79 @@ lemma imp_m : valid_judgment e t → beta_eq SKM[(M e)] t := by
     exact beta_eq.eval h_eval
   repeat exact beta_eq.rfl
 
+lemma weakening : valid_judgment e t → valid_judgment_hard e t := by
+  intro h
+  induction h
+  apply valid_judgment_hard.call
+  case call.a h =>
+    exact h
+  case call.a h _ =>
+    exact beta_eq.eval h
+  apply valid_judgment_hard.s
+  apply valid_judgment_hard.k
+  apply valid_judgment_hard.m
+
 end valid_judgment
 
-lemma preservation : valid_judgment e t → is_eval_once e e' → valid_judgment e' t := by
+lemma preservation_k_reverse : valid_judgment x α → valid_judgment_hard SKM[((K x) y)] α := by
+  intro h_t
+  apply valid_judgment_hard.beta_eq
+  apply valid_judgment_hard.call
+  apply valid_judgment_hard.call
+  apply valid_judgment_hard.k
+  apply beta_eq.symm
+  apply beta_eq.eval
+  apply is_eval_once.m_call
+  apply beta_eq.symm
+  apply beta_eq.eval
+  apply is_eval_once.m_call
+  apply beta_eq.trans
+  apply beta_eq.right
+  apply beta_eq.eval
+  apply is_eval_once.k
+  exact h_t.imp_m
+
+lemma preservation : valid_judgment e t → is_eval_once e e' → valid_judgment_hard e' t := by
   intro h_t h_eval
-  induction h_eval
-  cases h_t
-  
+  induction e
+  cases h_eval
+  cases h_eval
+  cases h_eval
+  case call lhs rhs ih₁ ih₂ =>
+    cases h_eval
+    cases h_t
+    case k.call t_f h_t_f h_eval =>
+      cases h_t_f
+      case call h _ =>
+        cases h
+        case k h =>
+          cases h
+    cases h_t
+    case s.call t_f h_t_f h_eval =>
+      cases h_t_f
+      case call h _ =>
+        cases h
+        case call h _ =>
+          cases h
+          case s h =>
+            cases h
+    cases h_t
+    case m_call.call t_f h_t_f h_eval =>
+      cases h_t_f
+      case m =>
+        cases h_eval
+    cases h_t
+    case m_m.call h _ =>
+      cases h
+      case m h =>
+        cases h
+    cases h_t
+    case m_k.call h _ =>
+      cases h
+      case m h =>
+        cases h
+    cases h_t
+    case m_s.call h _ =>
+      cases h
+      case m h =>
+        cases h
