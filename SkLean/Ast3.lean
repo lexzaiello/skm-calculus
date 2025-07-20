@@ -59,18 +59,18 @@ inductive valid_judgment : Expr → Expr → Prop
   | call : valid_judgment lhs t_lhs
     → valid_judgment SKM[(t_lhs rhs)] t_t_call
     → is_eval_once SKM[(t_lhs rhs)] t'
-    → valid_judgment SKM[(lhs rhs)] t'
-  | s : valid_judgment SKM[S] SKM[(M S)]
-  | k : valid_judgment SKM[K] SKM[(M K)]
-  | m : valid_judgment SKM[M] SKM[(M M)]
+    → valid_judgment SKM[(lhs rhs)] SKM[((M lhs) rhs)]
+  | s : valid_judgment SKM[S] SKM[((S (K M)) S)]
+  | k : valid_judgment SKM[K] SKM[((S (K M)) K)]
+  | m : valid_judgment SKM[M] SKM[((S (K M)) M)]
 
 inductive valid_judgment_hard : Expr → Expr → Prop
   | call : valid_judgment_hard lhs t_lhs
     → beta_eq SKM[(t_lhs rhs)] t'
     → valid_judgment_hard SKM[(lhs rhs)] t'
-  | s : valid_judgment_hard SKM[S] SKM[(M S)]
-  | k : valid_judgment_hard SKM[K] SKM[(M K)]
-  | m : valid_judgment_hard SKM[M] SKM[(M M)]
+  | s : valid_judgment_hard SKM[S] SKM[((S (K M)) S)]
+  | k : valid_judgment_hard SKM[K] SKM[((S (K M)) K)]
+  | m : valid_judgment_hard SKM[M] SKM[((S (K M)) M)]
   | beta_eq : valid_judgment_hard e t₁
     → beta_eq t₁ t₂
     → valid_judgment_hard e t₂
@@ -92,10 +92,21 @@ lemma imp_m_eval : valid_judgment_hard e t → _root_.beta_eq SKM[(M e)] t := by
     apply beta_eq.left
     exact ih₁
     exact h_eval
-  repeat exact beta_eq.rfl
   apply _root_.beta_eq.trans
-  case beta_eq.a h =>
-    exact h
+  apply _root_.beta_eq.eval
+  apply is_eval_once.m_s
+  apply _root_.beta_eq.rfl
+  apply _root_.beta_eq.trans
+  apply _root_.beta_eq.eval
+  apply is_eval_once.m_k
+  apply _root_.beta_eq.rfl
+  apply _root_.beta_eq.trans
+  apply _root_.beta_eq.eval
+  apply is_eval_once.m_m
+  apply _root_.beta_eq.rfl
+  apply _root_.beta_eq.trans
+  case beta_eq.a ih =>
+    exact ih
   case beta_eq.a h _ =>
     exact h
 
@@ -107,14 +118,23 @@ lemma imp_m_eval : valid_judgment e t → beta_eq SKM[(M e)] t := by
   intro h_t
   induction h_t
   case call lhs t_lhs rhs t_t_call t' h_t_lhs h_t_t_call h_eval ih₁ ih₂=>
-    apply beta_eq.trans
     apply beta_eq.eval
     apply is_eval_once.m_call
-    apply beta_eq.trans
-    apply beta_eq.left
-    exact ih₁
-    exact beta_eq.eval h_eval
-  repeat exact beta_eq.rfl
+  apply beta_eq.eval
+  apply is_eval_once.m_s
+  apply beta_eq.eval
+  apply is_eval_once.m_k
+  apply beta_eq.eval
+  apply is_eval_once.m_m
+
+lemma imp_m_eval_once : valid_judgment e t → is_eval_once SKM[(M e)] t := by
+  intro h_t
+  induction h_t
+  case call lhs t_lhs rhs t_t_call t' h_t_lhs h_t_t_call h_eval ih₁ ih₂=>
+    apply is_eval_once.m_call
+  apply is_eval_once.m_s
+  apply is_eval_once.m_k
+  apply is_eval_once.m_m
 
 lemma weakening : valid_judgment e t → valid_judgment_hard e t := by
   intro h
@@ -143,64 +163,23 @@ end beta_eq
 lemma preservation_k : valid_judgment SKM[((K x) y)] α → valid_judgment x α := by
   intro h_t
   cases h_t
-  case call t_lhs t_t_call h_t_lhs h_t_t_call h_eval =>
+  case call t_lhs t_t_call t' h_t_lhs h_t_call h_eval =>
     cases h_t_lhs
-    case call h _ _ =>
-      cases h
-      case k h =>
-        cases h
+    case call t_lhs t_t_call t' h_t_lhs h_t_call h_eval_t' =>
+      cases h_t_lhs
+      case k t_t_call' t'' h_t_call' =>
+        cases h_eval_t'
+        cases h_eval
 
-lemma preservation_reverse_k : valid_judgment_hard x α → valid_judgment_hard SKM[((K x) y)] α := by
-  intro h_t
-  apply valid_judgment_hard.beta_eq
-  apply valid_judgment_hard.call
-  apply valid_judgment_hard.call
-  apply valid_judgment_hard.k
-  exact beta_eq.m_distributes
-  exact beta_eq.m_distributes
-  apply beta_eq.trans
-  apply beta_eq.right
-  apply beta_eq.eval
-  apply is_eval_once.k
-  apply valid_judgment_hard.imp_m_eval
-  exact h_t
-
-lemma preservation_reverse_s : valid_judgment_hard SKM[((x z) (y z))] t → valid_judgment_hard SKM[(((S x) y) z)] t := by
-  intro h_t
-  apply valid_judgment_hard.beta_eq
-  repeat apply valid_judgment_hard.call
-  apply valid_judgment_hard.s
-  repeat exact beta_eq.m_distributes
-  apply beta_eq.trans
-  apply beta_eq.right
-  apply beta_eq.eval
-  apply is_eval_once.s
-  apply valid_judgment_hard.imp_m_eval
-  exact h_t
-
-lemma preservation_s : valid_judgment SKM[(((S x) y) z)] t → valid_judgment SKM[((x z) (y z))] t := by
+lemma preservation_s : valid_judgment SKM[(((S x) y) z)] α → valid_judgment SKM[((x z) (y z))] α := by
   intro h_t
   cases h_t
-  case call t_lhs t_t_call h_t_lhs h_t_t_call h_eval =>
+  case call t_lhs t_t_call t' h_t_lhs h_t_call h_eval =>
     cases h_t_lhs
-    case call h _ _ =>
-      cases h
-      case call h _ _ =>
-        cases h
-        case s h =>
-          cases h
-
-lemma preservation_m : valid_judgment SKM[(M e)] t → ∃ t', valid_judgment_hard t t' := by
-  intro h
-  cases h
-  case call t_lhs t_t_call t_lhs h_t_call h =>
-    use SKM[(M t)]
-    cases h
-    repeat cases t_lhs
-
-example : valid_judgment_hard SKM[((K K) S)] SKM[(M K)] := by
-  apply preservation_reverse_k
-  exact valid_judgment_hard.k
+    case call t_lhs t_t_call t' h_t_lhs h_t_call h_eval_t' =>
+      cases h_t_lhs
+      case call t_t_call' t'' h_t_call' =>
+        cases h_eval_t'
 
 lemma normal_beta_eq : is_normal_n n e e_final → beta_eq e e_final := by
   intro h
@@ -247,13 +226,8 @@ lemma preservation : valid_judgment e t → is_eval_once e e' → valid_judgment
   apply valid_judgment_hard.call
   apply valid_judgment_hard.call
   apply valid_judgment_hard.m
-  apply beta_eq.left
-  apply beta_eq.eval
-  apply is_eval_once.m_m
-  apply beta_eq.left
   apply beta_eq.eval
   apply is_eval_once.s
-  apply beta_eq.trans
   apply beta_eq.left
   apply beta_eq.left
   apply beta_eq.eval
@@ -263,21 +237,128 @@ lemma preservation : valid_judgment e t → is_eval_once e e' → valid_judgment
   apply beta_eq.trans
   apply beta_eq.right
   apply beta_eq.m_distributes
-  apply beta_eq.trans
   apply valid_judgment.imp_m_eval
   exact h_t
-  exact beta_eq.rfl
+  apply valid_judgment_hard.beta_eq
+  apply valid_judgment_hard.call
+  apply valid_judgment_hard.call
+  apply valid_judgment_hard.s
+  apply beta_eq.eval
+  apply is_eval_once.s
+  apply beta_eq.left
+  apply beta_eq.left
+  apply beta_eq.eval
+  apply is_eval_once.k
+  apply beta_eq.trans
+  apply beta_eq.m_distributes
+  apply beta_eq.trans
+  apply beta_eq.rfl
   cases h_t
-  case m_m.call h_t_lhs h_t_call h_eval =>
-    cases h_t_lhs
-    cases h_eval
+  case m_m.a.a.a.call t_lhs t_t_call t' h_t_lhs h_t_call h_eval =>
+    apply beta_eq.symm
+    apply beta_eq.trans
+    apply beta_eq.left
+    apply beta_eq.eval
+    apply is_eval_once.m_m
+    apply beta_eq.trans
+    apply beta_eq.eval
+    apply is_eval_once.s
+    apply beta_eq.trans
+    apply beta_eq.left
+    apply beta_eq.eval
+    apply is_eval_once.k
+    apply beta_eq.trans
+    apply beta_eq.right
+    apply beta_eq.eval
+    apply is_eval_once.m_m
+    apply beta_eq.rfl
+  apply valid_judgment_hard.beta_eq
+  apply valid_judgment_hard.call
+  apply valid_judgment_hard.call
+  apply valid_judgment_hard.s
+  apply beta_eq.eval
+  apply is_eval_once.s
+  apply beta_eq.left
+  apply beta_eq.left
+  apply beta_eq.eval
+  apply is_eval_once.k
+  apply beta_eq.trans
+  apply beta_eq.m_distributes
   cases h_t
-  case m_k.call h_t_lhs h_t_call h_eval =>
-    cases h_t_lhs
-    cases h_eval
+  apply beta_eq.symm
+  apply beta_eq.trans
+  apply beta_eq.left
+  apply beta_eq.eval
+  apply is_eval_once.m_m
+  apply beta_eq.trans
+  apply beta_eq.eval
+  apply is_eval_once.s
+  apply beta_eq.trans
+  apply beta_eq.left
+  apply beta_eq.eval
+  apply is_eval_once.k
+  apply beta_eq.trans
+  apply beta_eq.right
+  apply beta_eq.eval
+  apply is_eval_once.m_k
+  apply beta_eq.rfl
   cases h_t
-  case m_s.call h_t_lhs h_t_call h_eval =>
-    cases h_t_lhs
-    cases h_eval
+  apply valid_judgment_hard.beta_eq
+  apply valid_judgment_hard.call
+  apply valid_judgment_hard.call
+  apply valid_judgment_hard.s
+  apply beta_eq.trans
+  apply beta_eq.eval
+  apply is_eval_once.s
+  apply beta_eq.trans
+  apply beta_eq.left
+  apply beta_eq.eval
+  apply is_eval_once.k
+  apply beta_eq.eval
+  apply is_eval_once.m_call
+  apply beta_eq.rfl
+  apply beta_eq.symm
+  apply beta_eq.trans
+  apply beta_eq.m_distributes
+  apply beta_eq.trans
+  apply beta_eq.right
+  apply beta_eq.eval
+  apply is_eval_once.m_s
+  apply beta_eq.symm
+  apply beta_eq.trans
+  apply beta_eq.left
+  apply beta_eq.m_distributes
+  apply beta_eq.trans
+  apply beta_eq.m_distributes
+  apply beta_eq.rfl
 
-lemma progress : valid_judgment e t → 
+lemma progress : valid_judgment e t → (is_normal_n 0 e e ∨ ∃ e', is_eval_once e e') := by
+  intro h_t
+  induction h_t
+  case call lhs t_lhs rhs t_t_call t' h_t_lhs h_t_call h_eval ih₁ ih₂ =>
+    match h : SKM[(lhs rhs)] with
+      | SKM[((K x) y)] =>
+        right
+        use x
+        apply is_eval_once.k
+      | SKM[(((S x) y) z)] =>
+        right
+        use SKM[((x z) (y z))]
+        apply is_eval_once.s
+      | SKM[(M e)] =>
+        right
+        use t
+        apply valid_judgment.imp_m_eval
+      | SKM[(lhs rhs)] =>
+        sorry
+      | x => sorry
+  case s =>
+    left
+    apply s_stuck
+  case k =>
+    left
+    apply k_stuck
+  case m =>
+    left
+    apply m_stuck
+
