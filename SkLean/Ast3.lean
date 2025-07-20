@@ -74,6 +74,10 @@ inductive valid_judgment_hard : Expr → Expr → Prop
     → beta_eq t₁ t₂
     → valid_judgment_hard e t₂
 
+inductive is_normal_n : ℕ → Expr → Expr → Prop
+  | stuck : (¬(∃ e', is_eval_once e e'))                 → is_normal_n 0 e e
+  | succ  : is_eval_once e e' → is_normal_n n e' e_final → is_normal_n n.succ e e_final
+
 namespace valid_judgment
 
 lemma imp_m : valid_judgment e t → beta_eq SKM[(M e)] t := by
@@ -165,3 +169,27 @@ lemma preservation : valid_judgment e t → is_eval_once e e' → valid_judgment
       cases h
       case m h =>
         cases h
+
+lemma progress : valid_judgment e t → ∃ e_final n, is_normal_n n e e_final := by
+  intro h_t
+  induction e
+  use SKM[K]
+  use 0
+  apply is_normal_n.stuck
+  intro ⟨_, h⟩
+  cases h
+  use SKM[S]
+  use 0
+  apply is_normal_n.stuck
+  intro ⟨_, h⟩
+  cases h
+  use SKM[M]
+  use 0
+  apply is_normal_n.stuck
+  intro ⟨_, h⟩
+  cases h
+  case call lhs rhs ih₁ ih₂ =>
+    cases h_t
+    case call t_lhs h_t_lhs h_eval_t =>
+      
+      sorry
