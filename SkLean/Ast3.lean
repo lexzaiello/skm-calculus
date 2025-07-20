@@ -121,7 +121,7 @@ lemma preservation_k_reverse : valid_judgment x α → valid_judgment_hard SKM[(
   apply is_eval_once.k
   exact h_t.imp_m
 
-lemma preservation : valid_judgment e t → is_eval_once e e' → valid_judgment_hard e' t := by
+lemma preservation : valid_judgment e t → is_eval_once e e' → valid_judgment e' t := by
   intro h_t h_eval
   induction e
   cases h_eval
