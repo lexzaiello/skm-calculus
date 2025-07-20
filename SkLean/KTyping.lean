@@ -52,6 +52,8 @@ def k_t (u v : ℕ) : LExpr := (.lam (.ty u) (.lam (.ty v) (.call (.call (.raw $
   |> eval_n 30
   |> parse_arrow
 
+#eval k_t 1 1 |> lift [] |> to_sk_unsafe
+
 /-
 This produces the type `(Ty 2 -> (Ty 3 -> Ty 2))`.
 I define the canonical typing for the `K` combinator from this expression.

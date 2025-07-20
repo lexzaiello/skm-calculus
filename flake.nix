@@ -65,10 +65,7 @@
 
             # Dependent Typing in SK
             - [Overview](./SkmOverview.lean.md)
-            - [Synthesizing Expressions with Eta-Reduction](./LcSkmEta.lean.md)
-            - [Dependent Typing of K](./KTyping.lean.md)
-            - [General Judgment Rules](./Typing3.lean.md)
-
+            - [AST & Judgment Rules](./Ast3.lean.md)
 
             # Strong Normalization Proof
           '';

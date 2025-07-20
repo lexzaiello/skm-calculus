@@ -13,7 +13,7 @@ M\ (e : t) = t
 $$
 
 In this way, there is a "canonical" type for every \\(e\\) that is well-typed.
-\\(M\\) is polymorphic, and not explicitly typed.
+\\(M\\) is polymorphic, and not parametrically typed.
 
 ## Explicit Typing of \\(S\\) and \\(K\\)
 
@@ -24,27 +24,58 @@ S \alpha \beta \gamma x y z = (x z) (y z) \\\\
 K \alpha \beta x y = x
 $$
 
-### K Dependent Typing
+### \\(M\\) Typing
 
-In Lean, one could define the \\(K\\) combinator as:
--/
+$$
+(M (e : t) : M t) \\\\
+(M (e : t) : M (M e))\\\\
+M : S (KM) M \\\\
+M e : M (M e)
+$$
 
-def my_k (α β : Type) : α → β → α :=
-  fun x _y => x
+Note that the input type of \\(M\\) is not readily interpretable here. We can generalize to say that a function call is well-typed the application of its argument to the function's type produces some normal form and makes "progress".
+This comports with our definition of "types" as expressions which are well-typed, but which do not make progress.
+This definition avoids circular reasoning, since evaluation rules for M, S, and K are defined separately from judgment rules.
 
-/-
-I propose a representation of this dependently-typed \\(K\\) combinator in \\(SK(M)\\).
-### The \\(\rightarrow\\) expression
+For example, these expressions are well-typed, but do not make progress:
 
-Using only \\(S\\), \\(K\\), and \\(M\\), we can derive an expression (\\(\rightarrow\\)) to represent the type of a function (e.g., \\(\alpha \rightarrow \beta\\) with similarity to \\(\forall\\). This expression is not a new construction in the language, and is merely derived from the existing constructs.
+$$
+K\ \alpha\ \beta (x : \alpha) \\\\
+S\ \alpha\ \beta\ \gamma (x : \alpha)
+$$
 
-Ideally, the expression produces the specified output type for all inputs of the specified input type.
+Thus, we can encode the notion of a "valid" judgment structurally through this notion of progress.
 
-Here ia a definition of \\(\rightarrow\\):
+While evaluation of \\(K x y\\) is always defined, calls to \\(K\\) ought not type-check unless its first argument also typechecks.
+It suffices, then to say that:
+
+$$
+K : S M (K M) \\\\
+K \alpha \beta (x : \alpha) : \text{Type} \\\\
+K \alpha \beta (x : \alpha) (y : \beta) : M x \\\\
+$$
+
+We need some way for \\(K\\) calls to not typecheck for arguments that do not produce a normal form (i.e., ones that produce type \\(\text{Type}\\)).
+Recall that our rule for function calls says that a function call \\((e_{1} : t)\ e_{2}\\) is well-typed if \\(t\ e_{2}\\) makes progress and is well-typed.
+An expression has type \\(\text{Type}\\) if it is well-typed and makes no progress. Therefore, \\(K \alpha \beta : \text{Type}\\). \\(K \alpha \beta\\) is well-typed
+However, \\(\text{Type}\\) is well-typed and makes no progress, yet its type is not \\(\text{Type}\\).
+
+$$
+K \alpha \beta (x : \alpha) : K\ \text{Type}\ \text{Type}\ (\alpha : \text{Type}\)
+$$
+
+$$
+K : K \text{Type} \text{Type} \\\\
+$$
+
+#### What about input types?
+
+
 
 $$
 \rightarrow\ A\ B\ (x : A)\ = B \\\\
-\rightarrow \alpha\ \beta := K\ (M \beta)\ \alpha\ \beta \\\\
+\rightarrow := S (K M)
+\rightarrow A B = S (K M) A B = (K M B) (A B) = M (A B)
 $$
 
 Note that this expression still relies on the \\(\lambda\\) abstraction and contains variables. We will see later that this expression is derivable fully point-free using a translation algorithm from the CoC to \\(SK(M)\\).
