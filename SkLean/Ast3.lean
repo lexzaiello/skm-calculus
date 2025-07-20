@@ -118,6 +118,16 @@ lemma imp_m_eval : valid_judgment_hard e t → _root_.beta_eq SKM[(M e)] t := by
 
 end valid_judgment_hard
 
+namespace beta_eq
+
+@[simp]
+lemma m_distributes : beta_eq SKM[((M lhs) rhs)] SKM[(M (lhs rhs))] := by
+  apply beta_eq.symm
+  apply beta_eq.eval
+  apply is_eval_once.m_call
+
+end beta_eq
+
 namespace valid_judgment
 
 lemma imp_m_eval : valid_judgment e t → beta_eq SKM[(M e)] t := by
@@ -149,22 +159,31 @@ lemma weakening : valid_judgment e t → valid_judgment_hard e t := by
   case call.a h _ =>
     exact h
   case call.a h _ _ =>
+    apply beta_eq.symm
+    apply beta_eq.trans
+    apply beta_eq.m_distributes
+    apply beta_eq.trans
+    apply imp_m_eval
+    apply valid_judgment.call
+    case a.a.a.a.a h_t_lhs _ _ _  =>
+      exact h_t_lhs
+    case a.a.a.a.a h_t_t _ _ =>
+      exact h_t_t
+    exact h
+    apply beta_eq.trans
+    apply beta_eq.m_distributes
+    apply valid_judgment_hard.imp_m_eval
+    apply valid_judgment_hard.beta_eq
+    apply valid_judgment_hard.call
+    case a.a.a.a.a.a.a h_t_lhs _ =>
+      exact h_t_lhs
     exact beta_eq.eval h
+    exact beta_eq.symm (beta_eq.eval h)
   apply valid_judgment_hard.s
   apply valid_judgment_hard.k
   apply valid_judgment_hard.m
 
 end valid_judgment
-
-namespace beta_eq
-
-@[simp]
-lemma m_distributes : beta_eq SKM[((M lhs) rhs)] SKM[(M (lhs rhs))] := by
-  apply beta_eq.symm
-  apply beta_eq.eval
-  apply is_eval_once.m_call
-
-end beta_eq
 
 lemma preservation_k : valid_judgment SKM[((K x) y)] α → valid_judgment x α := by
   intro h_t
@@ -428,8 +447,42 @@ lemma progress : valid_judgment e t → (is_normal_n 0 e e ∨ ∃ e', is_eval_s
                 cases h
                 case call h =>
                   cases h
-            
-          sorry
+          case call =>
+            cases h_eval
+            cases h_t_call
+            case k.call h _ _ =>
+              cases h
+              case call h =>
+                cases h
+            cases h_t_call
+            case s.call h _ _ =>
+              cases h
+              case call h =>
+                cases h
+            cases h_t_call
+            case m_call.call h _ _ =>
+              cases h
+              case m h =>
+                cases h
+                cases h_t_lhs
+            cases h_t_call
+            case m_m.call h _ _ =>
+              cases h
+              case m h =>
+                cases h
+                cases h_t_lhs
+            cases h_t_call
+            case m_k.call h _ _ =>
+              cases h
+              case m h =>
+                cases h
+                cases h_t_lhs
+            cases h_t_call
+            case m_s.call h _ _ =>
+              cases h
+              case m h =>
+                cases h
+                cases h_t_lhs
     case inr h_step_lhs =>
       let ⟨lhs', h_eval_lhs⟩ := h_step_lhs
       right
