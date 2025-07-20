@@ -364,36 +364,15 @@ lemma progress : valid_judgment e t → (is_normal_n 0 e e ∨ ∃ e', is_eval_s
     cases ih₁
     case inl h_norm_lhs =>
       match h : SKM[(lhs rhs)] with
-        | SKM[((K x) y)] =>
-          right
-          use x
-          apply is_eval_step.step
-          apply is_eval_once.k
-        | SKM[(((S x) y) z)] =>
-          right
-          use SKM[((x z) (y z))]
-          apply is_eval_step.step
-          apply is_eval_once.s
-        | SKM[(M (lhs rhs))] =>
-          right
-          use SKM[((M lhs) rhs)]
-          apply is_eval_step.step
-          apply is_eval_once.m_call
-        | SKM[(M M)] =>
-          right
-          use SKM[((S (K M)) M)]
-          apply is_eval_step.step
-          apply is_eval_once.m_m
-        | SKM[(M S)] =>
-          right
-          use SKM[((S (K M)) S)]
-          apply is_eval_step.step
-          apply is_eval_once.m_s
-        | SKM[(M K)] =>
-          right
-          use SKM[((S (K M)) K)]
-          apply is_eval_step.step
-          apply is_eval_once.m_k
+        | SKM[M] =>
+          left
+          exact m_stuck
+        | SKM[K] =>
+          left
+          exact k_stuck
+        | SKM[S] =>
+          left
+          exact s_stuck
         | SKM[(lhs rhs)] =>
           cases lhs
           left
