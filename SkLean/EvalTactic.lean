@@ -76,15 +76,20 @@ partial def eval_to (from_e : Lean.Expr) (to_e : Option Lean.Expr) : OptionT Met
       let t_out ← OptionT.mk (pure $ (← getConstInfo `t_out).value?)
       let e' := SKM`[(t_out ((M e₁) e₂))]
 
-      pure $ ([
+      pure $ [
         (Lean.Expr.const `beta_eq.trans []),
         (Lean.Expr.const `beta_eq.eval []),
         (Lean.Expr.const `is_eval_once.m_call [])
-      ]) ++ (← eval_to e' to_e)
+      ] ++ (← eval_to e' to_e)
     | SKM`[(lhs rhs)] =>
-      pure $ ([
+      pure $ [
         (Lean.Expr.const `beta_eq.trans []),
-        (Lean.Expr.const `beta_eq.left [])]) ++ (← eval_to lhs none)
+        (Lean.Expr.const `beta_eq.left [])]
+          ++ (← eval_to lhs none)
+          ++ [
+            (Lean.Expr.const `beta_eq.trans []),
+            (Lean.Expr.const `beta_eq.right [])]
+          ++ (← eval_to rhs none)
     | SKM`[K] => pure [Lean.Expr.const `beta_eq.rfl []]
     | SKM`[S] => pure [Lean.Expr.const `beta_eq.rfl []]
     | SKM`[M] => pure [Lean.Expr.const `beta_eq.rfl []]
@@ -125,12 +130,12 @@ elab_rules : tactic
 example : beta_eq SKM[((K x) y)] x := by
   eval_to x
 
+example : beta_eq SKM[((K (K K)) K)] SKM[(K K)] := by
+  eval_to SKM[(K K)]
+
 example : beta_eq SKM[(((S K) K) K)] SKM[K] := by
   eval_to SKM[K]
 
-example : beta_eq SKM[(M (((S K) K) K))] SKM[(M K)] := by
-  eval_to SKM[(M K)]
-  apply beta_eq.rfl
-  apply beta_eq.rfl
-  apply beta_eq.rfl
-  
+example : beta_eq SKM[(M ((K K) K))] SKM[(t_out ((M (K K)) K))] := by
+  eval_to SKM[(t_out ((M (K K)) K))]
+
