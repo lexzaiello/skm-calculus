@@ -135,19 +135,6 @@ def arrow_lc : LExpr := (.lam (.lam (.call (.call (.call .k (.call .m (.var 0)))
 For testing purposes, we will write `partial` evaluation and typing functions:
 -/
 
-def eval_n (n : ℕ) (e : Expr) : Expr :=
-  if n = 0 then
-    e
- else
-   let e' := match e with
-     | SKM[((((K _α) _β) x) _y)] => x
-     | SKM[((((((S _α) _β) _γ) x) y) z)] => SKM[((x z) (y z))]
-     | SKM[(lhs rhs)] =>
-       SKM[((#(eval_n n.pred lhs)) #(eval_n n.pred.pred rhs))]
-     | x => x
-
-   eval_n n.pred.pred.pred e'
-
 -- Type of K : λ α.→ (M α) (λ β.(→ (M β)) (M α))
 def t_k := (.lam (.call (.call (.raw arrow) (.call .m (.var 0))) (.lam (.call (.call (.raw arrow) (.call .m (.var 0))) (.call .m (.var 1))))))
   |> lift
@@ -172,6 +159,26 @@ def t_s := (.lam
   |> lift
   |> to_sk_unsafe
 
+
+def eval_n (n : ℕ) (e : Expr) : Expr :=
+  if n = 0 then
+    e
+ else
+   let e' := match e with
+     | SKM[((K x) _y)] => x
+     | SKM[(((S x) y) z)] => SKM[((x z) (y z))]
+     | SKM[(M (lhs rhs))] => SKM[(t_out ((M lhs) rhs))]
+     | SKM[(M K)] => t_k
+     | SKM[(M S)] => t_s
+     | SKM[(M M)] => t_m
+     | SKM[(lhs rhs)] =>
+       SKM[((#(eval_n n.pred lhs)) #(eval_n n.pred.pred rhs))]
+     | x => x
+
+   eval_n n.pred.pred.pred e'
+
 #eval s!"{t_k}"
 #eval s!"{t_s}"
 #eval s!"{t_m}"
+
+#eval eval_n 40 SKM[((t_k K) S)] == t_k
