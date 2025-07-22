@@ -67,10 +67,8 @@ inductive is_normal_n : ℕ → Expr → Expr → Prop
   | succ  : is_eval_once e e' → is_normal_n n e' e_final → is_normal_n n.succ e e_final
 
 inductive valid_judgment_hard : Expr → Expr → Prop
-  | call : is_normal_n n SKM[(M (lhs rhs))] t'
-    → n > 0
-    → valid_judgment_hard t'' t'
-    → valid_judgment_hard SKM[(lhs rhs)] SKM[((M lhs) rhs)]
+  | call : beta_eq SKM[(t_in ((M lhs) rhs))] SKM[(M rhs)]
+    → valid_judgment_hard SKM[(lhs rhs)] SKM[(M (lhs rhs))]
   | s : valid_judgment_hard SKM[S] t_s
   | k : valid_judgment_hard SKM[K] t_k
   | m : valid_judgment_hard SKM[M] t_m
