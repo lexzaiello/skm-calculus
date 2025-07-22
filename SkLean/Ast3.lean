@@ -67,8 +67,8 @@ inductive is_normal_n : ℕ → Expr → Expr → Prop
   | succ  : is_eval_once e e' → is_normal_n n e' e_final → is_normal_n n.succ e e_final
 
 inductive valid_judgment_hard : Expr → Expr → Prop
-  | call    : beta_eq SKM[(M (lhs rhs))] t_output
-    → valid_judgment_hard t_output t_t_output
+  | call    : is_eval_once SKM[(M (lhs rhs))] t_output
+    → beta_eq SKM[(t_in ((M lhs) rhs))] SKM[(M rhs)]
     → valid_judgment_hard SKM[(lhs rhs)] SKM[(M (lhs rhs))]
   | s       : valid_judgment_hard SKM[S] t_s
   | k       : valid_judgment_hard SKM[K] t_k
@@ -138,37 +138,4 @@ lemma s_stuck : is_normal_n 0 SKM[S] SKM[S] := by
   case a.intro h =>
     cases h
 
-lemma m_imp_judgment : is_normal_n n SKM[(M e)] t → n > 0 → valid_judgment_hard t t_t → valid_judgment_hard e t := by
-  intro h_beq h_t
-  cases h_beq
-  case stuck h =>
-    contradiction
-  case succ n h_step h_norm =>
-    intro h_t_t_t
-    induction n
-    case zero =>
-      cases h_norm
-      case stuck =>
-        cases h_step
-        case m_call lhs rhs h =>
-          cases h_t_t_t
-          
 
-lemma preservation_k : valid_judgment_hard SKM[((K x) y)] α → valid_judgment_hard x α := by
-  intro h_t
-  cases h_t
-  case call t_output t_t_output h_t_output h_beq =>
-    
-
-lemma preservation : valid_judgment_hard e t → beta_eq e e' → valid_judgment_hard e' t := by
-  intro h_t h_eval
-  induction h_eval
-  case rfl e'' =>
-    exact h_t
-  case eval e₁ e₂ h_eval =>
-    induction h_eval
-    case k x _y =>
-      cases h_t
-      
-      sorry
-    sorry
