@@ -67,87 +67,44 @@ inductive is_normal_n : ℕ → Expr → Expr → Prop
   | succ  : is_eval_once e e' → is_normal_n n e' e_final → is_normal_n n.succ e e_final
 
 inductive valid_judgment_hard : Expr → Expr → Prop
-  | call : beta_eq SKM[(t_in ((M lhs) rhs))] SKM[(M rhs)]
+  | call    : beta_eq SKM[(M (lhs rhs))] t_output
+    → valid_judgment_hard t_output t_t_output
     → valid_judgment_hard SKM[(lhs rhs)] SKM[(M (lhs rhs))]
-  | s : valid_judgment_hard SKM[S] t_s
-  | k : valid_judgment_hard SKM[K] t_k
-  | m : valid_judgment_hard SKM[M] t_m
+  | s       : valid_judgment_hard SKM[S] t_s
+  | k       : valid_judgment_hard SKM[K] t_k
+  | m       : valid_judgment_hard SKM[M] t_m
   | beta_eq : valid_judgment_hard e t₁
     → beta_eq t₁ t₂
     → valid_judgment_hard e t₂
 
 namespace valid_judgment_hard
 
-lemma weakening : valid_judgment_hard e t → valid_judgment_hard e t := by
-  intro h
-  induction h
-  apply valid_judgment_hard.call
-  case call.a h _ =>
-    sorry
-  case call.a h =>
-    sorry
-  case call.a h _ _ =>
-    sorry
-  repeat sorry
-
 lemma imp_m_eval : valid_judgment_hard e t → _root_.beta_eq SKM[(M e)] t := by
   intro h_t
   induction h_t
-  case call lhs t_lhs rhs t' h_t_lhs h_eval ih₁ =>
-    apply beta_eq.trans
-    apply beta_eq.eval
-    apply is_eval_once.m_call
-    apply beta_eq.trans
-    apply beta_eq.left
-    sorry
-    sorry
-    sorry
-  apply _root_.beta_eq.trans
+  apply _root_.beta_eq.rfl
   apply _root_.beta_eq.eval
   apply is_eval_once.m_s
-  apply _root_.beta_eq.rfl
-  apply _root_.beta_eq.trans
   apply _root_.beta_eq.eval
   apply is_eval_once.m_k
-  apply _root_.beta_eq.rfl
-  apply _root_.beta_eq.trans
   apply _root_.beta_eq.eval
-  sorry
-  repeat sorry
+  apply is_eval_once.m_m
+  case beta_eq e t₁ t₂ h_t₁ h_beq ih =>
+    apply _root_.beta_eq.trans
+    exact ih
+    exact h_beq
 
 end valid_judgment_hard
 
 namespace beta_eq
 
 @[simp]
-lemma m_distributes : beta_eq SKM[((M lhs) rhs)] SKM[(M (lhs rhs))] := by
+lemma m_distributes : beta_eq SKM[(t_out ((M lhs) rhs))] SKM[(M (lhs rhs))] := by
   apply beta_eq.symm
   apply beta_eq.eval
-  sorry
+  apply is_eval_once.m_call
 
 end beta_eq
-
-namespace valid_judgment
-
-
-end valid_judgment
-
-lemma preservation_k : valid_judgment_hard SKM[((K x) y)] α → valid_judgment_hard x α := by
-  intro h_t
-  cases h_t
-  case call t_lhs t_t_call t' h_t_lhs h_t_call h_eval =>
-    cases h_t_lhs
-    sorry
-    sorry
-  sorry
-
-lemma preservation_s : valid_judgment_hard SKM[(((S x) y) z)] α → valid_judgment_hard SKM[((x z) (y z))] α := by
-  intro h_t
-  cases h_t
-  case call t_lhs t_t_call t' h_t_lhs h_t_call h_eval =>
-    cases h_t_lhs
-    repeat sorry
-  sorry
 
 lemma normal_beta_eq : is_normal_n n e e_final → beta_eq e e_final := by
   intro h
@@ -181,28 +138,37 @@ lemma s_stuck : is_normal_n 0 SKM[S] SKM[S] := by
   case a.intro h =>
     cases h
 
+lemma m_imp_judgment : is_normal_n n SKM[(M e)] t → n > 0 → valid_judgment_hard t t_t → valid_judgment_hard e t := by
+  intro h_beq h_t
+  cases h_beq
+  case stuck h =>
+    contradiction
+  case succ n h_step h_norm =>
+    intro h_t_t_t
+    induction n
+    case zero =>
+      cases h_norm
+      case stuck =>
+        cases h_step
+        case m_call lhs rhs h =>
+          cases h_t_t_t
+          
+
+lemma preservation_k : valid_judgment_hard SKM[((K x) y)] α → valid_judgment_hard x α := by
+  intro h_t
+  cases h_t
+  case call t_output t_t_output h_t_output h_beq =>
+    
+
 lemma preservation : valid_judgment_hard e t → beta_eq e e' → valid_judgment_hard e' t := by
-  intro h_t h_beq
-  induction h_beq
+  intro h_t h_eval
+  induction h_eval
   case rfl e'' =>
     exact h_t
   case eval e₁ e₂ h_eval =>
-    induction h_t
-    case call =>
+    induction h_eval
+    case k x _y =>
+      cases h_t
+      
       sorry
-    cases h_eval
-    cases h_eval
-    cases h_eval
-    simp_all
-    case beta_eq ih =>
-      apply valid_judgment_hard.beta_eq
-      exact ih
-      case a h_beq =>
-        exact h_beq
-  repeat sorry
-
-lemma progress : valid_judgment_hard e t → (is_normal_n 0 e e ∨ ∃ e', is_eval_step e e') := by
-  intro h_t
-  induction h_t
-  repeat sorry
-
+    sorry
