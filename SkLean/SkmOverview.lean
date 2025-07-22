@@ -15,62 +15,46 @@ $$
 In this way, there is a "canonical" type for every \\(e\\) that is well-typed.
 \\(M\\) is polymorphic, and not parametrically typed.
 
-## Explicit Typing of \\(S\\) and \\(K\\)
+## The \\(\rightarrow\\) Expression
 
-I extend the \\(S\\) and\\(K\\) combinators with explicit typing while preserving their original meaning.
+Using only \\(S\\) ,\\(K\\) and \\(M\\), we can define an expression interpretable as the type of a function (e.g, \\(A \rightarrow B\\). This expression is called \\(\rightarrow\\).
 
-$$
-S \alpha \beta \gamma x y z = (x z) (y z) \\\\
-K \alpha \beta x y = x
-$$
+\\(\rightarrow A B\\) represents the type of a function taking in expressions of type \\(A\\) as inputs and outputting expressions of type \\(B\\) as outputs.
 
-### \\(M\\) Typing
+Note that since \\(\rightarrow\\) is an expression, it can be computed with.
 
-$$
-(M (e : t) : M t) \\\\
-(M (e : t) : M (M e))\\\\
-M : S (KM) M \\\\
-M e : M (M e)
-$$
+### Example typing: Dependent `I` Combinator
 
-Note that the input type of \\(M\\) is not readily interpretable here. We can generalize to say that a function call is well-typed the application of its argument to the function's type produces some normal form and makes "progress".
-This comports with our definition of "types" as expressions which are well-typed, but which do not make progress.
-This definition avoids circular reasoning, since evaluation rules for M, S, and K are defined separately from judgment rules.
-
-For example, these expressions are well-typed, but do not make progress:
+Although `I` is not defined in the core \\(SK(M)\\) calculus, it can be derived from \\(S\\) and \\(K\\).
+The typing of \\(I\\) is usually of the form \\(I : \forall (t : \text{Type}), t \rightarrow t\\). We can model this typing in the \\(SK(M)\\) calculus as such:
 
 $$
-K\ \alpha\ \beta (x : \alpha) \\\\
-S\ \alpha\ \beta\ \gamma (x : \alpha)
+I : S \rightarrow (S K K)
 $$
 
-Thus, we can encode the notion of a "valid" judgment structurally through this notion of progress.
-
-While evaluation of \\(K x y\\) is always defined, calls to \\(K\\) ought not type-check unless its first argument also typechecks.
-It suffices, then to say that:
+Note that in general, nondependent functions are of the type:
 
 $$
-K : S M (K M) \\\\
-K \alpha \beta (x : \alpha) : \text{Type} \\\\
-K \alpha \beta (x : \alpha) (y : \beta) : M x \\\\
+e : A \rightarrow B \approximate e : K (\rightarrow A B)
 $$
 
-We need some way for \\(K\\) calls to not typecheck for arguments that do not produce a normal form (i.e., ones that produce type \\(\text{Type}\\)).
-Recall that our rule for function calls says that a function call \\((e_{1} : t)\ e_{2}\\) is well-typed if \\(t\ e_{2}\\) makes progress and is well-typed.
-An expression has type \\(\text{Type}\\) if it is well-typed and makes no progress. Therefore, \\(K \alpha \beta : \text{Type}\\). \\(K \alpha \beta\\) is well-typed
-However, \\(\text{Type}\\) is well-typed and makes no progress, yet its type is not \\(\text{Type}\\).
+### \\(\rightarrow\\) Definition
+
+In practice, \\(\rightarrow\\) is defined as a Church-encoded pair.
 
 $$
-K \alpha \beta (x : \alpha) : K\ \text{Type}\ \text{Type}\ (\alpha : \text{Type}\)
+\rightarrow := ((S (K ((S (K S)) K))) K)
 $$
 
-$$
-K : K \text{Type} \text{Type} \\\\
-$$
+### Interpretation of Function Types
 
-#### What about input types?
+Using our definition of the \\(\rightarrow\\) expression, we can define judgment rules for function application.
+In general, a function call \\(e_{1}\ e_{2}\\) is well-typed if:
 
-
+- Its left hand side is of the form:
+  - \\(e_{1} : K (\rightarrow A B)\\) in the non-dependent case
+  - \\(e_{1} : S \rightarrow f\\) in the dependent case
+- The expression 
 
 $$
 \rightarrow\ A\ B\ (x : A)\ = B \\\\
