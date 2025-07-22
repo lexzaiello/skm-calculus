@@ -34,15 +34,17 @@ macro_rules
 -- Closes a goal of the form `beta_eq e₁ e₂` by recursively evaluating the expression
 partial def eval_to (from_e : Lean.Expr) (to_e : Option Lean.Expr) : OptionT MetaM $ List Lean.Expr := do
   if (← (to_e.map $ isDefEq from_e).getD (pure false)) then
-    pure []
+    pure [(Lean.Expr.const `beta_eq.rfl []),]
   else match from_e with
     | SKM`[((K x) _y)] =>
       pure $ ([
+        (Lean.Expr.const `beta_eq.trans []),
         (Lean.Expr.const `beta_eq.eval []),
         (Lean.Expr.const `is_eval_once.k []),
       ]) ++ (← eval_to x to_e)
     | SKM`[(((S x) y) z)] =>
       pure $ ([
+        (Lean.Expr.const `beta_eq.trans []),
         (Lean.Expr.const `beta_eq.eval []),
         (Lean.Expr.const `is_eval_once.s []),
       ]) ++ (← eval_to SKM`[((x z) (y z))] to_e)
@@ -50,6 +52,7 @@ partial def eval_to (from_e : Lean.Expr) (to_e : Option Lean.Expr) : OptionT Met
       let e' ← OptionT.mk (pure $ (← getConstInfo `t_k).value?)
 
       pure $ ([
+        (Lean.Expr.const `beta_eq.trans []),
         (Lean.Expr.const `beta_eq.eval []),
         (Lean.Expr.const `is_eval_once.m_k []),
       ]) ++ (← eval_to e' to_e)
@@ -57,6 +60,7 @@ partial def eval_to (from_e : Lean.Expr) (to_e : Option Lean.Expr) : OptionT Met
       let e' ← OptionT.mk (pure $ (← getConstInfo `t_m).value?)
 
       pure $ ([
+        (Lean.Expr.const `beta_eq.trans []),
         (Lean.Expr.const `beta_eq.eval []),
         (Lean.Expr.const `is_eval_once.m_m []),
       ]) ++ (← eval_to e' to_e)
@@ -64,6 +68,7 @@ partial def eval_to (from_e : Lean.Expr) (to_e : Option Lean.Expr) : OptionT Met
       let e' ← OptionT.mk (pure $ (← getConstInfo `t_s).value?)
 
       pure $ ([
+        (Lean.Expr.const `beta_eq.trans []),
         (Lean.Expr.const `beta_eq.eval []),
         (Lean.Expr.const `is_eval_once.m_s []),
       ]) ++ (← eval_to e' to_e)
@@ -72,6 +77,7 @@ partial def eval_to (from_e : Lean.Expr) (to_e : Option Lean.Expr) : OptionT Met
       let e' := SKM`[(t_out ((M e₁) e₂))]
 
       pure $ ([
+        (Lean.Expr.const `beta_eq.trans []),
         (Lean.Expr.const `beta_eq.eval []),
         (Lean.Expr.const `is_eval_once.m_call [])
       ]) ++ (← eval_to e' to_e)
@@ -113,3 +119,5 @@ elab_rules : tactic
 example : beta_eq SKM[((K x) y)] x := by
   eval_to x
 
+example : beta_eq SKM[(((S K) K) K)] SKM[K] := by
+  eval_to SKM[K]
