@@ -182,4 +182,6 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
 #eval s!"{t_m}"
 
 #eval eval_n 40 SKM[((t_k K) S)] == t_k
+-- => true
 #eval eval_n 50 SKM[(M (((S K) K) K))] == t_k
+-- => true
