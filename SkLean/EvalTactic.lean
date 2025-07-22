@@ -35,7 +35,7 @@ macro_rules
 partial def eval_to (from_e : Lean.Expr) (to_e : Option Lean.Expr) : OptionT MetaM $ List Lean.Expr := do
   if (← (to_e.map $ isDefEq from_e).getD (pure false)) then
     pure [(Lean.Expr.const `beta_eq.rfl []),]
-  else match from_e with
+  else match (← whnf from_e) with
     | SKM`[((K x) _y)] =>
       pure $ ([
         (Lean.Expr.const `beta_eq.trans []),
@@ -82,7 +82,12 @@ partial def eval_to (from_e : Lean.Expr) (to_e : Option Lean.Expr) : OptionT Met
         (Lean.Expr.const `is_eval_once.m_call [])
       ]) ++ (← eval_to e' to_e)
     | SKM`[(lhs rhs)] =>
-      pure $ (Lean.Expr.const `beta_eq.left []) :: (← eval_to lhs none)
+      pure $ ([
+        (Lean.Expr.const `beta_eq.trans []),
+        (Lean.Expr.const `beta_eq.left [])]) ++ (← eval_to lhs none)
+    | SKM`[K] => pure [Lean.Expr.const `beta_eq.rfl []]
+    | SKM`[S] => pure [Lean.Expr.const `beta_eq.rfl []]
+    | SKM`[M] => pure [Lean.Expr.const `beta_eq.rfl []]
     | _ => pure []
 
 def parse_beta_eq_call (e : Lean.Expr) : OptionT MetaM $ Lean.Expr × Lean.Expr := do
@@ -109,6 +114,7 @@ elab_rules : tactic
     match exprs with
       | Option.some exprs =>
         for e in exprs do
+          logInfo s!"{e}"
           let e_stx ← delab e
           evalTactic (← `(tactic| apply $e_stx))
       | .none =>
@@ -121,3 +127,10 @@ example : beta_eq SKM[((K x) y)] x := by
 
 example : beta_eq SKM[(((S K) K) K)] SKM[K] := by
   eval_to SKM[K]
+
+example : beta_eq SKM[(M (((S K) K) K))] SKM[(M K)] := by
+  eval_to SKM[(M K)]
+  apply beta_eq.rfl
+  apply beta_eq.rfl
+  apply beta_eq.rfl
+  

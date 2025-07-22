@@ -138,4 +138,3 @@ lemma s_stuck : is_normal_n 0 SKM[S] SKM[S] := by
   case a.intro h =>
     cases h
 
-
