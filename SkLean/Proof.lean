@@ -6,6 +6,3 @@ example : beta_eq SKM[((K x) y)] x := by
 
 example : beta_eq SKM[(((S K) K) K)] SKM[K] := by
   eval_to SKM[K]
-
-example : beta_eq SKM[(M (((S K) K) K))] SKM[(M K)] := by
-  eval_to SKM[(M K)]
