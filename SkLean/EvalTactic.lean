@@ -2,6 +2,7 @@ import Lean
 import SkLean.Ast3
 import Mathlib.Util.AtomM
 import Lean.Expr
+import Mathlib.Control.Monad.Writer
 
 open Lean Meta Qq
 open PrettyPrinter
@@ -55,77 +56,53 @@ def get_goal_from_e  : TacticM (Option Lean.Expr) := do
   let goal   ← getMainGoal
   let goal_e := (← Term.getMVarDecl goal).type
 
+  logInfo s!"main goal: {goal_e}"
+
   let some ⟨from_e, _⟩ ← parse_beta_eq_call goal_e | return none
 
   pure from_e
 
 -- Closes a goal of the form `beta_eq e₁ e₂` by recursively evaluating the expression
-partial def eval_to (to_e : Option Lean.Expr) : TacticM (Option Unit):= do
-  let do_apply : List Lean.Expr → TacticM Unit := fun (exprs) => do
-    exprs.forM (fun (e) => do
-      let e' ← delab e
-      evalTactic (← `(tactic| apply $e'))
-    )
-
-  let some from_e := (← get_goal_from_e) | return ()
-
-  let to_e ← (do match ← get_goal_target_e with
-    | .some g => do
-      let _ ← do_apply [(Lean.Expr.const `beta_eq.trans [])]
-      pure $ .some g
-    | .none =>
-      pure to_e)
-
-  if (← liftMetaM (to_e.mapM $ isDefEq from_e)).getD false then
-    do_apply [(Lean.Expr.const `beta_eq.rfl []),]
-  else match (← whnf from_e) with
+partial def eval_to (e : Lean.Expr) : WriterT (List Lean.Expr) MetaM Unit := do
+  match (← whnf e) with
     | SKM`[((K x) _y)] =>
-      let _ ← do_apply [
-        Lean.Expr.const `beta_eq.eval [],
-        Lean.Expr.const `is_eval_once.k [],
-      ]
-      eval_to to_e
+      tell [Lean.Expr.const `beta_eq.eval [], Lean.Expr.const `is_eval_once.k []]
+      eval_to x
     | SKM`[(((S x) y) z)] =>
-      let _ ← do_apply [
-        (Lean.Expr.const `beta_eq.eval []),
-        (Lean.Expr.const `is_eval_once.s []),
-      ]
-      eval_to to_e
+      tell [Lean.Expr.const `beta_eq.eval [], Lean.Expr.const `is_eval_once.s []]
+      eval_to SKM`[((x z) (y z))]
     | SKM`[(M K)] =>
-      let _ ← do_apply [
-        (Lean.Expr.const `beta_eq.eval []),
-        (Lean.Expr.const `is_eval_once.m_k []),
-      ]
-      eval_to to_e
+      tell [Lean.Expr.const `beta_eq.eval [], Lean.Expr.const `is_eval_once.m_k []]
     | SKM`[(M M)] =>
-      let _ ← do_apply [
-        (Lean.Expr.const `beta_eq.eval []),
-        (Lean.Expr.const `is_eval_once.m_m []),
-      ]
-      eval_to to_e
+      tell [Lean.Expr.const `beta_eq.eval [], Lean.Expr.const `is_eval_once.m_m []]
     | SKM`[(M S)] =>
-      let _ ← do_apply [
-        (Lean.Expr.const `beta_eq.eval []),
-        (Lean.Expr.const `is_eval_once.m_s []),
-      ]
-      eval_to to_e
+      tell [Lean.Expr.const `beta_eq.eval [], Lean.Expr.const `is_eval_once.m_s []]
     | SKM`[(M (e₁ e₂))] =>
-      let _ ← do_apply [
-        (Lean.Expr.const `beta_eq.eval []),
-        (Lean.Expr.const `is_eval_once.m_call []),
-      ]
-      eval_to to_e
-    | SKM`[K] => do_apply [Lean.Expr.const `beta_eq.rfl []]
-    | SKM`[S] => do_apply [Lean.Expr.const `beta_eq.rfl []]
-    | SKM`[M] => do_apply [Lean.Expr.const `beta_eq.rfl []]
+      match (← liftMetaM $ getConstInfo `t_out).value? with
+        | .some e =>
+          tell [
+            Lean.Expr.const `beta_eq.eval [],
+            Lean.Expr.const `is_eval_once.m_call []
+          ]
+
+          eval_to SKM`[(e ((M e₁) e₂))]
+        | .none =>
+          liftMetaM $ throwError "bruh"
     | SKM`[(lhs rhs)] =>
-      let _ ← do_apply [
-        (Lean.Expr.const `beta_eq.left [])]
+      tell [
+        Lean.Expr.const `beta_eq.trans [],
+        Lean.Expr.const `beta_eq.left []
+      ]
       let _ ← eval_to lhs
-      let _ ← do_apply [
-             Lean.Expr.const `beta_eq.right []]
-      eval_to none
-    | _ => pure $ pure ()
+      tell [Lean.Expr.const `beta_eq.rfl [],
+            Lean.Expr.const `beta_eq.trans [],
+            Lean.Expr.const `beta_eq.right []
+      ]
+      let _ ← eval_to rhs
+
+      tell [Lean.Expr.const `beta_eq.rfl []]
+    | _ =>
+      tell [Lean.Expr.const `beta_eq.rfl []]
 
 syntax "eval_to" ( term ) : tactic
 
@@ -133,22 +110,16 @@ elab_rules : tactic
   | `(tactic| eval_to $e) => (do
     let to_e ← elabTerm e none
 
-    eval_to to_e).bind (fun o => pure $ o.getD ())
+    let ⟨_, exprs⟩ ← liftMetaM (eval_to to_e)
 
-example : beta_eq SKM[((K x) y)] x := by
-  eval_to x
+    for e in exprs do
+      let e_stx ← delab e
+      evalTactic (← `(tactic| apply $e_stx))
 
-example : beta_eq SKM[((K (K K)) K)] SKM[(K K)] := by
-  eval_to SKM[(K K)]
-
-example : beta_eq SKM[(((S K) K) K)] SKM[K] := by
-  eval_to SKM[K]
-
-example : beta_eq SKM[(M (((S K) K) K))] SKM[(t_out ((M ((S K) K)) K))] := by
-  eval_to SKM[(t_out ((M ((S K) K)) K))]
+    pure ()
+  )
 
 example : beta_eq SKM[(M (((S K) K) K))] SKM[(M K)] := by
   eval_to SKM[(M K)]
-  trace_state
 
 
