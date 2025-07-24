@@ -87,7 +87,7 @@ partial def eval_to (e : Lean.Expr) : WriterT (List Lean.Expr) MetaM Unit := do
 
           eval_to SKM`[(e ((M e₁) e₂))]
         | .none =>
-          liftMetaM $ throwError "bruh"
+          liftMetaM $ throwError s!"Failed at step: {e}"
     | SKM`[(lhs rhs)] =>
       tell [
         Lean.Expr.const `beta_eq.trans [],
