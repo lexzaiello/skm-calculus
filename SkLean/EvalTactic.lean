@@ -56,8 +56,6 @@ def get_goal_from_e  : TacticM (Option Lean.Expr) := do
   let goal   ← getMainGoal
   let goal_e := (← Term.getMVarDecl goal).type
 
-  logInfo s!"main goal: {goal_e}"
-
   let some ⟨from_e, _⟩ ← parse_beta_eq_call goal_e | return none
 
   pure from_e
@@ -87,39 +85,47 @@ partial def eval_to (e : Lean.Expr) : WriterT (List Lean.Expr) MetaM Unit := do
 
           eval_to SKM`[(e ((M e₁) e₂))]
         | .none =>
-          liftMetaM $ throwError s!"Failed at step: {e}"
+          liftMetaM $ throwError s!"Couldn't find definition for t_out. This is a bug. Please report. At step: {e}"
     | SKM`[(lhs rhs)] =>
+      tell [Lean.Expr.const `beta_eq.trans [],
+            Lean.Expr.const `beta_eq.right []
+      ]
+      let _ ← eval_to rhs
       tell [
         Lean.Expr.const `beta_eq.trans [],
         Lean.Expr.const `beta_eq.left []
       ]
-      let _ ← eval_to lhs
-      tell [Lean.Expr.const `beta_eq.rfl [],
-            Lean.Expr.const `beta_eq.trans [],
-            Lean.Expr.const `beta_eq.right []
-      ]
-      let _ ← eval_to rhs
-
-      tell [Lean.Expr.const `beta_eq.rfl []]
+      eval_to lhs
     | _ =>
       tell [Lean.Expr.const `beta_eq.rfl []]
 
-syntax "eval_to" ( term ) : tactic
+syntax "eval_expr" : tactic
 
 elab_rules : tactic
-  | `(tactic| eval_to $e) => (do
-    let to_e ← elabTerm e none
+  | `(tactic| eval_expr) => (do
+    let some from_e ← get_goal_from_e | throwError "no goal found"
+    let ⟨_, exprs⟩ ← liftMetaM (eval_to from_e)
 
-    let ⟨_, exprs⟩ ← liftMetaM (eval_to to_e)
-
+    evalTactic (← `(tactic| apply beta_eq.trans))
     for e in exprs do
       let e_stx ← delab e
-      evalTactic (← `(tactic| apply $e_stx))
+      try
+        logInfo s!"{e}"
+        evalTactic (← `(tactic| apply $e_stx))
+      catch err =>
+        let goal   ← getMainGoal
+        let goal_e := (← Term.getMVarDecl goal).type
+
+        let err_msg ← err.toMessageData.format
+        logInfo s!"step {e} at {goal_e} failed:\n\n{err_msg}"
 
     pure ()
   )
 
+example : beta_eq SKM[(((S K) K) K)] SKM[K] := by
+  eval_expr
+
 example : beta_eq SKM[(M (((S K) K) K))] SKM[(M K)] := by
-  eval_to SKM[(M K)]
+  eval_expr
 
 
