@@ -4,11 +4,11 @@ data Expr =
   S
   | K
   | M
-  | Call (Expr lhs) (Expr rhs)
+  | Call Expr Expr
   deriving (Eq)
 
 instance Show Expr where
-  show S = "S"
-  show K = "K"
-  show M = "M"
-  show Call lhs rhs = "(" ++ show lhs ++ " " ++ show rhs ++ ")"
+  show S              = "S"
+  show K              = "K"
+  show M              = "M"
+  show (Call lhs rhs) = "(" ++ show lhs ++ " " ++ show rhs ++ ")"

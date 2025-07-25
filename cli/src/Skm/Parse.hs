@@ -10,29 +10,29 @@ data Token = LParen
   | Kt
   | Mt
 
-lex :: String -> [Token]
-lex e :: xs =
+lexi :: String -> [Token]
+lexi (e:xs) =
   (case e of
-    "(" -> [LParen]
-    ")" -> [RParen]
-    "S" -> [St]
-    "K" -> [Kt]
-    "M" -> [Mt]
-    " " -> []) ++ lex xs
-lex otherwise = []
+    '('       -> [LParen]
+    ')'       -> [RParen]
+    'S'       -> [St]
+    'K'       -> [Kt]
+    'M'       -> [Mt]
+    otherwise -> []) ++ lexi xs
+lexi otherwise = []
 
-parse :: [Token] -> Either (Expr, [Token]) [Token]
-parse e :: xs =
+parse :: [Token] -> Either [Token] (Expr, [Token])
+parse (e:xs) =
   case e of
-    St -> Left (S, xs)
-    Kt -> Left (K, xs)
-    Mt -> Left (M, xs)
-    LParen ->
-      let (lhs, rest)  <- parse xs
-      let (rhs, rest') <- parse rest
+    St -> pure (S, xs)
+    Kt -> pure (K, xs)
+    Mt -> pure (M, xs)
+    LParen -> do
+      (lhs, rest)  <- parse xs
+      (rhs, rest') <- parse rest
 
-      Left (Call lhs rhs, dropparen rest')
+      pure (Call lhs rhs, dropparen rest')
     RParen ->
-     Right xs
-  where dropparen RParen :: xs = xs
-        dropparen x            = x
+     Left xs
+  where dropparen (RParen:xs) = xs
+        dropparen x              = x

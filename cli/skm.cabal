@@ -20,17 +20,12 @@ source-repository head
 
 library
   exposed-modules:
-      SkLean
-      SkLean.Ast
-      SkLean.Eval
-      SkLean.Parse
-      SkLean.Std
-  other-modules:
-      Skm
       Skm.Ast
       Skm.Eval
       Skm.Parse
       Skm.Std
+  other-modules:
+      Skm
   hs-source-dirs:
       src
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns

@@ -14,11 +14,10 @@ dependencies:
 library:
   source-dirs: src
   exposed-modules:
-    - SkLean
-    - SkLean.Ast
-    - SkLean.Eval
-    - SkLean.Parse
-    - SkLean.Std
+    - Skm.Ast
+    - Skm.Eval
+    - Skm.Parse
+    - Skm.Std
 
 executable:
   main: Main.hs

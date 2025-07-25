@@ -1,5 +1,7 @@
 module Skm.Std where
 
+import Skm.Ast
+
 i :: Expr
 i = (Call (Call S K) K)
 
