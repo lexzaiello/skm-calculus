@@ -62,20 +62,41 @@ def get_goal_from_e  : TacticM (Option Lean.Expr) := do
 
 def EvalResult := Lean.Expr
 
+def mk_trans (e₁ e₂ e₃ step₁ step₂ : Lean.Expr) : Lean.Expr :=
+  mkApp5
+    (.const `beta_eq.trans [])
+    e₁
+    e₂
+    e₃
+    step₁
+    step₂
+
 -- Closes a goal of the form `beta_eq e₁ e₂` by recursively evaluating the expression
 partial def eval_to (e : Lean.Expr) : MetaM $ Option (EvalResult × Lean.Expr) := do
-  logInfo s!"{e}"
+  let do_trans (e₀ e₁ e_proof : Lean.Expr) : MetaM $ Option (EvalResult × Lean.Expr) := do
+    let e' ← eval_to e₁
+
+    match e' with
+      | .some ⟨e', rst_proof⟩ =>
+        pure $ some ⟨
+          e',
+          mk_trans e₀ e₁ e' e_proof rst_proof
+        ⟩
+      | .none =>
+        pure $ some ⟨
+          e₁,
+          e_proof
+        ⟩
+
   match (← whnf e) with
     | SKM`[((K x) y)] =>
-      pure $ some ⟨
-        x,
-        ← mkAppM `beta_eq.eval #[mkApp2 (.const `is_eval_once.k []) x y]
-      ⟩
+      let x_proof ← mkAppM `beta_eq.eval #[mkApp2 (.const `is_eval_once.k []) x y]
+
+      do_trans e x x_proof
     | SKM`[(((S x) y) z)] =>
-      pure $ some ⟨
-        SKM`[((x z) (y z))],
-        ← mkAppM `beta_eq.eval #[mkApp3 (.const `is_eval_once.s []) x y z]
-      ⟩
+      let xyz_proof ← mkAppM `beta_eq.eval #[mkApp3 (.const `is_eval_once.s []) x y z]
+
+      do_trans e SKM`[((x z) (y z))] xyz_proof
     | SKM`[(M K)] =>
       pure $ some ⟨
         SKM`[(M K)],
@@ -116,14 +137,13 @@ partial def eval_to (e : Lean.Expr) : MetaM $ Option (EvalResult × Lean.Expr) :
           let e₂ := SKM`[(lhs' rhs)]
           let e₃ := final
 
-          pure $ some ⟨final,
-               mkApp5
-                 (.const `beta_eq.trans [])
-                 e₁
-                 e₂
-                 e₃
-                 (mkApp4 (.const `beta_eq.left []) lhs lhs' rhs proof')
-                 rst_proof'⟩
+          pure $ some ⟨final, mk_trans
+                              e₁
+                              e₂
+                              e₃
+                              (mkApp4 (.const `beta_eq.left []) lhs lhs' rhs proof')
+                              rst_proof'
+          ⟩
         -- We reached a normal form. Try rhs
         | .none =>
           match maybe_rhs with
@@ -138,14 +158,13 @@ partial def eval_to (e : Lean.Expr) : MetaM $ Option (EvalResult × Lean.Expr) :
               let e₂ := SKM`[(lhs rhs')]
               let e₃ := final
 
-              pure $ some ⟨final,
-               mkApp5
-                 (.const `beta_eq.trans [])
-                 e₁
-                 e₂
-                 e₃
-                 (mkApp4 (.const `beta_eq.right []) rhs rhs' lhs proof')
-                 rst_proof'⟩
+              pure $ some ⟨final, mk_trans
+                                  e₁
+                                  e₂
+                                  e₃
+                                  (mkApp4 (.const `beta_eq.right []) rhs rhs' lhs proof')
+                                  rst_proof'
+              ⟩
             | .none => pure none
     | _ => pure none
 

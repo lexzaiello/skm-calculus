@@ -185,3 +185,34 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
 -- => true
 #eval eval_n 50 SKM[(M (((S K) K) K))] == t_k
 -- => true
+
+-- Church numeral example
+
+def mk_church (n : ℕ) : LExpr :=
+  let rec mk_church_body (n : ℕ) : LExpr :=
+    if n = 0 then
+      (.var 0)
+    else
+      (.call (.var 1) (mk_church_body n.pred))
+
+  (.lam (.lam $ mk_church_body n))
+
+def n_0 := mk_church 0
+  |> lift
+  |> to_sk_unsafe
+
+def n_1 :=  mk_church 1
+  |> lift
+  |> to_sk_unsafe
+
+def succ := (.lam (.lam (.lam (.call (.var 1) (.call (.call (.var 2) (.var 2)) (.var 0))))))
+  |> lift
+  |> to_sk_unsafe
+
+#eval eval_n 40 SKM[(M n_0)]
+#eval eval_n 40 SKM[(M n_1)]
+#eval (eval_n 40 SKM[(M n_1)]) == (eval_n 40 SKM[(M n_1)])
+
+#eval eval_n 60 SKM[(succ n_0)]
+#eval n_1
+
