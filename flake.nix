@@ -49,9 +49,13 @@
             done
           '';
         };
+        skm-cli = pkgs.haskellPackages.developPackage {
+          root = ./cli;
+        };
       in rec {
         packages.md = md;
         packages.book-md = book-md;
+        packages.skm = skm-cli;
         packages.book-site = let
           summarymd = ''
             # Summary
@@ -93,6 +97,13 @@
           type = "app";
           program = "${serve-bin}/bin/serve";
         };
+        devShells.default = with pkgs.haskellPackages; pkgs.mkShell {
+          nativeBuildInputs = [ghc];
+        };
+        apps.skm = {
+          type = "app";
+          program = "${skm-cli}/bin/skm";
+        };
         apps.serve-live = let
           serve-live = pkgs.writeShellScriptBin "serve-live" ''
             ${pkgs.watchexec}/bin/watchexec -e lean,md,nix,org --restart -- nix run .#book-serve
@@ -102,4 +113,5 @@
           program = "${serve-live}/bin/serve-live";
         };
       });
+
 }
