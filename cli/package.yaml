@@ -1,0 +1,27 @@
+spec-version: 0.36.0
+name: skm
+version: 0.1.0
+synopsis: Tool for the SKM language
+author: Alexandra Zaldivar Aiello
+github: lexzaiello/sk-lean
+category: Language
+
+ghc-options: -Wall -fno-warn-incomplete-uni-patterns
+
+dependencies:
+  - base >= 4.13 && < 5
+
+library:
+  source-dirs: src
+  exposed-modules:
+    - SkLean
+    - SkLean.Ast
+    - SkLean.Eval
+    - SkLean.Parse
+    - SkLean.Std
+
+executable:
+  main: Main.hs
+  source-dirs: app
+  dependencies:
+    - skm
