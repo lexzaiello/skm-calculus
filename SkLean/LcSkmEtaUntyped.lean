@@ -213,6 +213,6 @@ def succ := (.lam (.lam (.lam (.call (.var 1) (.call (.call (.var 2) (.var 2)) (
 #eval eval_n 40 SKM[(M n_1)]
 #eval (eval_n 40 SKM[(M n_1)]) == (eval_n 40 SKM[(M n_1)])
 
-#eval eval_n 60 SKM[(succ n_0)]
-#eval n_1
+#eval eval_n 30 SKM[(succ n_0)]
+
 
