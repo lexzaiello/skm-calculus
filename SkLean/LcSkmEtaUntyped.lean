@@ -166,8 +166,15 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
  else
    let e' := match e with
      | SKM[((K x) _y)] => x
-     | SKM[(((S x) y) z)] => SKM[((x z) (y z))]
-     | SKM[(M (lhs rhs))] => SKM[(t_out ((M lhs) rhs))]
+     | SKM[(((S x) y) z)] =>
+       let x' := eval_n n.pred x
+       let y' := eval_n n.pred.pred y
+       let z' := eval_n n.pred.pred z
+       SKM[((x' z') (y' z'))]
+     | SKM[(M (lhs rhs))] =>
+       let lhs' := eval_n n.pred lhs
+       let rhs' := eval_n n.pred rhs
+       SKM[(t_out ((M lhs') rhs'))]
      | SKM[(M K)] => t_k
      | SKM[(M S)] => t_s
      | SKM[(M M)] => t_m
@@ -175,7 +182,32 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
        SKM[((#(eval_n n.pred lhs)) #(eval_n n.pred.pred rhs))]
      | x => x
 
-   eval_n n.pred.pred.pred e'
+   if e' == e then
+     e
+   else
+     eval_n n.pred.pred.pred e'
+
+partial def eval_unsafe (e : Expr) : Expr :=
+  dbg_trace s!"hi: {e}"
+  match e with
+     | SKM[((K x) _y)] => eval_unsafe x
+     | SKM[(((S x) y) z)] =>
+       let x' := eval_unsafe x
+       let y' := eval_unsafe y
+       let z' := eval_unsafe z
+
+       eval_unsafe SKM[((x' z') (y' z'))]
+     | SKM[(M (lhs rhs))] =>
+       let lhs' := eval_unsafe lhs
+       let rhs' := eval_unsafe rhs
+
+       eval_unsafe SKM[(t_out ((M lhs') rhs'))]
+     | SKM[(M K)] => t_k
+     | SKM[(M S)] => t_s
+     | SKM[(M M)] => t_m
+     | SKM[(lhs rhs)] =>
+       eval_unsafe SKM[((#(eval_unsafe lhs)) #(eval_unsafe rhs))]
+     | x => x
 
 #eval s!"{t_k}"
 #eval s!"{t_s}"
@@ -209,10 +241,8 @@ def succ := (.lam (.lam (.lam (.call (.var 1) (.call (.call (.var 2) (.var 2)) (
   |> lift
   |> to_sk_unsafe
 
-#eval eval_n 40 SKM[(M n_0)]
-#eval eval_n 40 SKM[(M n_1)]
-#eval (eval_n 40 SKM[(M n_1)]) == (eval_n 40 SKM[(M n_1)])
+#eval eval_n 100 SKM[(M n_0)]
+#eval eval_n 150 SKM[(M n_1)]
 
-#eval eval_n 30 SKM[(succ n_0)]
-
+#eval eval_n 150 SKM[(M n_1)] == eval_n 100 SKM[(M n_0)]
 
