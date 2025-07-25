@@ -62,6 +62,8 @@ inductive beta_eq : Expr → Expr → Prop
   | trans : beta_eq e₁ e₂      → beta_eq e₂ e₃ → beta_eq e₁ e₃
   | symm  : beta_eq e₁ e₂      → beta_eq e₂ e₁
 
+#check @beta_eq.trans
+
 inductive is_normal_n : ℕ → Expr → Expr → Prop
   | stuck : (¬(∃ e', is_eval_once e e'))                 → is_normal_n 0 e e
   | succ  : is_eval_once e e' → is_normal_n n e' e_final → is_normal_n n.succ e e_final
