@@ -188,26 +188,30 @@ def eval_n (n : ℕ) (e : Expr) : Expr :=
      eval_n n.pred.pred.pred e'
 
 partial def eval_unsafe (e : Expr) : Expr :=
-  dbg_trace s!"hi: {e}"
-  match e with
-     | SKM[((K x) _y)] => eval_unsafe x
+  let e' := match e with
+     | SKM[((K x) _y)] => x
      | SKM[(((S x) y) z)] =>
        let x' := eval_unsafe x
        let y' := eval_unsafe y
        let z' := eval_unsafe z
 
-       eval_unsafe SKM[((x' z') (y' z'))]
+       SKM[((x' z') (y' z'))]
      | SKM[(M (lhs rhs))] =>
        let lhs' := eval_unsafe lhs
        let rhs' := eval_unsafe rhs
 
-       eval_unsafe SKM[(t_out ((M lhs') rhs'))]
+       SKM[(t_out ((M lhs') rhs'))]
      | SKM[(M K)] => t_k
      | SKM[(M S)] => t_s
      | SKM[(M M)] => t_m
      | SKM[(lhs rhs)] =>
-       eval_unsafe SKM[((#(eval_unsafe lhs)) #(eval_unsafe rhs))]
+       SKM[((#(eval_unsafe lhs)) #(eval_unsafe rhs))]
      | x => x
+
+   if e' == e then
+     e
+   else
+     eval_unsafe e'
 
 #eval s!"{t_k}"
 #eval s!"{t_s}"

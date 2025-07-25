@@ -115,10 +115,10 @@ partial def eval_to (e : Lean.Expr) : MetaM $ Option (EvalResult × Lean.Expr) :
     | SKM`[(M (e₁ e₂))] =>
       match (← (liftMetaM $ getConstInfo `t_out)).value? with
         | Option.some e =>
-          pure $ some ⟨
-            SKM`[(e ((M e₁) e₂))],
-            ← mkAppM `beta_eq.eval #[mkApp2 (.const `is_eval_once.m_call []) e₁ e₂]
-          ⟩
+          let t_proof ← mkAppM `beta_eq.eval #[mkApp2 (.const `is_eval_once.m_call []) e₁ e₂]
+          let e' := SKM`[(e ((M e₁) e₂))]
+
+          do_trans e e' t_proof
         | .none => throwError s!"Couldn't find definition for t_out. This is a bug. Please report."
     | SKM`[(lhs rhs)] =>
       let maybe_lhs ← eval_to lhs
@@ -214,3 +214,4 @@ example : beta_eq SKM[((((S K) K) K))] SKM[K] := by
 
 example : beta_eq SKM[(M (((S K) K) K))] SKM[(M K)] := by
   eval_expr
+
