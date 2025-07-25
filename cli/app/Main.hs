@@ -2,6 +2,7 @@ module Main where
 
 import System.IO (hPutStrLn, stderr, putStrLn)
 import System.Environment (getArgs)
+import Text.Read (readMaybe)
 import Skm.Ast
 import Skm.Parse
 import Skm.Eval
@@ -19,8 +20,24 @@ main = do
                  ++ (bold "skm help")         ++ " - prints this help message.\n"
     ["eval", expr] ->
       case (parse . lexi) expr of
-        Right (e, _) ->
+        Right (e, _) -> do
           putStrLn $ (show . eval) e
         Left _ ->
           hPutStrLn stderr "parsing failed"
+    ["step", expr] ->
+      case (parse . lexi) expr of
+        Right (e, _) -> do
+          putStrLn $ (show . step) e
+        Left _ ->
+          hPutStrLn stderr "parsing failed"
+    ["eval_n", n, expr] ->
+      case readMaybe n of
+        Just n ->
+          case (parse . lexi) expr of
+            Right (e, _) -> do
+              putStrLn $ (show . eval_n n) e
+            Left _ ->
+              hPutStrLn stderr "parsing failed"
+        Nothing ->
+          hPutStrLn stderr $ "invalid n: " ++ n
     [] -> pure ()
