@@ -1,22 +1,25 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Skm.Parse where
 
 import Skm.Ast
 import Data.Text (Text)
+import Data.Void
 import qualified Data.Text as T
 import Text.Megaparsec
 import qualified Text.Megaparsec.Char.Lexer as L
 import qualified Text.Megaparsec.Char as C
 
-type Parser = Parsec Text Text
+type Parser = Parsec Void Text
 
 sc :: Parser ()
-sc = L.space C.space1 empty empty
+sc = L.space C.space1 (L.skipLineComment "--") (L.skipBlockComment "/-" "-/")
 
 symbol :: Text -> Parser Text
 symbol = L.symbol sc
 
 parens :: Parser a -> Parser a
-parens = between (symbol (T.pack "(")) (symbol (T.pack ")"))
+parens = between (symbol "(") (symbol ")")
 
 pCall :: Parser Expr
 pCall = do
@@ -28,7 +31,7 @@ pCall = do
 pExpr :: Parser Expr
 pExpr = choice
   [ parens pCall
-  , S <$ symbol (T.pack "S")
-  , K <$ symbol (T.pack "K")
-  , M <$ symbol (T.pack "M")
+  , S <$ symbol "S"
+  , K <$ symbol "K"
+  , M <$ symbol "M"
   ]

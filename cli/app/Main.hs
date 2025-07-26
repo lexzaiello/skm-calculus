@@ -5,7 +5,10 @@ module Main where
 
 import Skm.Ast
 import Skm.Eval
+import Skm.Parse (pExpr)
 import Options.Applicative
+import qualified Data.Text.IO as T
+import Text.Megaparsec (parse, errorBundlePretty)
 
 data EvalOptions = EvalOptions
   { eNSteps :: (Maybe Int)
@@ -66,5 +69,9 @@ main = do
   cfg <- execParser (info (cmdParser <**> helper) $ progDesc "Tools for building SKM applications.")
 
   case cfg of
-    Eval cfg -> pure ()
+    Eval (EvalOptions { eNSteps = n, eSrc = src }) -> do
+      cts <- T.readFile src
+      case parse pExpr src cts of
+        Left err -> putStr (errorBundlePretty err)
+        Right e  -> putStrLn (show e)
     _ -> pure ()
