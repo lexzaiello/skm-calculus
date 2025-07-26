@@ -23,6 +23,7 @@ library:
     - Skm.Parse
     - Skm.Std
     - Skm.Compiler.Ast
+    - Skm.Compiler.ProofGen
 
 executable:
   main: Main.hs
