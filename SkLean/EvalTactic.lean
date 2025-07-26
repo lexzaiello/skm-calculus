@@ -12,7 +12,6 @@ declare_syntax_cat skmexprquot
 syntax "K"                                                             : skmexprquot
 syntax "S"                                                             : skmexprquot
 syntax "M"                                                             : skmexprquot
-syntax "t_out"                                                         : skmexprquot
 syntax "(" skmexprquot skmexprquot ")"                                 : skmexprquot
 syntax ident                                                           : skmexprquot
 syntax "#" ident                                                       : skmexprquot
@@ -28,7 +27,6 @@ macro_rules
   | `(<< K >>)                           => `(Lean.Expr.const `Expr.k [])
   | `(<< S >>)                           => `(Lean.Expr.const `Expr.s [])
   | `(<< M >>)                           => `(Lean.Expr.const `Expr.m [])
-  | `(<< t_out >>)                       => `(Lean.Expr.const `t_out  [])
   | `(<< $e:ident >>)                    => `($e)
   | `(<< ($e₁:skmexprquot $e₂:skmexprquot) >>)   => `(Lean.Expr.app
       (Lean.Expr.app (Lean.Expr.const `Expr.call []) << $e₁ >>)
@@ -62,7 +60,7 @@ def get_goal_from_e  : TacticM (Option Lean.Expr) := do
 
   pure from_e
 
-def EvalResult := Lean.Expr
+abbrev EvalResult := Lean.Expr
 
 def mk_trans (e₁ e₂ e₃ step₁ step₂ : Lean.Expr) : Lean.Expr :=
   mkApp5
@@ -77,21 +75,16 @@ def mk_eval (e₀ e₁ proof : Lean.Expr) : Lean.Expr :=
   mkApp3 (.const `beta_eq.eval []) e₀ e₁ proof
 
 -- Closes a goal of the form `beta_eq e₁ e₂` by recursively evaluating the expression
-partial def eval_to (e : Lean.Expr) : Option (EvalResult × Lean.Expr) := do
-  let do_trans (e₀ e₁ e_proof : Lean.Expr) : Option (EvalResult × Lean.Expr) :=
-    let e' := eval_to e₁
+partial def eval_to (e : Lean.Expr) (t_out : Lean.Expr) : EvalResult × Lean.Expr :=
+  dbg_trace s!"{e}"
 
-    match e' with
-      | .some ⟨e', rst_proof⟩ =>
-        some ⟨
-          e',
-          mk_trans e₀ e₁ e' e_proof rst_proof
-        ⟩
-      | .none =>
-        some ⟨
-          e₁,
-          e_proof
-        ⟩
+  let do_trans (e₀ e₁ e_proof : Lean.Expr) : EvalResult × Lean.Expr :=
+    let ⟨e', rst_proof⟩ := eval_to e₁ t_out
+
+    ⟨
+      e',
+      mk_trans e₀ e₁ e' e_proof rst_proof
+    ⟩
 
   match e with
     | SKM`[((K x) y)] =>
@@ -106,21 +99,21 @@ partial def eval_to (e : Lean.Expr) : Option (EvalResult × Lean.Expr) := do
     | SKM`[(M K)] =>
       let e' := SKM`[(M K)]
 
-      some ⟨
+      ⟨
         e',
         mk_eval e e' (.const `is_eval_once.m_k [])
       ⟩
     | SKM`[(M M)] =>
       let e' := SKM`[(M M)]
 
-      some ⟨
+      ⟨
         e',
         mk_eval e e' (.const `is_eval_once.m_m [])
       ⟩
     | SKM`[(M S)] =>
       let e' := SKM`[(M S)]
 
-      some ⟨
+      ⟨
         e',
         mk_eval e e' (.const `is_eval_once.m_s [])
       ⟩
@@ -130,51 +123,42 @@ partial def eval_to (e : Lean.Expr) : Option (EvalResult × Lean.Expr) := do
 
       do_trans e e' t_proof
     | SKM`[(lhs rhs)] =>
-      let maybe_lhs := eval_to lhs
-      let maybe_rhs := eval_to rhs
+      let ⟨lhs', lhs_proof⟩ := eval_to lhs t_out
+      let ⟨rhs', rhs_proof⟩ := eval_to rhs t_out
 
-      match maybe_lhs with
-        -- We advanced one step
-        | .some ⟨lhs', proof⟩ =>
-          let d_proof := mkApp (.const `beta_eq.rfl []) SKM`[(lhs' rhs)]
-          let ⟨final, rst_proof⟩ := (eval_to SKM`[(lhs' rhs)]).getD ⟨SKM`[(lhs' rhs)], d_proof⟩
+      dbg_trace s!"lhs: {lhs} -> {lhs'}"
+      dbg_trace s!"rhs: {rhs} -> {rhs'}"
 
-          let e₁ := SKM`[(lhs rhs)]
-          let e₂ := SKM`[(lhs' rhs)]
-          let e₃ := final
+      if ¬(lhs' == lhs) then
+        do_trans e SKM`[(lhs' rhs)] (mkApp4 (.const `beta_eq.left []) lhs lhs' rhs lhs_proof)
+      else if ¬(rhs' == rhs) then
+        do_trans e SKM`[(lhs rhs')] (mkApp4 (.const `beta_eq.right []) rhs rhs' lhs rhs_proof)
+      else
+        ⟨e, mkApp (.const `beta_eq.rfl []) e⟩
+    | e => ⟨e, mkApp (.const `beta_eq.rfl []) e⟩
 
-          some ⟨final, mk_trans
-            e₁
-            e₂
-            e₃
-            (mkApp4 (.const `beta_eq.left []) lhs lhs' rhs proof)
-            rst_proof
-          ⟩
-        -- We reached a normal form. Try rhs
-        | .none =>
-          let ⟨rhs', proof⟩ ← maybe_rhs
-          let d_proof := mkApp (.const `beta_eq.rfl []) SKM`[(lhs rhs')]
-          let ⟨final, rst_proof⟩ := (eval_to SKM`[(lhs rhs')]).getD ⟨SKM`[(lhs rhs')], d_proof⟩
-
-          let e₁ := SKM`[(lhs rhs)]
-          let e₂ := SKM`[(lhs rhs')]
-          let e₃ := final
-
-          some ⟨final, mk_trans
-            e₁
-            e₂
-            e₃
-            (mkApp4 (.const `beta_eq.right []) rhs rhs' lhs proof)
-            rst_proof
-          ⟩
-    | _ => none
+partial def unfold (e : Lean.Expr) : MetaM Lean.Expr := do
+  match ← whnf e with
+    | Expr.app lhs rhs =>
+      pure $ Expr.app (← unfold lhs) (← unfold rhs)
+    | Expr.lam n t b c =>
+      pure $ Expr.lam n (← unfold t) (← unfold b) c
+    | Expr.letE n t v b c =>
+      pure $ Expr.letE n (← unfold t) (← unfold v) (← unfold b) c
+    | Expr.mdata md b =>
+      pure $ Expr.mdata md (← unfold b)
+    | Expr.proj n i b =>
+      pure $ Expr.proj n i (← unfold b)
+    | e' => pure e'
 
 syntax "eval_expr" : tactic
 
 elab_rules : tactic
   | `(tactic| eval_expr) => (do
     let some from_e ← get_goal_from_e | throwError "no goal found"
-    let mut some ⟨_, proof⟩ := (eval_to from_e) | throwError "no solution found"
+    let some t_out_def := (← (getConstInfo `t_out)).value? | throwError "missing t_out"
+    let t_out ← unfold t_out_def
+    let mut ⟨_, proof⟩ := (eval_to (← unfold from_e) t_out)
 
     logInfo s!"dispatching proof: {proof}"
 
@@ -206,6 +190,9 @@ let e_stx ← delab e
         logInfo "bruh"
         evalTactic (← `(tactic| apply beta_eq.rfl))
 -/
+
+example : beta_eq SKM[(t_out ((arrow (M K)) (M S)))] SKM[(M S)] := by
+  eval_expr
 
 example : beta_eq SKM[((K K) K)] SKM[K] := by
   eval_expr
