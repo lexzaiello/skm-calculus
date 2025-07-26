@@ -23,25 +23,25 @@ data ReadableExpr = HLam String (Maybe ReadableExpr) ReadableExpr
   | Hm
 
 unwordtokens :: [[Token]] -> [Token]
-unwordtokens = intercalate Space
+unwordtokens = intercalate [Space]
 
 tokenize :: ReadableExpr -> [[Token]]
-tokenize Hs = pure Ts
-tokenize Hk = pure Tk
-tokenize Hm = pure Tm
-tokenize HLam  binder (Some bind_ty) body = [[Lambda], [LParen, (Ident binder)], [Colon], (tokenize bind_ty ++ [RParen]), [FatArrow], tokenize body]
-tokenize HLam  binder Nothing        body = [[Lambda], (Ident binder), [FatArrow], tokenize body]
-tokenize HFall binder (Some bind_ty) body = [[Fall], [LParen, (Ident binder)], [Colon], (tokenize bind_ty ++ [RParen, Comma]), tokenize body]
-tokenize HFall binder Nothing        body = [[Fall], [(Ident binder), Comma], tokenize body]
-tokenize HVar v       = [Ident v]
-tokenize HApp lhs rhs = [[LParen] ++ tokenize lhs, tokenize rhs ++ [RParen]]
+tokenize Hs = [pure Ts]
+tokenize Hk = [pure Tk]
+tokenize Hm = [pure Tm]
+tokenize (HLam  binder (Just bind_ty) body) = [[Lambda], [LParen, Ident binder], [Colon], ((unwordtokens $ tokenize bind_ty) ++ [RParen]), [FatArrow], (unwordtokens $ tokenize body)]
+tokenize (HLam  binder Nothing        body) = [[Lambda], [Ident binder], [FatArrow], (unwordtokens $ tokenize body)]
+tokenize (HFall binder (Just bind_ty) body) = [[TFall], [LParen, (Ident binder)], [Colon], ((unwordtokens $ tokenize bind_ty) ++ [RParen, Comma]), (unwordtokens $ tokenize body)]
+tokenize (HFall binder Nothing        body) = [[TFall], [(Ident binder), Comma], (unwordtokens $ tokenize body)]
+tokenize (HVar v)       = [pure (Ident v)]
+tokenize (HApp lhs rhs) = [[LParen] ++ (unwordtokens $ tokenize lhs), (unwordtokens $ tokenize rhs) ++ [RParen]]
 
 data Token = LParen
   | RParen
   | Lambda
   | Space
   | FatArrow
-  | Fall
+  | TFall
   | Comma
   | Def
   | Colon
@@ -52,17 +52,17 @@ data Token = LParen
   | Tm
 
 instance Show Token where
-  show LParen   = "("
-  show RParen   = ")"
-  show Space    = " "
-  show FatArrow = "=>"
-  show Def      = "def"
-  show Colon    = ":"
-  show Eq       = "="
-  show Ident i  = i
-  show Lambda   = "λ"
-  show Ts       = "S"
-  show Tk       = "K"
-  show Tm       = "M"
-  show Fall     = "∀"
-  show Comma    = ","
+  show LParen     = "("
+  show RParen     = ")"
+  show Space      = " "
+  show FatArrow   = "=>"
+  show Def        = "def"
+  show Colon      = ":"
+  show Eq         = "="
+  show (Ident i)  = i
+  show Lambda     = "λ"
+  show Ts         = "S"
+  show Tk         = "K"
+  show Tm         = "M"
+  show TFall      = "∀"
+  show Comma      = ","
