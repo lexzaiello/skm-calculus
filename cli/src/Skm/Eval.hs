@@ -2,7 +2,6 @@ module Skm.Eval where
 
 import Skm.Ast
 import Skm.Std
-import Control.Applicative (Alternative((<|>)))
 import Data.Maybe (fromMaybe)
 
 step :: Expr -> Maybe Expr

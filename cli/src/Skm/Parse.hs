@@ -1,22 +1,22 @@
 module Skm.Parse where
 
-import Data.Maybe
 import Skm.Ast
-import Data.String
-import Options.Applicative
+import Data.Text (Text)
+import qualified Data.Text as T
 import Text.Megaparsec
 import qualified Text.Megaparsec.Char.Lexer as L
+import qualified Text.Megaparsec.Char as C
 
 type Parser = Parsec Text Text
 
 sc :: Parser ()
-sc = L.space space1 empty empty
+sc = L.space C.space1 empty empty
 
-lexeme :: Parser a -> Parser a
-lexeme = L.lexeme sc
+symbol :: Text -> Parser Text
+symbol = L.symbol sc
 
 parens :: Parser a -> Parser a
-parens = between (symbol "(") (symbol ")")
+parens = between (symbol (T.pack "(")) (symbol (T.pack ")"))
 
 pCall :: Parser Expr
 pCall = do
@@ -28,7 +28,7 @@ pCall = do
 pExpr :: Parser Expr
 pExpr = choice
   [ parens pCall
-  , S <$ symbol "S"
-  , K <$ symbol "K"
-  , M <$ symbol "M"
+  , S <$ symbol (T.pack "S")
+  , K <$ symbol (T.pack "K")
+  , M <$ symbol (T.pack "M")
   ]

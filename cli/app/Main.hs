@@ -1,21 +1,24 @@
+{-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE ApplicativeDo              #-}
+
 module Main where
 
 import Skm.Ast
-import Skm.Parse
 import Skm.Eval
+import Options.Applicative
 
 data EvalOptions = EvalOptions
-  { n_steps        :: (Maybe Int)
-  , src            :: String
+  { eNSteps :: (Maybe Int)
+  , eSrc    :: String
   }
 
 data BetaEqOptions = BetaEqOptions
-  { fromESrc :: String
-  , toESrc   :: String
+  { bFromSrc :: String
+  , bToSrc   :: String
   }
 
 data CompileOptions = CompileOptions
-  { src :: String }
+  { ccSrc :: String }
 
 data ProveCommand = BetaEq BetaEqOptions
 
@@ -23,9 +26,9 @@ data Command = Eval EvalOptions
   | Prove ProveCommand
 
 nStepsParser :: Parser (Maybe Int)
-nStepsParser = optional $ intOption (
+nStepsParser = optional $ option auto (
   long "n_steps"
-  <> short "n"
+  <> short 'n'
   <> help "Limit execution to a specific number of steps.")
 
 srcParser :: Parser String
@@ -33,25 +36,25 @@ srcParser = argument str (metavar "FILE")
 
 evalParser :: Parser EvalOptions
 evalParser = do
-  let src <- srcParser
-  let n <- nStepsParser
+  src <- srcParser
+  n   <- nStepsParser
 
-  pure $ EvalOptions { src = src
-                     , nSteps = n
+  pure $ EvalOptions { eSrc    = src
+                     , eNSteps = n
                      }
 
 betaEqParser :: Parser BetaEqOptions
 betaEqParser = do
-  let fromSrc <- srcParser
-  let toSrc   <- srcParser
+  fromSrc <- srcParser
+  toSrc   <- srcParser
 
-  pure $ BetaEqOptions { fromESrc = fromSrc
-                       , toESrc = toSrc
+  pure $ BetaEqOptions { bFromSrc = fromSrc
+                       , bToSrc   = toSrc
                        }
 
 proveParser :: Parser ProveCommand
 proveParser = hsubparser
-  ( command "beta_eq"  (info evalParser  $ progDesc "Evaluate a compiled SKM program"))
+  ( command "beta_eq" (info (BetaEq <$> betaEqParser) $ progDesc "Evaluate a compiled SKM program"))
 
 cmdParser :: Parser Command
 cmdParser = hsubparser
@@ -60,7 +63,7 @@ cmdParser = hsubparser
 
 main :: IO ()
 main = do
-  cfg <- execParser (info ops $ progDesc "Tools for building SKM applications")
+  cfg <- execParser (info cmdParser $ progDesc "Tools for building SKM applications")
 
   case cfg of
     Eval cfg -> pure ()
