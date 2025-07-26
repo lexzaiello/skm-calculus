@@ -1,51 +1,67 @@
 module Main where
 
-import System.IO (hPutStrLn, stderr, putStrLn)
-import System.Environment (getArgs)
-import Text.Read (readMaybe)
-import Data.List (elem)
 import Skm.Ast
 import Skm.Parse
 import Skm.Eval
 
-bold :: String -> String
-bold s = "\ESC[1m" ++ s ++ "\ESC[0m"
+data EvalOptions = EvalOptions
+  { n_steps        :: (Maybe Int)
+  , src            :: String
+  }
 
--- In order of precedence. Earlier commands short-circuit
-cmds :: [String]
-cmds = ["repl", "step", "eval_n", "eval"]
+data BetaEqOptions = BetaEqOptions
+  { fromESrc :: String
+  , toESrc   :: String
+  }
 
-isflag :: String -> Bool
-isflag s = take 2 s == "--"
+data CompileOptions = CompileOptions
+  { src :: String }
 
--- Only flags, but with -- removed
-flags :: [String] -> [String]
-flags = (map (drop 2)) . (filter isflag)
+data ProveCommand = BetaEq BetaEqOptions
 
-cmds :: [String] -> [String]
-cmds = filter $ not isflag
+data Command = Eval EvalOptions
+  | Prove ProveCommand
 
--- Selects lam calc preprocessor if enabled
-parser :: [String] -> (String -> Either String Expr)
-parser args =
-  if "lc" `elem` (flags args) then
-    todo
-  else
-    
+nStepsParser :: Parser (Maybe Int)
+nStepsParser = optional $ intOption (
+  long "n_steps"
+  <> short "n"
+  <> help "Limit execution to a specific number of steps.")
 
-execcmd :: [String] -> IO (Either String ())
-execcmd args =
-  
+srcParser :: Parser String
+srcParser = argument str (metavar "FILE")
+
+evalParser :: Parser EvalOptions
+evalParser = do
+  let src <- srcParser
+  let n <- nStepsParser
+
+  pure $ EvalOptions { src = src
+                     , nSteps = n
+                     }
+
+betaEqParser :: Parser BetaEqOptions
+betaEqParser = do
+  let fromSrc <- srcParser
+  let toSrc   <- srcParser
+
+  pure $ BetaEqOptions { fromESrc = fromSrc
+                       , toESrc = toSrc
+                       }
+
+proveParser :: Parser ProveCommand
+proveParser = hsubparser
+  ( command "beta_eq"  (info evalParser  $ progDesc "Evaluate a compiled SKM program"))
+
+cmdParser :: Parser Command
+cmdParser = hsubparser
+  ( command "eval"  (info (Eval  <$> evalParser)  $ progDesc "Evaluate a compiled SKM program")
+ <> command "prove" (info (Prove <$> proveParser) $ progDesc "Prove properties of a compiled SKM program, generating a Lean proof definition."))
 
 main :: IO ()
 main = do
-  args <- getArgs
-  case args of
-    ("help":_) ->
-      putStrLn $ (bold "skm eval <EXPR>")     ++ " - evaluates an SKM expression. Does not typecheck the expression. Not guaranteed to terminate.\n"
-                 ++ (bold "skm check <EXPR>") ++ " - typechecks the expression.\n"
-                 ++ (bold "skm help")         ++ " - prints this help message.\n"
-                 ++ (bold "skm --lc <CMD> <EXPR>") ++ " - runs the lambda calculus preprocessor first.\n"
-    args ->
-      
+  cfg <- execParser (info ops $ progDesc "Tools for building SKM applications")
+
+  case cfg of
+    Eval cfg -> pure ()
     _ -> pure ()

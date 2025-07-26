@@ -3,38 +3,32 @@ module Skm.Parse where
 import Data.Maybe
 import Skm.Ast
 import Data.String
+import Options.Applicative
+import Text.Megaparsec
+import qualified Text.Megaparsec.Char.Lexer as L
 
-data Token = LParen
-  | RParen
-  | St
-  | Kt
-  | Mt
+type Parser = Parsec Text Text
 
--- Outputs the offending token if a token was inputted incorrectly
-lexi :: String -> Either String [Token]
-lexi (e:xs) = do
-  let tok <- (case e of
-    '('       -> pure LParen
-    ')'       -> pure RParen
-    'S'       -> pure St
-    'K'       -> pure Kt
-    'M'       -> pure Mt
-    otherwise -> Left $ "unexpected token: " ++ otherwise)
-  pure $ tok ++ (<- lexi xs)
-lexi otherwise = pure []
+sc :: Parser ()
+sc = L.space space1 empty empty
 
-parse :: [Token] -> Either [Token] (Expr, [Token])
-parse (e:xs) =
-  case e of
-    St -> pure (S, xs)
-    Kt -> pure (K, xs)
-    Mt -> pure (M, xs)
-    LParen -> do
-      (lhs, rest)  <- parse xs
-      (rhs, rest') <- parse rest
+lexeme :: Parser a -> Parser a
+lexeme = L.lexeme sc
 
-      pure (Call lhs rhs, dropparen rest')
-    RParen ->
-     Left xs
-  where dropparen (RParen:xs) = xs
-        dropparen x              = x
+parens :: Parser a -> Parser a
+parens = between (symbol "(") (symbol ")")
+
+pCall :: Parser Expr
+pCall = do
+  lhs <- pExpr
+  rhs <- pExpr
+
+  pure $ (Call lhs rhs)
+
+pExpr :: Parser Expr
+pExpr = choice
+  [ parens pCall
+  , S <$ symbol "S"
+  , K <$ symbol "K"
+  , M <$ symbol "M"
+  ]

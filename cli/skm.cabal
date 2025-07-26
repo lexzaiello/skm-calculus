@@ -31,6 +31,7 @@ library
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
       base >=4.14 && <5
+    , megaparsec >=9.7.0
     , optparse-applicative >=0.14.3.0
   default-language: Haskell2010
 
@@ -41,6 +42,7 @@ executable skm
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
       base >=4.14 && <5
+    , megaparsec >=9.7.0
     , optparse-applicative >=0.14.3.0
     , skm
   default-language: Haskell2010
