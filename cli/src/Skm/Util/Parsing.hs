@@ -1,4 +1,6 @@
-module Skm.Parsing where
+{-# LANGUAGE OverloadedStrings #-}
+
+module Skm.Util.Parsing where
 
 import Data.Text (Text)
 import Data.Void

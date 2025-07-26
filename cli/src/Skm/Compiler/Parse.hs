@@ -2,12 +2,9 @@
 
 module Skm.Compiler.Parse where
 
-import Skm.Parsing
+import Skm.Util.Parsing
 import Skm.Compiler.Ast
 import Text.Megaparsec
-
-parens :: Parser a -> Parser a
-parens = between (symbol "(") (symbol ")")
 
 pCall :: Parser Expr
 pCall = do
