@@ -9,6 +9,7 @@ import System.IO (hPutStrLn, stderr)
 import System.Exit (exitWith, ExitCode(ExitFailure))
 import Skm.Ast
 import Skm.Eval
+import qualified Skm.Compiler.ProofGen as Proof
 import Skm.Parse (pExpr)
 import Options.Applicative
 import qualified Data.Text.IO as T
@@ -20,9 +21,7 @@ data EvalOptions = EvalOptions
   }
 
 data BetaEqOptions = BetaEqOptions
-  { bFromSrc :: String
-  , bToSrc   :: String
-  }
+  { bFromSrc :: String }
 
 data CompileOptions = CompileOptions
   { ccSrc :: String }
@@ -54,15 +53,12 @@ evalParser = do
 betaEqParser :: Parser BetaEqOptions
 betaEqParser = do
   fromSrc <- srcParser
-  toSrc   <- srcParser
 
-  pure $ BetaEqOptions { bFromSrc = fromSrc
-                       , bToSrc   = toSrc
-                       }
+  pure $ BetaEqOptions { bFromSrc = fromSrc }
 
 proveParser :: Parser ProveCommand
 proveParser = hsubparser
-  ( command "beta_eq" (info (BetaEq <$> betaEqParser) $ progDesc "Evaluate a compiled SKM program"))
+  (command "beta_reduce" (info (BetaEq <$> betaEqParser) $ progDesc "Generate a proof of valid beta-reduction of an expression"))
 
 compileParser :: Parser CompileOptions
 compileParser = do
@@ -96,11 +92,10 @@ doMain = do
                            eval_n n e
                          Nothing ->
                            eval e))
-    Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc, bToSrc = toSrc }) -> do
+    Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc }) -> do
       fromE <- readExpr fromSrc
-      toE   <- readExpr toSrc
 
-      pure ()
+      ((liftIO <$> putStrLn) . Proof.serialize . snd . Proof.cc) fromE
     _ -> pure ()
 
 main :: IO ()
