@@ -63,7 +63,7 @@ cmdParser = hsubparser
 
 main :: IO ()
 main = do
-  cfg <- execParser (info cmdParser $ progDesc "Tools for building SKM applications")
+  cfg <- execParser (info (cmdParser <**> helper) $ progDesc "Tools for building SKM applications.")
 
   case cfg of
     Eval cfg -> pure ()
