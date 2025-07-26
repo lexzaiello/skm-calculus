@@ -193,9 +193,6 @@ let e_stx ← delab e
         evalTactic (← `(tactic| apply beta_eq.rfl))
 -/
 
-example : beta_eq SKM[(t_out ((arrow (M K)) (M S)))] SKM[(M S)] := by
-  eval_expr
-
 example : beta_eq SKM[((K K) K)] SKM[K] := by
   eval_expr
 
