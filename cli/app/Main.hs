@@ -75,33 +75,33 @@ cmdParser = hsubparser
     <> command "build" (info (Compile <$> compileParser) $ progDesc "Compiles a CoC program to an SKM program")
     <> command "prove" (info (Prove   <$> proveParser)   $ progDesc "Prove properties of a compiled SKM program, generating a Lean proof definition."))
 
-readExpr :: String -> MaybeT (IO Expr)
+readExpr :: String -> MaybeT IO Expr
 readExpr fname = do
-  cts <- T.readFile fname
+  cts <- liftIO $ T.readFile fname
   case parse pExpr fname cts of
     Left err ->
-      hPutStrLn stderr (errorBundlePretty err) >> pure Nothing
+      (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
     Right e  ->
       pure e
 
-doMain :: MaybeT (IO ())
+doMain :: MaybeT IO ()
 doMain = do
-  cfg <- execParser (info (cmdParser <**> helper) $ progDesc "Tools for building SKM applications.")
+  cfg <- liftIO $ execParser (info (cmdParser <**> helper) $ progDesc "Tools for building SKM applications.")
 
   case cfg of
     Eval (EvalOptions { eNSteps = n, eSrc = src }) -> do
       e <- readExpr src
-      putStrLn $ show (case n of
+      liftIO $ putStrLn (show (case n of
                          Just n ->
                            eval_n n e
                          Nothing ->
-                           eval e)
+                           eval e))
     Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc, bToSrc = toSrc }) -> do
       fromE <- readExpr fromSrc
       toE   <- readExpr toSrc
 
-      pure $ Just ()
-    _ -> pure $ Just ()
+      empty
+    _ -> empty
 
 main :: IO ()
-main = doMain >> (pure ())
+main = runMaybeT doMain >> empty
