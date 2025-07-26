@@ -3,6 +3,10 @@
 
 module Main where
 
+import Control.Monad.Trans.Maybe
+import Control.Monad.IO.Class
+import System.IO (hPutStrLn, stderr)
+import System.Exit (exitWith, ExitCode(ExitFailure))
 import Skm.Ast
 import Skm.Eval
 import Skm.Parse (pExpr)
@@ -27,6 +31,7 @@ data ProveCommand = BetaEq BetaEqOptions
 
 data Command = Eval EvalOptions
   | Prove ProveCommand
+  | Compile CompileOptions
 
 nStepsParser :: Parser (Maybe Int)
 nStepsParser = optional $ option auto (
@@ -59,24 +64,44 @@ proveParser :: Parser ProveCommand
 proveParser = hsubparser
   ( command "beta_eq" (info (BetaEq <$> betaEqParser) $ progDesc "Evaluate a compiled SKM program"))
 
+compileParser :: Parser CompileOptions
+compileParser = do
+  src <- srcParser
+  pure $ CompileOptions { ccSrc = src }
+
 cmdParser :: Parser Command
 cmdParser = hsubparser
-  ( command "eval"  (info (Eval  <$> evalParser)  $ progDesc "Evaluate a compiled SKM program")
- <> command "prove" (info (Prove <$> proveParser) $ progDesc "Prove properties of a compiled SKM program, generating a Lean proof definition."))
+  (command     "eval"  (info (Eval    <$> evalParser)    $ progDesc "Evaluate a compiled SKM program")
+    <> command "build" (info (Compile <$> compileParser) $ progDesc "Compiles a CoC program to an SKM program")
+    <> command "prove" (info (Prove   <$> proveParser)   $ progDesc "Prove properties of a compiled SKM program, generating a Lean proof definition."))
 
-main :: IO ()
-main = do
+readExpr :: String -> MaybeT (IO Expr)
+readExpr fname = do
+  cts <- T.readFile fname
+  case parse pExpr fname cts of
+    Left err ->
+      hPutStrLn stderr (errorBundlePretty err) >> pure Nothing
+    Right e  ->
+      pure e
+
+doMain :: MaybeT (IO ())
+doMain = do
   cfg <- execParser (info (cmdParser <**> helper) $ progDesc "Tools for building SKM applications.")
 
   case cfg of
     Eval (EvalOptions { eNSteps = n, eSrc = src }) -> do
-      cts <- T.readFile src
-      case parse pExpr src cts of
-        Left err -> putStr   (errorBundlePretty err)
-        Right e  ->
-          putStrLn $ show (case n of
-            Just n ->
-              eval_n n e
-            Nothing ->
-              eval e)
-    _ -> pure ()
+      e <- readExpr src
+      putStrLn $ show (case n of
+                         Just n ->
+                           eval_n n e
+                         Nothing ->
+                           eval e)
+    Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc, bToSrc = toSrc }) -> do
+      fromE <- readExpr fromSrc
+      toE   <- readExpr toSrc
+
+      pure $ Just ()
+    _ -> pure $ Just ()
+
+main :: IO ()
+main = doMain >> (pure ())
