@@ -27,8 +27,7 @@ library
       Skm.Compiler.Ast
       Skm.Compiler.ProofGen
   other-modules:
-      Skm
-      Skm.Compiler
+      Skm.Parsing
   hs-source-dirs:
       src
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
