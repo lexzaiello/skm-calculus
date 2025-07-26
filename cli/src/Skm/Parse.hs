@@ -10,16 +10,18 @@ data Token = LParen
   | Kt
   | Mt
 
-lexi :: String -> [Token]
-lexi (e:xs) =
-  (case e of
-    '('       -> [LParen]
-    ')'       -> [RParen]
-    'S'       -> [St]
-    'K'       -> [Kt]
-    'M'       -> [Mt]
-    otherwise -> []) ++ lexi xs
-lexi otherwise = []
+-- Outputs the offending token if a token was inputted incorrectly
+lexi :: String -> Either String [Token]
+lexi (e:xs) = do
+  let tok <- (case e of
+    '('       -> pure LParen
+    ')'       -> pure RParen
+    'S'       -> pure St
+    'K'       -> pure Kt
+    'M'       -> pure Mt
+    otherwise -> Left $ "unexpected token: " ++ otherwise)
+  pure $ tok ++ (<- lexi xs)
+lexi otherwise = pure []
 
 parse :: [Token] -> Either [Token] (Expr, [Token])
 parse (e:xs) =

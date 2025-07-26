@@ -12,7 +12,8 @@ bold :: String -> String
 bold s = "\ESC[1m" ++ s ++ "\ESC[0m"
 
 -- In order of precedence. Earlier commands short-circuit
-cmds =
+cmds :: [String]
+cmds = ["repl", "step", "eval_n", "eval"]
 
 isflag :: String -> Bool
 isflag s = take 2 s == "--"
