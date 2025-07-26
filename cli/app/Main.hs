@@ -100,8 +100,8 @@ doMain = do
       fromE <- readExpr fromSrc
       toE   <- readExpr toSrc
 
-      empty
-    _ -> empty
+      pure ()
+    _ -> pure ()
 
 main :: IO ()
-main = runMaybeT doMain >> empty
+main = runMaybeT doMain >> (pure ())
