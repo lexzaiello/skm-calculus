@@ -4,6 +4,7 @@ module Skm.Util.Parsing where
 
 import Data.Text (Text)
 import Data.Void
+import Data.Char (isAlpha, isAlphaNum)
 import qualified Data.Text as T
 import Text.Megaparsec
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -13,6 +14,9 @@ type Parser = Parsec Void Text
 
 sc :: Parser ()
 sc = L.space C.space1 (L.skipLineComment "--") (L.skipBlockComment "/-" "-/")
+
+lexeme :: Parser a -> Parser a
+lexeme = L.lexeme sc
 
 symbol :: Text -> Parser Text
 symbol = L.symbol sc
