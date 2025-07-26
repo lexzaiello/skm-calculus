@@ -1,10 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Skm.Parse where
+module Skm.Compiler.Parse where
 
 import Skm.Parsing
-import Skm.Ast
-import Data.Text (Text)
+import Skm.Compiler.Ast
 import Text.Megaparsec
 
 parens :: Parser a -> Parser a

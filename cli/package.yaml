@@ -25,7 +25,7 @@ library:
     - Skm.Compiler.Ast
     - Skm.Compiler.ProofGen
   other-modules:
-    - Skm.Parsing
+    - Skm.Util.Parsing
 
 executable:
   main: Main.hs
