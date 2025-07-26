@@ -72,6 +72,11 @@ main = do
     Eval (EvalOptions { eNSteps = n, eSrc = src }) -> do
       cts <- T.readFile src
       case parse pExpr src cts of
-        Left err -> putStr (errorBundlePretty err)
-        Right e  -> putStrLn (show e)
+        Left err -> putStr   (errorBundlePretty err)
+        Right e  ->
+          putStrLn $ show (case n of
+            Just n ->
+              eval_n n e
+            Nothing ->
+              eval e)
     _ -> pure ()
