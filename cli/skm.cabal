@@ -25,6 +25,7 @@ library
       Skm.Parse
       Skm.Std
       Skm.Compiler.Ast
+      Skm.Compiler.Parse
       Skm.Compiler.ProofGen
   other-modules:
       Skm.Util.Parsing
