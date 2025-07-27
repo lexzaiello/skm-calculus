@@ -169,7 +169,7 @@ repl opt = do
       (stmts, maybeE) <- parseProgCocStream streamStdinName rawE
       rawE <- hoistMaybe maybeE
       e  <- (hoistMaybe . CocAst.parseReadableExpr) rawE
-      sk <- (hoistMaybe . CocT.toSk . CocT.lift) e
+      sk <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) e
 
       pure sk
     ReplOptions { rLc = False } ->
@@ -189,7 +189,7 @@ doMain = do
       e <- if lc then do
             inlined <- readExprCoc src
             fromE <-  (hoistMaybe . CocAst.parseReadableExpr) inlined
-            sk    <- (hoistMaybe . CocT.toSk . CocT.lift) fromE
+            sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
             pure sk
         else readExpr src
       liftIO $ putStrLn (show (case n of
@@ -204,7 +204,7 @@ doMain = do
     Compile (CompileOptions { ccSrc = src, dry = dry }) -> do
       if not dry then do
         fromE <- (readExprCoc src) >>= (hoistMaybe . CocAst.parseReadableExpr)
-        sk    <- (hoistMaybe . CocT.toSk . CocT.lift) fromE
+        sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
 
         ((liftIO <$> putStrLn) . show) sk
       else (do

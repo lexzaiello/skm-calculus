@@ -6,13 +6,13 @@ i :: Expr
 i = (Call (Call S K) K)
 
 arrow :: Expr
-arrow = (Call (Call S (Call (Call S (Call K S)) (Call (Call S (Call (Call S (Call K S)) (Call (Call S (Call K K)) (Call K S)))) (Call (Call S (Call (Call S (Call K S)) (Call (Call S (Call (Call S (Call K S)) (Call (Call S (Call K K)) (Call K S)))) (Call (Call S (Call (Call S (Call K S)) (Call (Call S (Call (Call S (Call K S)) (Call (Call S (Call K K)) (Call K S)))) (Call (Call S (Call K K)) (Call K K))))) (Call (Call S (Call K K)) (Call K K)))))) (Call (Call S (Call (Call S (Call K S)) (Call (Call S (Call K K)) (Call K K)))) (Call (Call S (Call K K)) (Call (Call S K) K))))))) (Call (Call S (Call (Call S (Call K S)) (Call (Call S (Call K K)) (Call K K)))) (Call (Call S (Call (Call S (Call K S)) (Call K K))) (Call K K))))
+arrow = (Call (Call S (Call K (Call (Call S (Call K S)) K))) K)
 
 t_in :: Expr
-t_in = (Call (Call S (Call K K)) (Call (Call S K) K))
+t_in = (Call (Call S (Call (Call S K) K)) (Call K K))
 
 t_out :: Expr
-t_out = (Call (Call S (Call (Call S (Call K S)) (Call K K))) (Call K K))
+t_out = (Call (Call S i) (Call K (Call K i)))
 
 
 t_k :: Expr
