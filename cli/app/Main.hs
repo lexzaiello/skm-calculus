@@ -3,7 +3,7 @@
 
 module Main where
 
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import Control.Monad.IO.Class
@@ -94,7 +94,7 @@ readExpr fname = do
     Right e  ->
       pure e
 
-readProgCoc :: String -> MaybeT IO ([CocAst.Stmt], CocAst.ReadableExpr)
+readProgCoc :: String -> MaybeT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr)
 readProgCoc fname = do
   cts <- liftIO $ T.readFile fname
   case parse CocP.pProg fname cts of
@@ -102,13 +102,15 @@ readProgCoc fname = do
       (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
     Right (stmts, body)  ->
       let stmts' = foldl inlineAll [] stmts in do
-        pure $ (stmts', CocP.inlineDefs stmts' body)
+        pure $ (stmts', CocP.inlineDefs stmts' <$> body)
   where inlineAll stmts (CocAst.Def id e) =
           let e' = CocP.inlineDefs stmts e in
             (CocAst.Def id e') : stmts
 
 readExprCoc :: String -> MaybeT IO CocAst.ReadableExpr
-readExprCoc = (pure . snd) <=< readProgCoc
+readExprCoc fname = do
+  (_, maybeE) <- readProgCoc fname
+  hoistMaybe maybeE
 
 ccInline :: CocAst.Stmt -> Maybe CocAst.Stmt
 ccInline (CocAst.Def name value) = do
@@ -141,17 +143,18 @@ doMain = do
       if not dry then do
         fromE <- (readExprCoc src) >>= (hoistMaybe . CocAst.parseReadableExpr)
         sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
+
         ((liftIO <$> putStrLn) . show) sk
       else (do
         (fromStmts, fromE) <- readProgCoc src
         let fromStmts' = map ccInline fromStmts
-        pFromE         <- (hoistMaybe . CocAst.parseReadableExpr) fromE
-        let fromE'     = CocT.lift pFromE
+        let fromE'     = CocT.lift <$> (fromE >>= CocAst.parseReadableExpr)
 
-        let fmtStmts = (show fromE') : ((map show) fromStmts)
+        let fmtStmts = (case fromE' of
+                             (Just fromE') -> ((show fromE') : (map show $ catMaybes fromStmts'))
+                             Nothing       -> (map show) $ catMaybes fromStmts')
 
-        liftIO $ putStrLn (show fmtStmts)
-        pure ())
+        liftIO $ putStrLn (intercalate "\n" fmtStmts))
     _ -> pure ()
 
 main :: IO ()

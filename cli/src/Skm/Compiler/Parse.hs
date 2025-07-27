@@ -98,10 +98,11 @@ pDef = do
 
   pure $ Ast.Def name body
 
-pProg :: Parser ([Ast.Stmt], Ast.ReadableExpr)
+pProg :: Parser ([Ast.Stmt], Maybe Ast.ReadableExpr)
 pProg = do
+  sc
   stmts <- many pDef
-  main  <- pExpr
+  main  <- optional pExpr
 
   pure $ (stmts, main)
 
