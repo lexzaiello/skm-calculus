@@ -33,27 +33,19 @@ Other commands include:
 Dependent Church nuemrals can be encoded in *SKM* using a simple translation algorithm from the untyped lambda calculus. Types are inferred. See the =LcSkmEtaUntyped.lean= file for more:
 
 #+BEGIN_SRC lean
-def mk_church (n : ℕ) : LExpr :=
-  let rec mk_church_body (n : ℕ) : LExpr :=
-    if n = 0 then
-      (.var 0)
-    else
-      (.call (.var 1) (mk_church_body n.pred))
+def zero := λ f g => g
+def one  := λ f g => (f g)
+def succ := λ x y z => (y (x y z))
 
-  (.lam (.lam $ mk_church_body n))
-
-def n_0 := mk_church 0
-  |> lift
-  |> to_sk_unsafe
-
-def n_1 :=  mk_church 1
-  |> lift
-  |> to_sk_unsafe
-
-def succ := (.lam (.lam (.lam (.call (.var 1) (.call (.call (.var 2) (.var 2)) (.var 0))))))
-  |> lift
-  |> to_sk_unsafe
-
-#eval (eval_n 40 SKM[(M n_1)]) == (eval_n 40 SKM[(M n_1)])
--- => true
+(M zero)
 #+END_SRC
+
+#+BEGIN_SRC lean
+def zero := λ f g => g
+def one  := λ f g => (f g)
+def succ := λ x y z => (y (x y z))
+
+(M one)
+#+END_SRC
+
+These two programs output the same expression.
