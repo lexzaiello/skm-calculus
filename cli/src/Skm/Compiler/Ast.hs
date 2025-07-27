@@ -84,3 +84,6 @@ instance Show Expr where
   show (App lhs rhs)             = printf "(%s %s)" (show lhs) (show rhs)
 
   show (Var v)                   = show v
+
+instance Show Stmt where
+  show (Def name value) = printf "def %s := %s" name (show value)

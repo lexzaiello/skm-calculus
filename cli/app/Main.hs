@@ -99,7 +99,7 @@ readExprCoc fname = do
     Left err ->
       (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
     Right (stmts, body)  ->
-      let stmts' = foldl inlineAll [] stmts in
+      let stmts' = foldl inlineAll [] stmts in do
         pure $ CocP.inlineDefs stmts' body
   where inlineAll stmts (CocAst.Def id e) =
           let e' = CocP.inlineDefs stmts e in
@@ -112,7 +112,8 @@ doMain = do
   case cfg of
     Eval (EvalOptions { eNSteps = n, eSrc = src, lc = lc }) -> do
       e <- if lc then do
-            fromE <- (readExprCoc src) >>= (hoistMaybe . CocAst.parseReadableExpr)
+            inlined <- readExprCoc src
+            fromE <-  (hoistMaybe . CocAst.parseReadableExpr) inlined
             sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
             pure sk
         else readExpr src
