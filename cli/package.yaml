@@ -14,6 +14,7 @@ dependencies:
   - megaparsec == 9.7.0
   - text >= 2.0.0
   - transformers >= 0.6.0.0
+  - containers >= 0.6.7
 
 library:
   source-dirs: src

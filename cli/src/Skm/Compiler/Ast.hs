@@ -12,6 +12,7 @@ data Expr = Lam (Maybe Expr) Expr
   | S
   | K
   | M
+  deriving (Eq, Ord)
 
 -- Human readable, not used anywhere except for serialization purposes
 
@@ -22,6 +23,7 @@ data ReadableExpr = HLam String (Maybe ReadableExpr) ReadableExpr
   | Hs
   | Hk
   | Hm
+  deriving (Eq, Ord)
 
 unwordtokens :: [[Token]] -> [Token]
 unwordtokens = intercalate [Space]
@@ -51,6 +53,7 @@ data Token = LParen
   | Ts
   | Tk
   | Tm
+  deriving (Eq, Ord)
 
 instance Show Token where
   show LParen     = "("
