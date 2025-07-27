@@ -31,8 +31,8 @@ eval :: Expr -> Expr
 eval e =
   case e of
     (Call lhs rhs) ->
-      let call' = (Call (eval lhs) (eval rhs))
-          e'    = fromMaybe call' $ step call' in
+      let call' = (Call (eval lhs) rhs)
+          e'    = fromMaybe call' $ step (Call lhs rhs) in
         if e' == e then
           e
         else
