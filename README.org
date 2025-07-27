@@ -8,6 +8,22 @@ See the [[https://lexzaiello.com/sk-lean][book]] for more.
 
 To jump right in, check out the =skm= command-line tool in =./cli=. This tool allows compilation of lambda calculus to SKM, evaluation of SKM, evlauation of compiled lambda calculus, and generation of beta-equivalence proofs.
 
+To enter into an interactive shell, use:
+
+#+BEGIN_SRC bash
+nix run .#skm repl
+#+END_SRC
+
+Optionally use the =--lc= flag to enable precompilation from lambda calculus to SKM.
+
+Other commands include:
+
+- =prove=: generates a proof of beta reduction of a given expression
+- =eval=: evaluates a source file
+  - Enable =--lc= for lambda calculus precompilation
+- =compile=: generates an SK expression from the given lambda calculus program
+  - Enable =--dry= to compile SK expressions inline instead of producing a monolithic expression
+
 ** Table of contents
 - *Background* - general information about the lambda calculus and SK required for understanding this paper.
 - *Dependent Typing in SK* - how dependent typing is achieved, including a possible translation algorithm from a dependently-typed lambda calculus to SK(M).
