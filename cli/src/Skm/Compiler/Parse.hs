@@ -10,63 +10,38 @@ import Text.Megaparsec
 import Data.Void
 import Data.Char (isSpace)
 
-ptAtom :: Parser Ast.Token
-ptAtom = choice
-  [ LParen   <$ single '('
-  , RParen   <$ single ')'
-  , Ts       <$ single 'S'
-  , Tk       <$ single 'K'
-  , Tm       <$ single 'M'
-  , Space    <$ single ' '
-  , Lambda   <$ single 'λ'
-  , FatArrow <$ symbol "=>"
-  , Def      <$ symbol "def"
-  , Colon    <$ single ':'
-  , Eq       <$ single '='
-  , TFall    <$ single '∀'
-  , Comma    <$ single ','
-  ]
+reserved = ["λ", ":", "=>", 
 
-pToken :: Parser Ast.Token
-pToken = try ptAtom <|> (Ident <$> (some (satisfy (not . isSpace))))
+pLParen :: Parser ()
+pLParen = symbol "("
 
-type Parser' = Parsec Void [Ast.Token]
+pRParen :: Parser ()
+pRParen = symbol ")"
 
-pApp :: Parser' Ast.ReadableExpr
+pApp :: Parser Ast.ReadableExpr
 pApp = do
   lhs <- pTerm
   rhs <- pTerm
 
   pure $ (HApp lhs rhs)
 
-pIdent :: Parser' String
-pIdent = token toIdent Set.empty
-  where toIdent (Ident ident) = Just ident
-        toIdent _             = Nothing
-
-pVar :: Parser' Ast.ReadableExpr
-pVar = HVar <$> pIdent
-
-pComb :: Parser' Ast.ReadableExpr
+pComb :: Parser Ast.ReadableExpr
 pComb = choice
-  [ Hs <$ single Ts
-  , Hk <$ single Tk
-  , Hm <$ single Tm
+  [ Hs <$ symbol "S"
+  , Hk <$ symbol "K"
+  , Hm <$ symbol "M"
   ]
 
-advanceWhitespace :: Parser' ()
-advanceWhitespace = takeWhileP (Just " ") isSpace >> pure ()
-  where isSpace Space = True
-        isSpace _     = False
+pColon :: Parser ()
+pColon = symbol ":" >> (pure ())
 
-pColon :: Parser' ()
-pColon = single Colon >> (pure ())
+pIdent :: Parser ()
+pIdent = takeWhileP (Just " ") (not isSpace)
 
-
-pTypedBinder :: Parser' (String, Ast.ReadableExpr)
+pTypedBinder :: Parser (String, Ast.ReadableExpr)
 pTypedBinder = do
-  _ <- single LParen
-  _ <- advanceWhitespace
+  _ <- pLParen
+  _ <- sc
   binder <- pIdent
   _ <- advanceWhitespace
   _ <- pColon
@@ -125,3 +100,8 @@ pTerm = choice
   , pLam
   , pFall
   ]
+
+parse :: Parser Ast.ReadableExpr
+parse = do
+  toks <- pTokens
+  pTerm

@@ -10,9 +10,12 @@ import System.Exit (exitWith, ExitCode(ExitFailure))
 import Skm.Ast
 import Skm.Eval
 import qualified Skm.Compiler.ProofGen as Proof
+import qualified Skm.Compiler.Ast as CocAst
+import qualified Skm.Compiler.Parse as CocP
 import Skm.Parse (pExpr)
 import Options.Applicative
 import qualified Data.Text.IO as T
+import Data.List (intercalate)
 import Text.Megaparsec (parse, errorBundlePretty)
 
 data EvalOptions = EvalOptions
@@ -80,6 +83,15 @@ readExpr fname = do
     Right e  ->
       pure e
 
+readExprCoc :: String -> MaybeT IO CocAst.ReadableExpr
+readExprCoc fname = do
+  cts <- liftIO $ T.readFile fname
+  case parse CocP.pTokens fname cts >>= parse CocP.pTerm fname of
+    Left err ->
+      (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
+    Right e  ->
+      pure e
+
 doMain :: MaybeT IO ()
 doMain = do
   cfg <- liftIO $ execParser (info (cmdParser <**> helper) $ progDesc "Tools for building SKM applications.")
@@ -96,6 +108,10 @@ doMain = do
       fromE <- readExpr fromSrc
 
       ((liftIO <$> putStrLn) . Proof.serialize . snd . Proof.cc) fromE
+    Compile (CompileOptions { ccSrc = src }) -> do
+      fromE <- readExprCoc src
+
+      ((liftIO <$> putStrLn) . intercalate " " . (map show) . CocAst.unwordtokens . CocAst.tokenize) fromE
     _ -> pure ()
 
 main :: IO ()

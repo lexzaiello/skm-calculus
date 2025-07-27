@@ -2,6 +2,7 @@ module Skm.Compiler.Ast where
 
 import Data.List (intercalate)
 import Text.Read (readMaybe)
+import Text.Printf
 
 -- Calculus of constructions expr, using 0-indexed De Bruijn Indices
 -- Lambda abstractions are optionally typed. Types are inferred
@@ -59,48 +60,13 @@ data ReadableExpr = HLam String (Maybe ReadableExpr) ReadableExpr
   | Hm
   deriving (Eq, Ord)
 
-unwordtokens :: [[Token]] -> [Token]
-unwordtokens = intercalate [Space]
-
-tokenize :: ReadableExpr -> [[Token]]
-tokenize Hs = [pure Ts]
-tokenize Hk = [pure Tk]
-tokenize Hm = [pure Tm]
-tokenize (HLam  binder (Just bind_ty) body) = [[Lambda], [LParen, Ident binder], [Colon], ((unwordtokens $ tokenize bind_ty) ++ [RParen]), [FatArrow], (unwordtokens $ tokenize body)]
-tokenize (HLam  binder Nothing        body) = [[Lambda], [Ident binder], [FatArrow], (unwordtokens $ tokenize body)]
-tokenize (HFall binder (Just bind_ty) body) = [[TFall], [LParen, (Ident binder)], [Colon], ((unwordtokens $ tokenize bind_ty) ++ [RParen, Comma]), (unwordtokens $ tokenize body)]
-tokenize (HFall binder Nothing        body) = [[TFall], [(Ident binder), Comma], (unwordtokens $ tokenize body)]
-tokenize (HVar v)       = [pure (Ident v)]
-tokenize (HApp lhs rhs) = [[LParen] ++ (unwordtokens $ tokenize lhs), (unwordtokens $ tokenize rhs) ++ [RParen]]
-
-data Token = LParen
-  | RParen
-  | Lambda
-  | Space
-  | FatArrow
-  | TFall
-  | Comma
-  | Def
-  | Colon
-  | Eq
-  | Ident String
-  | Ts
-  | Tk
-  | Tm
-  deriving (Eq, Ord)
-
-instance Show Token where
-  show LParen     = "("
-  show RParen     = ")"
-  show Space      = " "
-  show FatArrow   = "=>"
-  show Def        = "def"
-  show Colon      = ":"
-  show Eq         = "="
-  show (Ident i)  = i
-  show Lambda     = "λ"
-  show Ts         = "S"
-  show Tk         = "K"
-  show Tm         = "M"
-  show TFall      = "∀"
-  show Comma      = ","
+instance Show ReadableExpr where
+  HLam  binder (Just bindTy) body = printf "λ (%s : %s) => %s" binder (show bindTy) (show body)
+  HFall binder (Just bindTy) body = printf "∀ (%s : %s), %s"   binder (show bindTy) (show body)
+  HLam  binder Nothing body       = printf "λ %s => %s"        binder (show body)
+  HFall binder Nothing body       = printf "∀ %s, %s"          binder (show body)
+  Hs = "S"
+  Hk = "K"
+  Hm = "M"
+  HApp lhs rhs = printf "(%s %s)" (show lhs) (show rhs)
+  HVar v       = v
