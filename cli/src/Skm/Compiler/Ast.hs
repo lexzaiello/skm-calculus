@@ -1,6 +1,6 @@
 module Skm.Compiler.Ast where
 
-import Data.List (intercalate)
+import Data.List (intercalate, elemIndex)
 import Text.Read (readMaybe)
 import Text.Printf
 
@@ -16,16 +16,19 @@ data Expr = Lam (Maybe Expr) Expr
   | M
   deriving (Eq, Ord)
 
+type Context = [String]
+
 -- Convert variables to de bruijn indices
-changeVariables :: String -> Int -> ReadableExpr -> ReadableExpr
-changeVariables fromV toV (HFall binder maybeTy body) = HFall binder (doChange <$> maybeTy) (doChange body)
-  where doChange = changeVariables fromV (toV + 1)
-changeVariables fromV toV (HLam binder maybeTy body)  = HLam binder  (doChange <$> maybeTy) (doChange body)
-  where doChange = changeVariables fromV (toV + 1)
-changeVariables fromV toV  (HVar v)
-  | v == fromV = HVar $ show toV
-  | otherwise  = HVar v
-changeVariables _ _ e = e
+changeVariables :: Context -> ReadableExpr -> ReadableExpr
+changeVariables ctx (HFall binder maybeTy body) = HFall binder (doChange <$> maybeTy) (doChange body)
+  where doChange = changeVariables (binder : ctx)
+changeVariables ctx (HLam binder maybeTy body)  = HLam binder  (doChange <$> maybeTy) (doChange body)
+  where doChange = changeVariables (binder : ctx)
+changeVariables ctx  (HVar v) = case elemIndex v ctx of
+  Just ix -> HVar (show ix)
+  Nothing -> HVar v
+changeVariables ctx (HApp lhs rhs) = HApp (changeVariables ctx lhs) (changeVariables ctx rhs)
+changeVariables _ e = e
 
 parseReadableExpr :: ReadableExpr -> Maybe Expr
 parseReadableExpr Hs             = pure S
@@ -38,14 +41,14 @@ parseReadableExpr (HApp lhs rhs) = do
 
   pure $ App lhs' rhs'
 parseReadableExpr (HLam binder maybeTy body) =
-  let ty'   = changeVariables binder 0 <$> maybeTy
-      body' = changeVariables binder 0 body
+  let ty'   = changeVariables [binder] <$> maybeTy
+      body' = changeVariables [binder] body
   in do
     parsedBody <- parseReadableExpr body'
     pure $ Lam (ty' >>= parseReadableExpr) parsedBody
 parseReadableExpr (HFall binder maybeTy body) =
-  let ty'   = changeVariables binder 0 <$> maybeTy
-      body' = changeVariables binder 0 body
+  let ty'   = changeVariables [binder] <$> maybeTy
+      body' = changeVariables [binder] body
   in do
     parsedBody <- parseReadableExpr body'
     pure $ Fall (ty' >>= parseReadableExpr) parsedBody
