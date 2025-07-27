@@ -31,7 +31,8 @@ data BetaEqOptions = BetaEqOptions
   { bFromSrc :: String }
 
 data CompileOptions = CompileOptions
-  { ccSrc :: String }
+  { ccSrc :: String
+  , dry   :: Bool}
 
 data ProveCommand = BetaEq BetaEqOptions
 
@@ -75,7 +76,8 @@ proveParser = hsubparser
 compileParser :: Parser CompileOptions
 compileParser = do
   src <- srcParser
-  pure $ CompileOptions { ccSrc = src }
+  dry <- optional $ switch (long "dry" <> short 'd' <> help "Compile lambda expressions inline to SK")
+  pure $ CompileOptions { ccSrc = src, dry = fromMaybe False dry }
 
 cmdParser :: Parser Command
 cmdParser = hsubparser
@@ -92,18 +94,27 @@ readExpr fname = do
     Right e  ->
       pure e
 
-readExprCoc :: String -> MaybeT IO CocAst.ReadableExpr
-readExprCoc fname = do
+readProgCoc :: String -> MaybeT IO ([CocAst.Stmt], CocAst.ReadableExpr)
+readProgCoc fname = do
   cts <- liftIO $ T.readFile fname
   case parse CocP.pProg fname cts of
     Left err ->
       (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
     Right (stmts, body)  ->
       let stmts' = foldl inlineAll [] stmts in do
-        pure $ CocP.inlineDefs stmts' body
+        pure $ (stmts', CocP.inlineDefs stmts' body)
   where inlineAll stmts (CocAst.Def id e) =
           let e' = CocP.inlineDefs stmts e in
             (CocAst.Def id e') : stmts
+
+readExprCoc :: String -> MaybeT IO CocAst.ReadableExpr
+readExprCoc = (pure . snd) <=< readProgCoc
+
+ccInline :: CocAst.Stmt -> Maybe CocAst.Stmt
+ccInline (CocAst.Def name value) = do
+  value' <- ((CocAst.transmuteESk . CocT.lift) <=< CocAst.parseReadableExpr) value
+
+  pure $ CocAst.Def name value'
 
 doMain :: MaybeT IO ()
 doMain = do
@@ -126,11 +137,21 @@ doMain = do
       fromE <- readExpr fromSrc
 
       ((liftIO <$> putStrLn) . Proof.serialize . snd . Proof.cc) fromE
-    Compile (CompileOptions { ccSrc = src }) -> do
-      fromE <- (readExprCoc src) >>= (hoistMaybe . CocAst.parseReadableExpr)
-      sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
+    Compile (CompileOptions { ccSrc = src, dry = dry }) -> do
+      if not dry then do
+        fromE <- (readExprCoc src) >>= (hoistMaybe . CocAst.parseReadableExpr)
+        sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
+        ((liftIO <$> putStrLn) . show) sk
+      else (do
+        (fromStmts, fromE) <- readProgCoc src
+        let fromStmts' = map ccInline fromStmts
+        pFromE         <- (hoistMaybe . CocAst.parseReadableExpr) fromE
+        let fromE'     = CocT.lift pFromE
 
-      ((liftIO <$> putStrLn) . show) sk
+        let fmtStmts = (show fromE') : ((map show) fromStmts)
+
+        liftIO $ putStrLn (show fmtStmts)
+        pure ())
     _ -> pure ()
 
 main :: IO ()

@@ -4,6 +4,10 @@ In this repository, I define a dependent typing for the SK combinators by adding
 
 See the [[https://lexzaiello.com/sk-lean][book]] for more.
 
+** Quick Start
+
+To jump right in, check out the =skm= command-line tool in =./cli=. This tool allows compilation of lambda calculus to SKM, evaluation of SKM, evlauation of compiled lambda calculus, and generation of beta-equivalence proofs.
+
 ** Table of contents
 - *Background* - general information about the lambda calculus and SK required for understanding this paper.
 - *Dependent Typing in SK* - how dependent typing is achieved, including a possible translation algorithm from a dependently-typed lambda calculus to SK(M).

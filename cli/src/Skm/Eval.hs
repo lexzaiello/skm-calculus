@@ -15,11 +15,16 @@ step _ = Nothing
 
 -- Attempts to reduce the next available outermost redex
 eval_n :: Int -> Expr -> Expr
-eval_n 0 e = e
-eval_n n e =
-  case e of
+eval_n n e
+  | n <= 0 = e
+  | otherwise = case e of
     (Call lhs rhs) ->
-      eval_n (n - 2) (Call (eval_n (n - 1) lhs) (eval_n (n - 1) rhs))
+      let call' = (Call (eval_n (n - 1) lhs) (eval_n (n - 1) rhs))
+          e'    = fromMaybe call' $ step call' in
+        if e' == e then
+          e
+        else
+          eval_n (n - 2) e'
     x -> x
 
 eval :: Expr -> Expr

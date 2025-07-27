@@ -90,3 +90,26 @@ instance Show Expr where
 
 instance Show Stmt where
   show (Def name value) = printf "def %s := %s" name (show value)
+
+transmuteESk :: Expr -> Maybe ReadableExpr
+transmuteESk (App lhs rhs) = do
+  lhs' <- transmuteESk lhs
+  rhs' <- transmuteESk rhs
+
+  pure $ HApp lhs' rhs'
+transmuteESk S              = pure Hs
+transmuteESk K              = pure Hk
+transmuteESk M              = pure Hm
+transmuteESk _              = Nothing
+
+transmuteESk' :: ReadableExpr -> Maybe Expr
+transmuteESk' (HApp lhs rhs) = do
+  lhs' <- transmuteESk' lhs
+  rhs' <- transmuteESk' rhs
+
+  pure $ App lhs' rhs'
+transmuteESk' Hs              = pure S
+transmuteESk' Hk              = pure K
+transmuteESk' Hm              = pure M
+transmuteESk' _               = Nothing
+

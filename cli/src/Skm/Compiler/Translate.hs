@@ -33,6 +33,11 @@ opt (A.Call (A.Call A.S (A.Call A.K p)) (A.Call A.K q)) = A.Call A.K (A.Call p q
 opt (A.Call lhs rhs)                                    = A.Call (opt lhs) (opt rhs)
 opt e = e
 
+optE :: Expr -> Expr
+optE (App (App S (App K p)) (App K q)) = App K (App p q)
+optE (App lhs rhs)                     = App (optE lhs) (optE rhs)
+optE e = e
+
 toSk :: Expr -> Maybe A.Expr
 toSk (App lhs rhs) = do
   lhs' <- toSk lhs
