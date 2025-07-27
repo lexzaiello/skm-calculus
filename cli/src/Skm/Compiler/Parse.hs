@@ -68,7 +68,7 @@ pFall = do
 
 pLam :: Parser Ast.ReadableExpr
 pLam = do
-  _ <- symbol "λ"
+  _ <- symbol "λ" <|> symbol "fun"
   (binder, maybeBty) <- pBinder
   _ <- sc
   _ <- symbol "=>"
