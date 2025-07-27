@@ -84,9 +84,13 @@ pBinders = spaces (try (unifyFromTyped <$> pTypedBinder) <|> (unifyFromUntyped <
     unifyFromUntyped binderName       = (binderName, Nothing)
 
 -- Final body, binders to go
-curryify :: Ast.ReadableExpr -> [Ast.ReadableExpr] -> Ast.ReadableExpr
-currify bdy (binder, maybeType):xs = HFall binder maybeType (currify bdy xs)
-currify bdy   []                   = bdy
+currifyFall :: Ast.ReadableExpr -> [Ast.ReadableExpr] -> Ast.ReadableExpr
+currifyFall bdy (binder, maybeType):xs = HFall binder maybeType (currifyFall bdy xs)
+currifyFall bdy []                     = bdy
+
+currifyLam :: Ast.ReadableExpr -> [Ast.ReadableExpr] -> Ast.ReadableExpr
+currifyFall bdy (binder, maybeType):xs = HLam binder maybeType (currifyLam bdy xs)
+currifyFall bdy []                     = bdy
 
 pFall :: Parser' Ast.ReadableExpr
 pFall = do
@@ -94,18 +98,27 @@ pFall = do
   binders <- pBinders
   _ <- advanceWhitespace
   _ <- single Comma
+  _ <- advanceWhitespace
   body <- pTerm
 
-  case binders of
-    x:xs ->
-      
-  where
-    
+  pure $ currifyFall binders body
+
+pLam :: Parser' Ast.ReadableExpr
+pLam = do
+  _ <- single Lambda
+  binders <- pBinders
+  _ <- advanceWhitespace
+  _ <- single FatArrow
+  _ <- advanceWhitespace
+  body <- pTerm
+
+  pure $ currifyLam binders body
 
 pTerm :: Parser' Ast.ReadableExpr
 pTerm = choice
   [ pApp
   , pComb
   , pVar
-  
+  , pLam
+  , pFall
   ]
