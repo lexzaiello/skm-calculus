@@ -34,11 +34,18 @@ data CompileOptions = CompileOptions
   { ccSrc :: String
   , dry   :: Bool}
 
+data ReplOptions = ReplOptions
+  { rLc :: Bool }
+
 data ProveCommand = BetaEq BetaEqOptions
 
 data Command = Eval EvalOptions
   | Prove ProveCommand
   | Compile CompileOptions
+  | Repl ReplOptions
+
+promptPs :: String
+promptPs = ">> "
 
 nStepsParser :: Parser (Maybe Int)
 nStepsParser = optional $ option auto (
@@ -50,7 +57,7 @@ srcParser :: Parser String
 srcParser = argument str (metavar "FILE")
 
 lcParser :: Parser (Maybe Bool)
-lcParser = optional $ switch (long "lc" <> short 'l' <> help "Compile lambda calculus and evaluate as SKM")
+lcParser = optional $ switch (long "lc" <> short 'l' <> help "Compile lambda calculus and evaluate as SKM.")
 
 evalParser :: Parser EvalOptions
 evalParser = do
@@ -69,21 +76,28 @@ betaEqParser = do
 
   pure $ BetaEqOptions { bFromSrc = fromSrc }
 
+replParser :: Parser ReplOptions
+replParser = do
+  isLc <- lcParser
+
+  pure $ ReplOptions { rLc = fromMaybe False isLc }
+
 proveParser :: Parser ProveCommand
 proveParser = hsubparser
-  (command "beta_reduce" (info (BetaEq <$> betaEqParser) $ progDesc "Generate a proof of valid beta-reduction of an expression"))
+  (command "beta_reduce" (info (BetaEq <$> betaEqParser) $ progDesc "Generate a proof of valid beta-reduction of an expression."))
 
 compileParser :: Parser CompileOptions
 compileParser = do
   src <- srcParser
-  dry <- optional $ switch (long "dry" <> short 'd' <> help "Compile lambda expressions inline to SK")
+  dry <- optional $ switch (long "dry" <> short 'd' <> help "Compile lambda expressions inline to SK.")
   pure $ CompileOptions { ccSrc = src, dry = fromMaybe False dry }
 
 cmdParser :: Parser Command
 cmdParser = hsubparser
-  (command     "eval"  (info (Eval    <$> evalParser)    $ progDesc "Evaluate a compiled SKM program")
-    <> command "build" (info (Compile <$> compileParser) $ progDesc "Compiles a CoC program to an SKM program")
-    <> command "prove" (info (Prove   <$> proveParser)   $ progDesc "Prove properties of a compiled SKM program, generating a Lean proof definition."))
+  (command     "eval"  (info (Eval    <$> evalParser)    $ progDesc "Evaluate a compiled SKM program.")
+    <> command "build" (info (Compile <$> compileParser) $ progDesc "Compiles a CoC program to an SKM program.")
+    <> command "prove" (info (Prove   <$> proveParser)   $ progDesc "Prove properties of a compiled SKM program, generating a Lean proof definition.")
+    <> command "repl"  (info (Repl    <$> replParser)    $ progDesc "Launch an interactive SKM session."))
 
 readExpr :: String -> MaybeT IO Expr
 readExpr fname = do
@@ -117,6 +131,12 @@ ccInline (CocAst.Def name value) = do
   value' <- ((CocAst.transmuteESk . CocT.lift) <=< CocAst.parseReadableExpr) value
 
   pure $ CocAst.Def name value'
+
+repl :: IO ()
+repl = do
+  hPutStr promptPs
+  
+  pure ()
 
 doMain :: MaybeT IO ()
 doMain = do
@@ -155,6 +175,7 @@ doMain = do
                              Nothing       -> (map show) $ catMaybes fromStmts')
 
         liftIO $ putStrLn (intercalate "\n" fmtStmts))
+    Repl (ReplOptions { rLc = isLc }) -> liftIO repl
     _ -> pure ()
 
 main :: IO ()

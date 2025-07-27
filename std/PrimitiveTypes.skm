@@ -1,0 +1,13 @@
+-- A church-encoded tuple. Represents the type of a function
+def arrow := λ a b f => ((f a) b)
+
+def t_in  := λ a b => a
+def t_out := λ a b => b
+
+-- α → β → α
+def t_k   := λ a => (arrow (M a) (λ b => (arrow (M b) (M a))))
+
+-- Not circular, due to evaluation rules of M
+def t_s   := λ x => (arrow (M x) (λ y => (arrow (M y) (λ z => (M ((x z) (y z)))))))
+
+def t_m   := λ e => (arrow (M e) (M (M e)))
