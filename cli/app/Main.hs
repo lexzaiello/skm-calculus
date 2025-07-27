@@ -112,7 +112,7 @@ doMain = do
       ((liftIO <$> putStrLn) . Proof.serialize . snd . Proof.cc) fromE
     Compile (CompileOptions { ccSrc = src }) -> do
       fromE <- (readExprCoc src) >>= (hoistMaybe . CocAst.parseReadableExpr)
-      sk    <- (pure <$> CocT.toSk . CocT.lift) fromE
+      sk    <- (hoistMaybe . CocT.toSk . CocT.lift) fromE
 
       ((liftIO <$> putStrLn) . show) sk
     _ -> pure ()
