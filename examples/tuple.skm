@@ -1,0 +1,6 @@
+def arrow := λ a b f => ((f a) b)
+
+def t_in  := λ a b => a
+def t_out := λ a b => b
+
+((arrow K S) t_out)
