@@ -3,6 +3,7 @@
 
 module Main where
 
+import Data.Maybe (fromMaybe)
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import Control.Monad.IO.Class
@@ -23,6 +24,7 @@ import Text.Megaparsec (parse, errorBundlePretty)
 data EvalOptions = EvalOptions
   { eNSteps :: (Maybe Int)
   , eSrc    :: String
+  , lc      :: Bool
   }
 
 data BetaEqOptions = BetaEqOptions
@@ -46,13 +48,18 @@ nStepsParser = optional $ option auto (
 srcParser :: Parser String
 srcParser = argument str (metavar "FILE")
 
+lcParser :: Parser (Maybe Bool)
+lcParser = optional $ switch (long "lc" <> short 'l' <> help "Compile lambda calculus and evaluate as SKM")
+
 evalParser :: Parser EvalOptions
 evalParser = do
   src <- srcParser
   n   <- nStepsParser
+  lc  <- lcParser
 
   pure $ EvalOptions { eSrc    = src
                      , eNSteps = n
+                     , lc      = fromMaybe False lc
                      }
 
 betaEqParser :: Parser BetaEqOptions
@@ -88,7 +95,7 @@ readExpr fname = do
 readExprCoc :: String -> MaybeT IO CocAst.ReadableExpr
 readExprCoc fname = do
   cts <- liftIO $ T.readFile fname
-  case parse CocP.parse fname cts of
+  case parse CocP.pExpr fname cts of
     Left err ->
       (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
     Right e  ->
@@ -99,8 +106,12 @@ doMain = do
   cfg <- liftIO $ execParser (info (cmdParser <**> helper) $ progDesc "Tools for building SKM applications.")
 
   case cfg of
-    Eval (EvalOptions { eNSteps = n, eSrc = src }) -> do
-      e <- readExpr src
+    Eval (EvalOptions { eNSteps = n, eSrc = src, lc = lc }) -> do
+      e <- if lc then do
+            fromE <- (readExprCoc src) >>= (hoistMaybe . CocAst.parseReadableExpr)
+            sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
+            pure sk
+        else readExpr src
       liftIO $ putStrLn (show (case n of
                          Just n ->
                            eval_n n e
@@ -112,7 +123,7 @@ doMain = do
       ((liftIO <$> putStrLn) . Proof.serialize . snd . Proof.cc) fromE
     Compile (CompileOptions { ccSrc = src }) -> do
       fromE <- (readExprCoc src) >>= (hoistMaybe . CocAst.parseReadableExpr)
-      sk    <- (hoistMaybe . CocT.toSk . CocT.lift) fromE
+      sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
 
       ((liftIO <$> putStrLn) . show) sk
     _ -> pure ()

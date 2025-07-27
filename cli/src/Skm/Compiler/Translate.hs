@@ -28,6 +28,11 @@ lift (Lam _ x) = lift (App K x')
   where x' = (decVars 0 . lift) x
 lift e = e
 
+opt :: A.Expr -> A.Expr
+opt (A.Call (A.Call A.S (A.Call A.K p)) (A.Call A.K q)) = A.Call A.K (A.Call p q)
+opt (A.Call lhs rhs)                                    = A.Call (opt lhs) (opt rhs)
+opt e = e
+
 toSk :: Expr -> Maybe A.Expr
 toSk (App lhs rhs) = do
   lhs' <- toSk lhs

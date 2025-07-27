@@ -8,18 +8,10 @@ import Skm.Compiler.Ast (ReadableExpr(..))
 import Text.Megaparsec
 import Text.Megaparsec.Char (alphaNumChar, char, letterChar)
 
-pLParen :: Parser ()
-pLParen = symbol "(" >> (pure ())
-
-pRParen :: Parser ()
-pRParen = symbol ")" >> (pure ())
-
 pApp :: Parser Ast.ReadableExpr
 pApp = parens $ do
-  lhs <- pTerm
-  rhs <- pTerm
-
-  pure $ (HApp lhs rhs)
+  exprs <- some pExpr
+  pure $ foldl1 HApp exprs
 
 pComb :: Parser Ast.ReadableExpr
 pComb = choice
@@ -43,7 +35,7 @@ pTypedBinder = parens $ do
   binder <- pIdent
   _ <- sc
   _ <- pColon
-  ty <- pTerm
+  ty <- pExpr
   _ <- sc
 
   pure (binder, ty)
@@ -67,7 +59,7 @@ pFall = do
   _ <- sc
   _ <- symbol ","
   _ <- sc
-  body <- pTerm
+  body <- pExpr
   -- Implicitly-typed, we don't recurse for ty
   pure (HLam binder maybeBty body)
 
@@ -78,23 +70,9 @@ pLam = do
   _ <- sc
   _ <- symbol "=>"
   _ <- sc
-  body <- pTerm
+  body <- pExpr
 
   pure (HLam binder maybeBty body)
 
-pTerm :: Parser Ast.ReadableExpr
-pTerm = choice
-  [ pApp
-  , pComb
-  , pLam
-  , pFall
-  , pVar
-  ]
-
-parse :: Parser Ast.ReadableExpr
-parse = choice
-  [ pComb
-  , pApp
-  , pLam
-  , pFall
-  ]
+pExpr :: Parser Ast.ReadableExpr
+pExpr = pApp <|> pComb <|> pLam <|> pFall <|> pVar <|> parens pExpr
