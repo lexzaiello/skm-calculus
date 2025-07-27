@@ -2,17 +2,11 @@
 
 module Skm.Compiler.Parse where
 
-import Data.Text (Text, unpack)
-import Data.List (elem)
-import qualified Data.Set as Set
 import Skm.Util.Parsing
 import qualified Skm.Compiler.Ast as Ast
-import Skm.Compiler.Ast (Expr(..), ReadableExpr(..))
+import Skm.Compiler.Ast (ReadableExpr(..))
 import Text.Megaparsec
-import qualified Text.Megaparsec.Char.Lexer as L
 import Text.Megaparsec.Char (alphaNumChar, char, letterChar)
-import Data.Void
-import Data.Char (isSpace)
 
 pLParen :: Parser ()
 pLParen = symbol "(" >> (pure ())

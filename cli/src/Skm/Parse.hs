@@ -4,7 +4,6 @@ module Skm.Parse where
 
 import Skm.Util.Parsing
 import Skm.Ast
-import Data.Text (Text)
 import Text.Megaparsec
 
 pCall :: Parser Expr

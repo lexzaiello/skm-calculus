@@ -4,8 +4,6 @@ module Skm.Util.Parsing where
 
 import Data.Text (Text)
 import Data.Void
-import Data.Char (isAlpha, isAlphaNum)
-import qualified Data.Text as T
 import Text.Megaparsec
 import qualified Text.Megaparsec.Char.Lexer as L
 import qualified Text.Megaparsec.Char as C

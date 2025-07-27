@@ -3,6 +3,7 @@
 
 module Main where
 
+import Control.Monad
 import Control.Monad.Trans.Maybe
 import Control.Monad.IO.Class
 import System.IO (hPutStrLn, stderr)
@@ -12,6 +13,7 @@ import Skm.Eval
 import qualified Skm.Compiler.ProofGen as Proof
 import qualified Skm.Compiler.Ast as CocAst
 import qualified Skm.Compiler.Parse as CocP
+import qualified Skm.Compiler.Translate as CocT
 import Skm.Parse (pExpr)
 import Options.Applicative
 import qualified Data.Text.IO as T
@@ -109,9 +111,10 @@ doMain = do
 
       ((liftIO <$> putStrLn) . Proof.serialize . snd . Proof.cc) fromE
     Compile (CompileOptions { ccSrc = src }) -> do
-      fromE <- readExprCoc src
+      fromE <- (readExprCoc src) >>= (hoistMaybe . CocAst.parseReadableExpr)
+      sk    <- (pure <$> CocT.toSk . CocT.lift) fromE
 
-      ((liftIO <$> putStrLn) . show) fromE
+      ((liftIO <$> putStrLn) . show) sk
     _ -> pure ()
 
 main :: IO ()
