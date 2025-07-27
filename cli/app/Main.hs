@@ -86,7 +86,7 @@ readExpr fname = do
 readExprCoc :: String -> MaybeT IO CocAst.ReadableExpr
 readExprCoc fname = do
   cts <- liftIO $ T.readFile fname
-  case parse CocP.pTokens fname cts >>= parse CocP.pTerm fname of
+  case parse CocP.parse fname cts of
     Left err ->
       (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
     Right e  ->
@@ -111,7 +111,7 @@ doMain = do
     Compile (CompileOptions { ccSrc = src }) -> do
       fromE <- readExprCoc src
 
-      ((liftIO <$> putStrLn) . intercalate " " . (map show) . CocAst.unwordtokens . CocAst.tokenize) fromE
+      ((liftIO <$> putStrLn) . show) fromE
     _ -> pure ()
 
 main :: IO ()

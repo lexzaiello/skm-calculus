@@ -2,21 +2,25 @@
 
 module Skm.Compiler.Parse where
 
+import Data.Text (Text, unpack)
+import Data.List (elem)
 import qualified Data.Set as Set
 import Skm.Util.Parsing
 import qualified Skm.Compiler.Ast as Ast
-import Skm.Compiler.Ast (Token(..), Expr(..), ReadableExpr(..))
+import Skm.Compiler.Ast (Expr(..), ReadableExpr(..))
 import Text.Megaparsec
+import qualified Text.Megaparsec.Char.Lexer as L
 import Data.Void
 import Data.Char (isSpace)
 
-reserved = ["λ", ":", "=>", 
+reserved :: [Char]
+reserved = ['λ', ':', '(', ')', '∀', 'S', 'K', 'M']
 
 pLParen :: Parser ()
-pLParen = symbol "("
+pLParen = symbol "(" >> (pure ())
 
 pRParen :: Parser ()
-pRParen = symbol ")"
+pRParen = symbol ")" >> (pure ())
 
 pApp :: Parser Ast.ReadableExpr
 pApp = do
@@ -35,29 +39,31 @@ pComb = choice
 pColon :: Parser ()
 pColon = symbol ":" >> (pure ())
 
-pIdent :: Parser ()
-pIdent = takeWhileP (Just " ") (not isSpace)
+pIdent :: Parser String
+pIdent = unpack <$> takeWhileP (Just " ") valid
+  where valid s = (not (isSpace s)) && (not (s `elem` reserved))
 
 pTypedBinder :: Parser (String, Ast.ReadableExpr)
-pTypedBinder = do
-  _ <- pLParen
+pTypedBinder = parens (do
   _ <- sc
   binder <- pIdent
-  _ <- advanceWhitespace
+  _ <- sc
   _ <- pColon
   ty <- pTerm
-  _ <- advanceWhitespace
-  _ <- single RParen
+  _ <- sc
 
-  pure (binder, ty)
+  pure (binder, ty))
 
-pUntypedBinder :: Parser' String
+pUntypedBinder :: Parser String
 pUntypedBinder = pIdent
 
-pBinders :: Parser' [(String, Maybe Ast.ReadableExpr)]
+pVar :: Parser Ast.ReadableExpr
+pVar = HVar <$> pIdent
+
+pBinders :: Parser [(String, Maybe Ast.ReadableExpr)]
 pBinders = many $ spaces (try (unifyFromTyped <$> pTypedBinder) <|> (unifyFromUntyped <$> pUntypedBinder))
   where
-    spaces = between (many (single Space)) (many (single Space))
+    spaces                            = between (many sc) (many sc)
     unifyFromTyped   (binderName, ty) = (binderName, Just ty)
     unifyFromUntyped binderName       = (binderName, Nothing)
 
@@ -70,29 +76,29 @@ currifyLam :: Ast.ReadableExpr -> [(String, Maybe Ast.ReadableExpr)] -> Ast.Read
 currifyLam bdy ((binder, maybeType):xs) = HLam binder maybeType (currifyLam bdy xs)
 currifyLam bdy []                       = bdy
 
-pFall :: Parser' Ast.ReadableExpr
+pFall :: Parser Ast.ReadableExpr
 pFall = do
-  _ <- single TFall
+  _ <- symbol "∀"
   binders <- pBinders
-  _ <- advanceWhitespace
-  _ <- single Comma
-  _ <- advanceWhitespace
+  _ <- sc
+  _ <- symbol ","
+  _ <- sc
   body <- pTerm
 
   pure $ currifyFall body binders
 
-pLam :: Parser' Ast.ReadableExpr
+pLam :: Parser Ast.ReadableExpr
 pLam = do
-  _ <- single Lambda
+  _ <- symbol "λ"
   binders <- pBinders
-  _ <- advanceWhitespace
-  _ <- single FatArrow
-  _ <- advanceWhitespace
+  _ <- sc
+  _ <- symbol "=>"
+  _ <- sc
   body <- pTerm
 
   pure $ currifyLam body binders
 
-pTerm :: Parser' Ast.ReadableExpr
+pTerm :: Parser Ast.ReadableExpr
 pTerm = choice
   [ pApp
   , pComb
@@ -102,6 +108,4 @@ pTerm = choice
   ]
 
 parse :: Parser Ast.ReadableExpr
-parse = do
-  toks <- pTokens
-  pTerm
+parse = pTerm

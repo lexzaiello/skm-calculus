@@ -61,12 +61,12 @@ data ReadableExpr = HLam String (Maybe ReadableExpr) ReadableExpr
   deriving (Eq, Ord)
 
 instance Show ReadableExpr where
-  HLam  binder (Just bindTy) body = printf "λ (%s : %s) => %s" binder (show bindTy) (show body)
-  HFall binder (Just bindTy) body = printf "∀ (%s : %s), %s"   binder (show bindTy) (show body)
-  HLam  binder Nothing body       = printf "λ %s => %s"        binder (show body)
-  HFall binder Nothing body       = printf "∀ %s, %s"          binder (show body)
-  Hs = "S"
-  Hk = "K"
-  Hm = "M"
-  HApp lhs rhs = printf "(%s %s)" (show lhs) (show rhs)
-  HVar v       = v
+  show (HLam  binder (Just bindTy) body) = printf "λ (%s : %s) => %s" binder (show bindTy) (show body)
+  show (HFall binder (Just bindTy) body) = printf "∀ (%s : %s), %s"   binder (show bindTy) (show body)
+  show (HLam  binder Nothing body)       = printf "λ %s => %s"        binder (show body)
+  show (HFall binder Nothing body)       = printf "∀ %s, %s"          binder (show body)
+  show Hs                                = "S"
+  show Hk                                = "K"
+  show Hm                                = "M"
+  show (HApp lhs rhs)                    = printf "(%s %s)" (show lhs) (show rhs)
+  show (HVar v)                          = v
