@@ -4,12 +4,13 @@
 
 module Main where
 
-import Data.Text (Text)
+import Text.Printf
+import Data.Text (Text, pack)
 import Data.Maybe (fromMaybe, catMaybes)
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import Control.Monad.IO.Class
-import System.IO (putStr, hPutStrLn, stderr)
+import System.IO (putStr, hPutStrLn, stdout, stderr, hFlush, getLine)
 import System.Exit (exitWith, ExitCode(ExitFailure))
 import Skm.Ast
 import Skm.Eval
@@ -160,7 +161,8 @@ ccInline (CocAst.Def name value) = do
 repl :: ReplOptions -> MaybeT IO ()
 repl opt = do
   liftIO $ putStr promptPs
-  rawE <- liftIO readLn
+  liftIO $ hFlush stdout
+  rawE <- pack <$> (liftIO getLine)
 
   e <- case opt of
     ReplOptions { rLc = True } -> do
@@ -172,7 +174,11 @@ repl opt = do
       pure sk
     ReplOptions { rLc = False } ->
       parseSkStream streamStdinName rawE
-  pure ()
+
+  let e' = eval e
+  liftIO $ putStrLn (show e')
+
+  repl opt
 
 doMain :: MaybeT IO ()
 doMain = do
