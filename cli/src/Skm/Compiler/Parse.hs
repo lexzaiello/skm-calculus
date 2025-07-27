@@ -55,6 +55,9 @@ pBinder = (try (unifyFromTyped <$> pTypedBinder) <|> (unifyFromUntyped <$> pUnty
     unifyFromTyped   (binderName, ty) = (binderName, Just ty)
     unifyFromUntyped binderName       = (binderName, Nothing)
 
+pBinders = :: Parser [(String, Maybe Ast.ReadableExpr)]
+pBinders = many pBinder
+
 pFall :: Parser Ast.ReadableExpr
 pFall = do
   _ <- symbol "∀"
@@ -68,7 +71,7 @@ pFall = do
 
 pLam :: Parser Ast.ReadableExpr
 pLam = do
-  _ <- symbol "λ" <|> symbol "fun"
+  _ <- symbol "λ" <|> symbol "\"
   (binder, maybeBty) <- pBinder
   _ <- sc
   _ <- symbol "=>"
