@@ -6,7 +6,7 @@ By adding one combinator, \\(M (e : t) = t\\), the calculus of constructions can
 
 ## The \\(M\\) Combinator
 
-\\(M\\) serves as a "reflection" combinator (\\(M\\) for meta).
+\\(M\\) serves as a reflection combinator (\\(M\\) for meta).
 
 $$
 M\ (e : t) = t
