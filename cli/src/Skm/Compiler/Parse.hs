@@ -49,13 +49,15 @@ pUntypedBinder = pIdent
 pVar :: Parser Ast.ReadableExpr
 pVar = HVar <$> pIdent
 
-pBinder :: Parser (String, Maybe Ast.ReadableExpr)
+type Binder = (String, Maybe Ast.ReadableExpr)
+
+pBinder :: Parser Binder
 pBinder = (try (unifyFromTyped <$> pTypedBinder) <|> (unifyFromUntyped <$> pUntypedBinder))
   where
     unifyFromTyped   (binderName, ty) = (binderName, Just ty)
     unifyFromUntyped binderName       = (binderName, Nothing)
 
-pBinders = :: Parser [(String, Maybe Ast.ReadableExpr)]
+pBinders :: Parser [Binder]
 pBinders = many pBinder
 
 pFall :: Parser Ast.ReadableExpr
@@ -69,16 +71,20 @@ pFall = do
   -- Implicitly-typed, we don't recurse for ty
   pure (HLam binder maybeBty body)
 
+currify :: [Binder] -> Ast.ReadableExpr -> Ast.ReadableExpr
+currify ((binder, bty):xs) body = HLam binder bty (currify xs body)
+currify [] body   = body
+
 pLam :: Parser Ast.ReadableExpr
 pLam = do
-  _ <- symbol "λ" <|> symbol "\"
-  (binder, maybeBty) <- pBinder
+  _ <- symbol "λ" <|> symbol "\\"
+  binders <- pBinders
   _ <- sc
   _ <- symbol "=>"
   _ <- sc
   body <- pExpr
 
-  pure (HLam binder maybeBty body)
+  pure (currify binders body)
 
 pExpr :: Parser Ast.ReadableExpr
 pExpr = pApp <|> pComb <|> pLam <|> pFall <|> pVar <|> parens pExpr

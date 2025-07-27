@@ -41,3 +41,4 @@ toSk (App lhs rhs) = do
 toSk S = pure A.S
 toSk K = pure A.K
 toSk M = pure A.M
+toSk _ = Nothing
