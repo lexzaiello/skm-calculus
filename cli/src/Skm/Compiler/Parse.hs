@@ -2,6 +2,9 @@
 
 module Skm.Compiler.Parse where
 
+import Control.Monad
+import Data.List (find)
+import Data.Maybe (fromMaybe)
 import Skm.Util.Parsing
 import qualified Skm.Compiler.Ast as Ast
 import Skm.Compiler.Ast (ReadableExpr(..))
@@ -76,3 +79,33 @@ pLam = do
 
 pExpr :: Parser Ast.ReadableExpr
 pExpr = pApp <|> pComb <|> pLam <|> pFall <|> pVar <|> parens pExpr
+
+pDef :: Parser Ast.Stmt
+pDef = do
+  _ <- symbol "def"
+  name <- pIdent
+  _ <- symbol ":="
+  body <- pExpr
+
+  pure $ Ast.Def name body
+
+pProg :: Parser ([Ast.Stmt], Ast.ReadableExpr)
+pProg = do
+  stmts <- many pDef
+  main  <- pExpr
+
+  pure $ (stmts, main)
+
+inlineDefs :: [Ast.Stmt] -> Ast.ReadableExpr -> Ast.ReadableExpr
+inlineDefs defs (Ast.HVar ident) = fromMaybe (HVar ident) (thisDef >>= defBody)
+  where thisDef = find isDef defs
+        isDef   (Ast.Def id _) = id == ident
+        isDef   _              = False
+        defBody (Ast.Def _ body) = Just body
+        defBody _                = Nothing
+inlineDefs defs (Ast.HApp lhs rhs)         = Ast.HApp (inlineDefs defs lhs) (inlineDefs defs rhs)
+inlineDefs defs (Ast.HFall binder ty body) = Ast.HFall binder (inlineDefs defs <$> ty) (inlineDefs defs body)
+inlineDefs defs (Ast.HLam  binder ty body) = Ast.HLam  binder (inlineDefs defs <$> ty) (inlineDefs defs body)
+inlineDefs defs e = e
+
+

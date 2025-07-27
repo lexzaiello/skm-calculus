@@ -95,11 +95,15 @@ readExpr fname = do
 readExprCoc :: String -> MaybeT IO CocAst.ReadableExpr
 readExprCoc fname = do
   cts <- liftIO $ T.readFile fname
-  case parse CocP.pExpr fname cts of
+  case parse CocP.pProg fname cts of
     Left err ->
       (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
-    Right e  ->
-      pure e
+    Right (stmts, body)  ->
+      let stmts' = foldl inlineAll [] stmts in
+        pure $ CocP.inlineDefs stmts' body
+  where inlineAll stmts (CocAst.Def id e) =
+          let e' = CocP.inlineDefs stmts e in
+            (CocAst.Def id e') : stmts
 
 doMain :: MaybeT IO ()
 doMain = do

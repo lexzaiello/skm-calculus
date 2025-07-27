@@ -60,6 +60,8 @@ data ReadableExpr = HLam String (Maybe ReadableExpr) ReadableExpr
   | Hm
   deriving (Eq, Ord)
 
+data Stmt = Def String ReadableExpr
+
 instance Show ReadableExpr where
   show (HLam  binder (Just bindTy) body) = printf "λ (%s : %s) => %s" binder (show bindTy) (show body)
   show (HFall binder (Just bindTy) body) = printf "∀ (%s : %s), %s"   binder (show bindTy) (show body)
