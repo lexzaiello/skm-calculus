@@ -14,6 +14,7 @@ data Expr = Lam (Maybe Expr) Expr
   | M
 
 -- Human readable, not used anywhere except for serialization purposes
+
 data ReadableExpr = HLam String (Maybe ReadableExpr) ReadableExpr
   | HFall String (Maybe ReadableExpr) ReadableExpr
   | HVar String
