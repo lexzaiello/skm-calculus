@@ -1,13 +1,15 @@
 {-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ApplicativeDo              #-}
 
 module Main where
 
+import Data.Text (Text)
 import Data.Maybe (fromMaybe, catMaybes)
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import Control.Monad.IO.Class
-import System.IO (hPutStrLn, stderr)
+import System.IO (putStr, hPutStrLn, stderr)
 import System.Exit (exitWith, ExitCode(ExitFailure))
 import Skm.Ast
 import Skm.Eval
@@ -46,6 +48,9 @@ data Command = Eval EvalOptions
 
 promptPs :: String
 promptPs = ">> "
+
+streamStdinName :: String
+streamStdinName = "<STDIN>"
 
 nStepsParser :: Parser (Maybe Int)
 nStepsParser = optional $ option auto (
@@ -108,6 +113,26 @@ readExpr fname = do
     Right e  ->
       pure e
 
+type StreamName = String
+
+parseSkStream :: StreamName -> Text -> MaybeT IO Expr
+parseSkStream fname cts = do
+  case parse pExpr fname cts of
+    Left err ->
+      (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
+    Right e  ->
+      pure e
+
+parseProgCocStream :: StreamName -> Text -> MaybeT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr)
+parseProgCocStream fname cts = do
+  case parse CocP.pProg fname cts of
+    Left err ->
+      (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
+    Right (stmts, body)  ->
+      let stmts' = foldl inlineAll [] stmts in do
+        pure $ (stmts', CocP.inlineDefs stmts' <$> body)
+  where inlineAll stmts (CocAst.Def id e) = (CocAst.Def id (CocP.inlineDefs stmts e)) : stmts
+
 readProgCoc :: String -> MaybeT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr)
 readProgCoc fname = do
   cts <- liftIO $ T.readFile fname
@@ -132,10 +157,21 @@ ccInline (CocAst.Def name value) = do
 
   pure $ CocAst.Def name value'
 
-repl :: IO ()
-repl = do
-  hPutStr promptPs
-  
+repl :: ReplOptions -> MaybeT IO ()
+repl opt = do
+  liftIO $ putStr promptPs
+  rawE <- liftIO readLn
+
+  e <- case opt of
+    ReplOptions { rLc = True } -> do
+      (stmts, maybeE) <- parseProgCocStream streamStdinName rawE
+      rawE <- hoistMaybe maybeE
+      e  <- (hoistMaybe . CocAst.parseReadableExpr) rawE
+      sk <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) e
+
+      pure sk
+    ReplOptions { rLc = False } ->
+      parseSkStream streamStdinName rawE
   pure ()
 
 doMain :: MaybeT IO ()
@@ -175,7 +211,7 @@ doMain = do
                              Nothing       -> (map show) $ catMaybes fromStmts')
 
         liftIO $ putStrLn (intercalate "\n" fmtStmts))
-    Repl (ReplOptions { rLc = isLc }) -> liftIO repl
+    Repl opts -> repl opts
     _ -> pure ()
 
 main :: IO ()
