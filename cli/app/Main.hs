@@ -212,6 +212,12 @@ readEvalConfig = do
              , tM = tM
              }
 
+printEval :: Either ExecError (Maybe Expr) -> IO ()
+printEval (Left e) =
+  hPutStrLn stderr $ printf "Execution failed. Offending opcode: %s. Backtrace: %s\n" (show $ offendingOp e) (show $ stackTrace e)
+printEval (Right (Just e)) = putStrLn (show e)
+printEval (Right Nothing)  = putStrLn "execution succeeded, but outputted nothing."
+
 doMain :: MaybeT IO ()
 doMain = do
   cfg <- liftIO $ execParser (info (cmdParser <**> helper) $ progDesc "Tools for building SKM applications.")
@@ -225,11 +231,11 @@ doMain = do
             sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
             pure sk
         else readExpr src
-      liftIO $ putStrLn (show (case n of
-                         Just n ->
-                           evalN prim n e
-                         Nothing ->
-                           eval prim e))
+      liftIO $ printEval (case n of
+                            Just n ->
+                              evalN prim n e
+                            Nothing ->
+                              eval prim e)
     Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc }) -> do
       fromE <- readExpr fromSrc
 
