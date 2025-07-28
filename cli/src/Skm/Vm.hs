@@ -1,5 +1,7 @@
 module Skm.Vm where
 
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HM
 import Control.Monad.Maybe (runMaybeT)
 import Control.Monad.State.Lazy
 import Skm.Ast
@@ -32,6 +34,7 @@ data Step = KCall
 data Op = Lhs
   -- For normal forms
   | Rfl Expr
+  | Memoize
   -- Attempts to parse out an expression into a form recognizable by eval once
   -- Will also push an EvalOnce call if it can parse
   | TryStep
@@ -40,11 +43,18 @@ data Op = Lhs
 type Trace    = [Op]
 type Stack    = [Op]
 type Register = [Expr]
+type Cache    = HashMap Expr Expr
 
 data ExecState = ExecState
   { trace    :: Trace
   , stack    :: Stack
-  , register :: Register }
+  , register :: Register
+  , cache    :: HashMap Expr Expr }
+
+memoize :: Expr -> Expr -> State ExecState ()
+memoize = modify . insert
+  where insert fromE toE (ExecState { trace = t, stack = s, register = r, cache = c }) =
+          ExecState { trace = t, stack = s, register = s, cache = insert fromE toE }
 
 push :: Op -> State ExecState ()
 push = modify . add
@@ -83,27 +93,37 @@ advance cfg = do
   o <- pop
 
   case o of
+    Memoize -> do
+      fromE <- popE
+      toE   <- popE
+
+      memoize fromE toE
     Lhs -> do
       lhs <- popE
       rhs <- popE
 
-      push (Rfl (Call lhs rhs))
+      push $ (Rfl (Call lhs rhs))
     Rfl e -> pushE e
     EvalOnce KCall ->
       x <- popE
 
-      pushMany [TryStep, Rfl x]
+      pushMany [Memoize, Rfl (Call (Call K x) y), TryStep, Rfl x]
     EvalOnce SCall ->
       x <- popE
       y <- popE
       z <- popE
 
-      pushMany [TryStep, Rfl (Call (Call x z) (Call y z))]
+      pushMany [ Memoize
+               , Rfl (Call (Call (Call S x) y) z)
+               , TryStep, Rfl (Call (Call x z) (Call y z))]
     EvalOnce MCall ->
       lhs <- popE
       rhs <- popE
 
-      pushMany [TryStep, Rfl (Call (Call (Call M lhs) rhs) (tOut cfg))]
+      pushMany [ Memoize
+               , Rfl (Call M (lhs rhs))
+               , TryStep
+               , Rfl (Call (Call (Call M lhs) rhs) (tOut cfg))]
     EvalOnce Mk ->
       push $ Rfl (tK cfg)
     EvalOnce Ms ->
@@ -126,10 +146,8 @@ advance cfg = do
           push $ EvalOnce Ms
         (Call M (Call lhs rhs)) ->
           pushMany [EvalOnce MCall, Rfl lhs, Rfl rhs]
-        e ->
-          pushMany [Lhs, Rfl lhs, Rfl rhs]
-
-advanceToEnd 
+        (Call lhs rhs) ->
+          pushMany [Memoize, Rfl e, Lhs, TryStep, Rfl lhs, Rfl rhs]
 
 {- Sample execution:
    (((K K) K) (K K)) = (K (K K))

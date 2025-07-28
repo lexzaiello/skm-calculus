@@ -36,11 +36,13 @@ library
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
       base >=4.14 && <5
-    , containers>=0.6.7
+    , containers >=0.6.7
+    , hashable ==1.4.7.0
     , megaparsec ==9.7.0
     , optparse-applicative ==0.18.1.0
     , text >=2.0.0
     , transformers >=0.6.0.0
+    , unordered-containers ==0.2.20
   default-language: Haskell2010
 
 executable skm
@@ -50,10 +52,12 @@ executable skm
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
       base >=4.14 && <5
-    , containers>=0.6.7
+    , containers >=0.6.7
+    , hashable ==1.4.7.0
     , megaparsec ==9.7.0
     , optparse-applicative ==0.18.1.0
     , skm
     , text >=2.0.0
     , transformers >=0.6.0.0
+    , unordered-containers ==0.2.20
   default-language: Haskell2010
