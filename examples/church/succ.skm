@@ -1,0 +1,5 @@
+def zero := λ f x => x
+def one  := λ f x => (f x)
+def succ := λ n f x => (f (n f x))
+
+(succ zero)

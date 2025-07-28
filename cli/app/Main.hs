@@ -160,6 +160,12 @@ readExprCoc fname = do
 cc :: CocAst.ReadableExpr -> Maybe Expr
 cc = ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift <=< CocAst.parseReadableExpr
 
+printEval :: Either ExecError (Maybe Expr) -> IO ()
+printEval (Left e) =
+  hPutStrLn stderr $ printf "Execution failed. Offending opcode: %s. Backtrace: %s\n" (show $ offendingOp e) (show $ stackTrace e)
+printEval (Right (Just e)) = putStrLn (show e)
+printEval (Right Nothing)  = putStrLn "execution succeeded, but outputted nothing."
+
 ccInline :: CocAst.Stmt -> Maybe CocAst.Stmt
 ccInline (CocAst.Def name value) = do
   value' <- ((CocAst.transmuteESk . CocT.lift) <=< CocAst.parseReadableExpr) value
@@ -184,7 +190,7 @@ repl eCfg opt = do
       parseSkStream streamStdinName rawE
 
   let e' = eval eCfg e
-  liftIO $ putStrLn (show e')
+  liftIO $ printEval e'
 
   repl eCfg opt
 
@@ -211,12 +217,6 @@ readEvalConfig = do
              , tS = tS
              , tM = tM
              }
-
-printEval :: Either ExecError (Maybe Expr) -> IO ()
-printEval (Left e) =
-  hPutStrLn stderr $ printf "Execution failed. Offending opcode: %s. Backtrace: %s\n" (show $ offendingOp e) (show $ stackTrace e)
-printEval (Right (Just e)) = putStrLn (show e)
-printEval (Right Nothing)  = putStrLn "execution succeeded, but outputted nothing."
 
 doMain :: MaybeT IO ()
 doMain = do
