@@ -109,13 +109,11 @@ pProg = do
 inlineDefs :: [Ast.Stmt] -> Ast.ReadableExpr -> Ast.ReadableExpr
 inlineDefs defs (Ast.HVar ident) = fromMaybe (HVar ident) (thisDef >>= defBody)
   where thisDef = find isDef defs
-        isDef   (Ast.Def id _) = id == ident
-        isDef   _              = False
+        isDef   (Ast.Def name _) = name == ident
         defBody (Ast.Def _ body) = Just body
-        defBody _                = Nothing
 inlineDefs defs (Ast.HApp lhs rhs)         = Ast.HApp (inlineDefs defs lhs) (inlineDefs defs rhs)
 inlineDefs defs (Ast.HFall binder ty body) = Ast.HFall binder (inlineDefs defs <$> ty) (inlineDefs defs body)
 inlineDefs defs (Ast.HLam  binder ty body) = Ast.HLam  binder (inlineDefs defs <$> ty) (inlineDefs defs body)
-inlineDefs defs e = e
+inlineDefs _ e = e
 
 

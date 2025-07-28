@@ -5,6 +5,7 @@
 module Main where
 
 import Text.Printf
+import Data.List (find)
 import Data.Text (Text, pack)
 import Data.Maybe (fromMaybe, catMaybes)
 import Control.Monad
@@ -46,6 +47,9 @@ data Command = Eval EvalOptions
   | Prove ProveCommand
   | Compile CompileOptions
   | Repl ReplOptions
+
+primitivesSrc :: String
+primitivesSrc = "std/PrimitiveTypes.skm"
 
 promptPs :: String
 promptPs = ">> "
@@ -152,14 +156,17 @@ readExprCoc fname = do
   (_, maybeE) <- readProgCoc fname
   hoistMaybe maybeE
 
+cc :: CocAst.ReadableExpr -> Maybe Expr
+cc = ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift <=< CocAst.parseReadableExpr
+
 ccInline :: CocAst.Stmt -> Maybe CocAst.Stmt
 ccInline (CocAst.Def name value) = do
   value' <- ((CocAst.transmuteESk . CocT.lift) <=< CocAst.parseReadableExpr) value
 
   pure $ CocAst.Def name value'
 
-repl :: ReplOptions -> MaybeT IO ()
-repl opt = do
+repl :: EvalConfig -> ReplOptions -> MaybeT IO ()
+repl eCfg opt = do
   liftIO $ putStr promptPs
   liftIO $ hFlush stdout
   rawE <- pack <$> (liftIO getLine)
@@ -175,28 +182,53 @@ repl opt = do
     ReplOptions { rLc = False } ->
       parseSkStream streamStdinName rawE
 
-  let e' = eval e
+  let e' = eval eCfg e
   liftIO $ putStrLn (show e')
 
-  repl opt
+  repl eCfg opt
+
+findDef :: String -> [CocAst.Stmt] -> Maybe Expr
+findDef name stmts = (body <$> find matches stmts) >>= cc
+  where body    (CocAst.Def _ bdy)   = bdy
+        matches (CocAst.Def ident _) = ident == name
+
+readEvalConfig :: MaybeT IO EvalConfig
+readEvalConfig = do
+  (stmts, _) <- readProgCoc primitivesSrc
+
+  tIn   <- hoistMaybe $ findDef "t_in"  stmts
+  tOut  <- hoistMaybe $ findDef "t_out" stmts
+  arrow <- hoistMaybe $ findDef "arrow" stmts
+  tK    <- hoistMaybe $ findDef "t_k"   stmts
+  tS    <- hoistMaybe $ findDef "t_s"   stmts
+  tM    <- hoistMaybe $ findDef "t_m"   stmts
+
+  pure $ EvalConfig { tIn  = tIn
+             , tOut = tIn
+             , arrow = arrow
+             , tK = tK
+             , tS = tS
+             , tM = tM
+             }
 
 doMain :: MaybeT IO ()
 doMain = do
   cfg <- liftIO $ execParser (info (cmdParser <**> helper) $ progDesc "Tools for building SKM applications.")
+  prim <- readEvalConfig
 
   case cfg of
     Eval (EvalOptions { eNSteps = n, eSrc = src, lc = lc }) -> do
       e <- if lc then do
             inlined <- readExprCoc src
-            fromE <-  (hoistMaybe . CocAst.parseReadableExpr) inlined
+            fromE <- (hoistMaybe . CocAst.parseReadableExpr) inlined
             sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
             pure sk
         else readExpr src
       liftIO $ putStrLn (show (case n of
                          Just n ->
-                           eval_n n e
+                           eval_n prim n e
                          Nothing ->
-                           eval e))
+                           eval prim e))
     Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc }) -> do
       fromE <- readExpr fromSrc
 
@@ -217,7 +249,7 @@ doMain = do
                              Nothing       -> (map show) $ catMaybes fromStmts')
 
         liftIO $ putStrLn (intercalate "\n" fmtStmts))
-    Repl opts -> repl opts
+    Repl opts -> repl prim opts
     _ -> pure ()
 
 main :: IO ()

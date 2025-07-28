@@ -16,34 +16,35 @@ data EvalConfig = EvalConfig
 step :: EvalConfig -> Expr -> Maybe Expr
 step _ (Call (Call K x) _y)              = Just x
 step _ (Call (Call (Call S x) y) z)      = Just (Call (Call x z) (Call y z))
-step (EvalConfig { tK = tK }) (Call M K) = Just t_k
-step (EvalConfig { tS = tS }) (Call M S) = Just t_s
-step (EvalConfig { tM = tM }) (Call M M) = Just t_m
-step (Call M (Call lhs rhs))             = Just (Call (Call (Call M lhs) rhs) t_out)
-step _ = Nothing
+step (EvalConfig { tK = tK }) (Call M K) = Just tK
+step (EvalConfig { tS = tS }) (Call M S) = Just tS
+step (EvalConfig { tM = tM }) (Call M M) = Just tM
+step (EvalConfig { tOut = tOut })
+  (Call M (Call lhs rhs))                = Just (Call (Call (Call M lhs) rhs) tOut)
+step _ _ = Nothing
 
 -- Attempts to reduce the next available outermost redex
 eval_n :: EvalConfig -> Int -> Expr -> Expr
-eval_n n e
+eval_n cfg n e
   | n <= 0 = e
   | otherwise =
     case e of
       (Call lhs rhs) ->
-        let call' = (Call (eval_n (n - 1) lhs) rhs)
-            e'    = fromMaybe call' $ step call' in
+        let call' = (Call (eval_n cfg (n - 1) lhs) rhs)
+            e'    = fromMaybe call' $ step cfg call' in
           if e' == e then
             e
           else
-            eval_n (n - 2) e'
+            eval_n cfg (n - 2) e'
       x -> x
 
 eval :: EvalConfig -> Expr -> Expr
-eval e =
+eval cfg e =
   case e of
     (Call lhs rhs) ->
-      let e' = fromMaybe (Call (eval lhs) rhs) $ step e in
+      let e' = fromMaybe (Call (eval cfg lhs) rhs) $ step cfg e in
         if e' == e then
           e
         else
-          eval e'
+          eval cfg e'
     x -> x
