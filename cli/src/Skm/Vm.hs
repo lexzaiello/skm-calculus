@@ -54,11 +54,13 @@ data ExecState = ExecState
   , stack    :: Stack
   , register :: Register
   , cache    :: Cache }
+  deriving (Show)
 
 data ExecError = ExecError
-  { offendingOp :: Op
+  { offendingOp :: Maybe Op
   , stackTrace  :: ExecState
   }
+  deriving (Show)
 
 memoize :: Expr -> Expr -> State ExecState ()
 memoize fromE toE = modify insert
@@ -163,9 +165,9 @@ advance cfg = do
 outE :: ExecState -> Maybe Expr
 outE = fmap fst . uncons . register
 
-advanceN :: EvalConfig -> Int -> State ExecState (Either ExecError (Maybe Expr))
+advanceN :: EvalConfig -> Int -> MaybeT (State ExecState) ()
 advanceN cfg n
-  | n <= 0 = (MaybeT . state) $ outE
+  | n <= 0 = pure ()
   | n == 0 = advance cfg >> advanceN cfg (n - 1)
 
 advanceToEnd :: EvalConfig -> ExecState -> Either ExecError ExecState
@@ -173,7 +175,7 @@ advanceToEnd cfg state = case stack state of
   op:ops ->
     case (runState . runMaybeT) (advance cfg) state of
       (Just _, state')  -> advanceToEnd cfg state'
-      (Nothing, state') -> Left $ ExecError { offendingOp = op, stackTrace = state' }
+      (Nothing, state') -> Left $ ExecError { offendingOp = Just op, stackTrace = state' }
   _ -> Right state
 
 {- Sample execution:
@@ -203,10 +205,16 @@ advanceToEnd cfg state = case stack state of
 
 eval :: EvalConfig -> Expr -> Either ExecError (Maybe Expr)
 eval cfg e = outE <$> advanceToEnd cfg s0
-  where s0   = mkState e
+  where s0 = mkState e
 
 evalN :: EvalConfig -> Int -> Expr -> Either ExecError (Maybe Expr)
-evalN cfg n e = fst $ runState (advanceN cfg n) s0
+evalN cfg n e = case (runState . runMaybeT) (advanceN cfg n) s0 of
+  (Just _, state')  -> Right $ outE state'
+  (Nothing, state') ->
+    Left $ ExecError { offendingOp = (case trace state' of
+                                        op:_ -> Just op
+                                        _ -> Nothing)
+                     , stackTrace = state' }
   where s0   = mkState e
 
 
