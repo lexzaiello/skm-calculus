@@ -233,7 +233,7 @@ doMain = do
         else readExpr src
       liftIO $ printEval (case n of
                             Just n ->
-                              evalN prim n e
+                              Just <$> (evalN prim n e)
                             Nothing ->
                               eval prim e)
     Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc }) -> do

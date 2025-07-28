@@ -116,7 +116,7 @@ advance cfg = do
       lhs <- popE
       rhs <- popE
 
-      (lift . pushMany) $ [TryStep, Rfl (Call lhs rhs)]
+      (lift . pushMany) $ [Rfl (Call lhs rhs)]
     Rfl e -> (lift . pushE) e
     EvalOnce KCall -> do
       x <- popE
@@ -213,14 +213,14 @@ eval :: EvalConfig -> Expr -> Either ExecError (Maybe Expr)
 eval cfg e = (flip outE e) <$> advanceToEnd cfg s0
   where s0 = mkState e
 
-evalN :: EvalConfig -> Int -> Expr -> Either ExecError (Maybe Expr)
+evalN :: EvalConfig -> Int -> Expr -> Either ExecError Expr
 evalN cfg n e = case (runState . runMaybeT) (advanceN cfg n) s0 of
-  (Just _, state')  -> Right $ outE state' e
-  (Nothing, state') ->
-    Left $ ExecError { offendingOp = (case trace state' of
-                                        op:_ -> Just op
-                                        _ -> Nothing)
-                     , stackTrace = state' }
+  (Just _, state')  -> maybe (Left $ log state') Right (outE state' e)
+  (Nothing, state') -> Left $ log state'
   where s0   = mkState e
+        log s = ExecError { offendingOp = (case trace s of
+                                             op:_ -> Just op
+                                             _ -> Nothing)
+                          , stackTrace = s }
 
 
