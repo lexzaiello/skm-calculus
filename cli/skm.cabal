@@ -39,6 +39,7 @@ library
     , containers >=0.6.7
     , hashable ==1.4.7.0
     , megaparsec ==9.7.0
+    , mtl ==2.3.1
     , optparse-applicative ==0.18.1.0
     , text >=2.0.0
     , transformers >=0.6.0.0
@@ -55,6 +56,7 @@ executable skm
     , containers >=0.6.7
     , hashable ==1.4.7.0
     , megaparsec ==9.7.0
+    , mtl ==2.3.1
     , optparse-applicative ==0.18.1.0
     , skm
     , text >=2.0.0
