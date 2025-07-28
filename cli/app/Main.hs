@@ -14,7 +14,7 @@ import Control.Monad.IO.Class
 import System.IO (putStr, hPutStrLn, stdout, stderr, hFlush, getLine)
 import System.Exit (exitWith, ExitCode(ExitFailure))
 import Skm.Ast
-import Skm.Eval
+import Skm.Vm
 import qualified Skm.Compiler.ProofGen as Proof
 import qualified Skm.Compiler.Ast as CocAst
 import qualified Skm.Compiler.Parse as CocP
