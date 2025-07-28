@@ -30,21 +30,24 @@ eval_n cfg n e
   | otherwise =
     case e of
       (Call lhs rhs) ->
-        let call' = (Call (eval_n cfg (n - 1) lhs) rhs)
-            e'    = fromMaybe call' $ step cfg call' in
-          if e' == e then
+        let e'  = (Call (eval_n cfg (n - 1) lhs) rhs)
+            e'' = fromMaybe e' (step cfg e')
+        in
+          if e'' == e then
             e
           else
-            eval_n cfg (n - 2) e'
+            eval_n cfg (n - 2) e''
       x -> x
 
 eval :: EvalConfig -> Expr -> Expr
 eval cfg e =
   case e of
     (Call lhs rhs) ->
-      let e' = fromMaybe (Call (eval cfg lhs) rhs) $ step cfg e in
-        if e' == e then
+      let e'  = (Call (eval cfg lhs) rhs)
+          e'' = fromMaybe e' (step cfg e')
+      in
+        if e'' == e then
           e
         else
-          eval cfg e'
+          eval cfg e''
     x -> x

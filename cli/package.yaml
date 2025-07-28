@@ -21,6 +21,7 @@ library:
   exposed-modules:
     - Skm.Ast
     - Skm.Eval
+    - Skm.Vm
     - Skm.Parse
     - Skm.Std
     - Skm.Compiler.Ast
