@@ -59,7 +59,7 @@ data ExecError = ExecError
 memoize :: Expr -> Expr -> State ExecState ()
 memoize = modify . insert
   where insert fromE toE (ExecState { trace = t, stack = s, register = r, cache = c }) =
-          ExecState { trace = t, stack = s, register = s, cache = insert fromE toE }
+          ExecState { trace = t, stack = s, register = r, cache = insert fromE toE }
 
 tryMemo :: Expr -> State ExecState (Maybe Expr)
 tryMemo e = gets $ (lookup e) . cache
@@ -142,8 +142,9 @@ advance cfg = do
       push $ Rfl (tM cfg)
     TryStep ->
       e <- popE
+      maybeE' <- tryMemo e
 
-      case tryMemo e of
+      case maybeE' of
         Just e' ->
           push $ Rfl e'
       case e of
@@ -164,12 +165,12 @@ advance cfg = do
         x -> pushMany[Memoize, Rfl x]
 
 advanceToEnd :: EvalConfig -> ExecState -> Either ExecError ExecState
-advanceToEnd cfg state = case uncons $ stack state of
-  Just op:ops ->
+advanceToEnd cfg state = case stack state of
+  op:ops ->
     case (runState . runMaybeT) $ advance cfg state of
       Just s' -> advanceLoop cfg s'
       Nothing -> Left $ ExecError { offendingOp = op, stackTrace = state }
-  Nothing -> Right state
+  _ -> Right state
 
 {- Sample execution:
    (((K K) K) (K K)) = (K (K K))
