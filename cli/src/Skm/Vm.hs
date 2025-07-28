@@ -49,12 +49,20 @@ data ExecState = ExecState
   { trace    :: Trace
   , stack    :: Stack
   , register :: Register
-  , cache    :: HashMap Expr Expr }
+  , cache    :: Cache }
+
+data ExecError = ExecError
+  { offendingOp :: Op
+  , stackTrace  :: ExecState
+  }
 
 memoize :: Expr -> Expr -> State ExecState ()
 memoize = modify . insert
   where insert fromE toE (ExecState { trace = t, stack = s, register = r, cache = c }) =
           ExecState { trace = t, stack = s, register = s, cache = insert fromE toE }
+
+tryMemo :: Expr -> State ExecState (Maybe Expr)
+tryMemo e = gets $ (lookup e) . cache
 
 push :: Op -> State ExecState ()
 push = modify . add
@@ -85,8 +93,10 @@ popE = do
 pushMany :: [Op] -> State ExecState ()
 pushMany = mapM_ push
 
-pushManyE :: [Expr] -> State ExecState ()
-pushManyE = mapM_ pushE
+mkState :: Expr -> ExecState
+mkState e = runState (do
+    pushMany [TryStep, Rfl e]
+  ) $ ExecState { trace = [], stack = [], register = [], cache = [] }
 
 advance :: EvalConfig -> MaybeT (State ExecState) ()
 advance cfg = do
@@ -133,6 +143,9 @@ advance cfg = do
     TryStep ->
       e <- popE
 
+      case tryMemo e of
+        Just e' ->
+          push $ Rfl e'
       case e of
         (Call (Call K x) y) ->
           pushMany [EvalOnce KCall, Rfl x]
@@ -148,6 +161,15 @@ advance cfg = do
           pushMany [EvalOnce MCall, Rfl lhs, Rfl rhs]
         (Call lhs rhs) ->
           pushMany [Memoize, Rfl e, Lhs, TryStep, Rfl lhs, Rfl rhs]
+        x -> pushMany[Memoize, Rfl x]
+
+advanceToEnd :: EvalConfig -> ExecState -> Either ExecError ExecState
+advanceToEnd cfg state = case uncons $ stack state of
+  Just op:ops ->
+    case (runState . runMaybeT) $ advance cfg state of
+      Just s' -> advanceLoop cfg s'
+      Nothing -> Left $ ExecError { offendingOp = op, stackTrace = state }
+  Nothing -> Right state
 
 {- Sample execution:
    (((K K) K) (K K)) = (K (K K))
@@ -174,5 +196,7 @@ advance cfg = do
       - Memoize the register. If we ever encounter the same register twice, we are cooked.
 -}
 
-eval :: EvalConfig -> Expr -> Expr
-eval cfg e = 
+eval :: EvalConfig -> Expr -> Either ExecError Expr
+eval cfg e =
+  advanceToEnd cfg s0
+  where s0 = mkState e
