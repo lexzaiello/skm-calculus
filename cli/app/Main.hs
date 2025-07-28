@@ -15,6 +15,7 @@ import System.IO (putStr, hPutStrLn, stdout, stderr, hFlush, getLine)
 import System.Exit (exitWith, ExitCode(ExitFailure))
 import Skm.Ast
 import Skm.Vm
+import Skm.Eval (EvalConfig, EvalConfig(..))
 import qualified Skm.Compiler.ProofGen as Proof
 import qualified Skm.Compiler.Ast as CocAst
 import qualified Skm.Compiler.Parse as CocP
@@ -226,7 +227,7 @@ doMain = do
         else readExpr src
       liftIO $ putStrLn (show (case n of
                          Just n ->
-                           eval_n prim n e
+                           evalN prim n e
                          Nothing ->
                            eval prim e))
     Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc }) -> do

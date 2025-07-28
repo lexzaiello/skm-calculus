@@ -1,11 +1,13 @@
 module Skm.Vm where
 
+import Control.Monad
+import Data.List (uncons)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
-import Control.Monad.Maybe (runMaybeT)
+import Control.Monad.Trans.Maybe
 import Control.Monad.State.Lazy
 import Skm.Ast
-import Skm.Eval (step, EvalConfig)
+import Skm.Eval (step, EvalConfig, EvalConfig(..), tK, tM, tS, tOut)
 
 -- One-step evaluation valid reductions
 -- Not defined for left-side evaluation
@@ -15,6 +17,7 @@ data Step = KCall
   | Ms
   | Mk
   | Mm
+  deriving (Show)
 
 {- Used for logging. We can generate a trace
    which can be used for generating a proof
@@ -39,6 +42,7 @@ data Op = Lhs
   -- Will also push an EvalOnce call if it can parse
   | TryStep
   | EvalOnce Step
+  deriving (Show)
 
 type Trace    = [Op]
 type Stack    = [Op]
@@ -57,46 +61,41 @@ data ExecError = ExecError
   }
 
 memoize :: Expr -> Expr -> State ExecState ()
-memoize = modify . insert
-  where insert fromE toE (ExecState { trace = t, stack = s, register = r, cache = c }) =
-          ExecState { trace = t, stack = s, register = r, cache = insert fromE toE }
+memoize fromE toE = modify insert
+  where insert (ExecState { cache = c }) = ExecState { cache = HM.insert fromE toE c }
 
 tryMemo :: Expr -> State ExecState (Maybe Expr)
-tryMemo e = gets $ (lookup e) . cache
+tryMemo e = gets $ (HM.lookup e) . cache
 
 push :: Op -> State ExecState ()
 push = modify . add
-  where add op (ExecState { trace = t, stack = s, register = r }) =
-          ExecState { trace = op:t, stack = op:s, register = r}
+  where add op (ExecState { trace = t, stack = s }) =
+          ExecState { trace = op:t, stack = op:s }
 
 pushE :: Expr -> State ExecState ()
 pushE = modify . add
-  where add e (ExecState { trace = t, stack = s, register = r }) =
-          ExecState { trace = t, stack = s, register = e:r }
+  where add e (ExecState { register = r }) =
+          ExecState { register = e:r }
 
 pop :: MaybeT (State ExecState) Op
-pop = do
-  op <- gets $ uncons . stack
-  modify doPop
-  pure op
-  where doPop (ExecState { trace = t, stack = x:xs, register = r }) =
-          ExecState { trace = t, stack = xs, register = r}
+pop = (MaybeT . state) $ \st ->
+  case stack st of
+    (x:xs) -> (Just x, st { stack = xs })
+    []     -> (Nothing, st)
 
 popE :: MaybeT (State ExecState) Expr
-popE = do
-  e <- gets $ uncons . register
-  modify doPop
-  pure e
-  where doPop (ExecState { trace = t, stack = s, register = x:xs }) =
-          ExecState { trace = t, stack = s, register = xs }
+popE = (MaybeT . state) $ \st ->
+  case register st of
+    (x:xs) -> (Just x, st { register = xs })
+    []     -> (Nothing, st)
 
 pushMany :: [Op] -> State ExecState ()
 pushMany = mapM_ push
 
 mkState :: Expr -> ExecState
-mkState e = runState (do
+mkState e = snd $ runState (do
     pushMany [TryStep, Rfl e]
-  ) $ ExecState { trace = [], stack = [], register = [], cache = [] }
+  ) $ ExecState { trace = [], stack = [], register = [], cache = HM.fromList [] }
 
 advance :: EvalConfig -> MaybeT (State ExecState) ()
 advance cfg = do
@@ -107,69 +106,74 @@ advance cfg = do
       fromE <- popE
       toE   <- popE
 
-      memoize fromE toE
+      lift $ memoize fromE toE
     Lhs -> do
       lhs <- popE
       rhs <- popE
 
-      push $ (Rfl (Call lhs rhs))
-    Rfl e -> pushE e
-    EvalOnce KCall ->
+      (lift . push) $ (Rfl (Call lhs rhs))
+    Rfl e -> (lift . pushE) e
+    EvalOnce KCall -> do
       x <- popE
 
-      pushMany [Memoize, Rfl (Call (Call K x) y), TryStep, Rfl x]
-    EvalOnce SCall ->
+      (lift . pushMany) [TryStep, Rfl x]
+    EvalOnce SCall -> do
       x <- popE
       y <- popE
       z <- popE
 
-      pushMany [ Memoize
-               , Rfl (Call (Call (Call S x) y) z)
-               , TryStep, Rfl (Call (Call x z) (Call y z))]
-    EvalOnce MCall ->
+      (lift . pushMany) [TryStep, Rfl (Call (Call x z) (Call y z))]
+    EvalOnce MCall -> do
       lhs <- popE
       rhs <- popE
 
-      pushMany [ Memoize
-               , Rfl (Call M (lhs rhs))
-               , TryStep
-               , Rfl (Call (Call (Call M lhs) rhs) (tOut cfg))]
+      (lift . pushMany) [ TryStep
+                        , Rfl (Call (Call (Call M lhs) rhs) (tOut cfg))]
     EvalOnce Mk ->
-      push $ Rfl (tK cfg)
+      (lift . push) $ Rfl (tK cfg)
     EvalOnce Ms ->
-      push $ Rfl (tS cfg)
+      (lift . push) $ Rfl (tS cfg)
     EvalOnce Mm ->
-      push $ Rfl (tM cfg)
-    TryStep ->
-      e <- popE
-      maybeE' <- tryMemo e
+      (lift . push) $ Rfl (tM cfg)
+    TryStep -> do
+      e       <- popE
+      maybeE' <- (lift . tryMemo) e
 
       case maybeE' of
         Just e' ->
-          push $ Rfl e'
-      case e of
-        (Call (Call K x) y) ->
-          pushMany [EvalOnce KCall, Rfl x]
-        (Call (Call (Call S x) y) z) ->
-          pushMany [EvalOnce SCall, Rfl x, Rfl y, Rfl z]
-        (Call M K) ->
-          push $ EvalOnce Mk
-        (Call M M) ->
-          push $ EvalOnce Mm
-        (Call M S) ->
-          push $ EvalOnce Ms
-        (Call M (Call lhs rhs)) ->
-          pushMany [EvalOnce MCall, Rfl lhs, Rfl rhs]
-        (Call lhs rhs) ->
-          pushMany [Memoize, Rfl e, Lhs, TryStep, Rfl lhs, Rfl rhs]
-        x -> pushMany[Memoize, Rfl x]
+          (lift . push) $ Rfl e'
+        Nothing ->
+          (lift . pushMany) $ [Memoize, Rfl e] ++ (case e of
+            (Call (Call K x) y) ->
+              [EvalOnce KCall, Rfl x]
+            (Call (Call (Call S x) y) z) ->
+              [EvalOnce SCall, Rfl x, Rfl y, Rfl z]
+            (Call M K) ->
+              [EvalOnce Mk]
+            (Call M M) ->
+              [EvalOnce Mm]
+            (Call M S) ->
+              [EvalOnce Ms]
+            (Call M (Call lhs rhs)) ->
+              [EvalOnce MCall, Rfl lhs, Rfl rhs]
+            (Call lhs rhs) ->
+              [Lhs, TryStep, Rfl lhs, Rfl rhs]
+            x -> [])
+
+outE :: ExecState -> Maybe Expr
+outE = fmap fst . uncons . register
+
+advanceN :: EvalConfig -> Int -> State ExecState (Either ExecError (Maybe Expr))
+advanceN cfg n
+  | n <= 0 = (MaybeT . state) $ outE
+  | n == 0 = advance cfg >> advanceN cfg (n - 1)
 
 advanceToEnd :: EvalConfig -> ExecState -> Either ExecError ExecState
 advanceToEnd cfg state = case stack state of
   op:ops ->
-    case (runState . runMaybeT) $ advance cfg state of
-      Just s' -> advanceLoop cfg s'
-      Nothing -> Left $ ExecError { offendingOp = op, stackTrace = state }
+    case (runState . runMaybeT) (advance cfg) state of
+      (Just _, state')  -> advanceToEnd cfg state'
+      (Nothing, state') -> Left $ ExecError { offendingOp = op, stackTrace = state' }
   _ -> Right state
 
 {- Sample execution:
@@ -197,7 +201,12 @@ advanceToEnd cfg state = case stack state of
       - Memoize the register. If we ever encounter the same register twice, we are cooked.
 -}
 
-eval :: EvalConfig -> Expr -> Either ExecError Expr
-eval cfg e =
-  advanceToEnd cfg s0
-  where s0 = mkState e
+eval :: EvalConfig -> Expr -> Either ExecError (Maybe Expr)
+eval cfg e = outE <$> advanceToEnd cfg s0
+  where s0   = mkState e
+
+evalN :: EvalConfig -> Int -> Expr -> Either ExecError (Maybe Expr)
+evalN cfg n e = fst $ runState (advanceN cfg n) s0
+  where s0   = mkState e
+
+
