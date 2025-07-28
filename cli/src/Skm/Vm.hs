@@ -30,39 +30,106 @@ data Step = KCall
 -}
 
 data Op = Lhs
-  | Trans
   -- For normal forms
   | Rfl Expr
+  -- Attempts to parse out an expression into a form recognizable by eval once
+  -- Will also push an EvalOnce call if it can parse
+  | TryStep
   | EvalOnce Step
 
 type Trace    = [Op]
 type Stack    = [Op]
 type Register = [Expr]
 
-type ExecState = (Stack, Trace)
+data ExecState = ExecState
+  { trace    :: Trace
+  , stack    :: Stack
+  , register :: Register }
 
 push :: Op -> State ExecState ()
 push = modify . add
-  where add op (s, t) = (op:s, t:s)
+  where add op (ExecState { trace = t, stack = s, register = r }) =
+          ExecState { trace = op:t, stack = op:s, register = r}
 
-pop :: State ExecState (Maybe Op)
+pushE :: Expr -> State ExecState ()
+pushE = modify . add
+  where add e (ExecState { trace = t, stack = s, register = r }) =
+          ExecState { trace = t, stack = s, register = e:r }
+
+pop :: MaybeT (State ExecState) Op
 pop = do
-  op <- gets (fst <$> uncons)
-  modify sub
+  op <- gets $ uncons . stack
+  modify doPop
   pure op
-  where sub (o:s, t) = (s, t)
+  where doPop (ExecState { trace = t, stack = x:xs, register = r }) =
+          ExecState { trace = t, stack = xs, register = r}
 
-advance :: State ExecState ()
-advance = runMaybeT doAdvance
-  where doAdvance :: MaybeT (State ExecState) ()
-        doAdvance = do
-          o <- pop
+popE :: MaybeT (State ExecState) Expr
+popE = do
+  e <- gets $ uncons . register
+  modify doPop
+  pure e
+  where doPop (ExecState { trace = t, stack = s, register = x:xs }) =
+          ExecState { trace = t, stack = s, register = xs }
 
-          case o of
-            Lhs -> do
-              lhs <- popRfl
-              rhs <- popRfl
+pushMany :: [Op] -> State ExecState ()
+pushMany = mapM_ push
 
+pushManyE :: [Expr] -> State ExecState ()
+pushManyE = mapM_ pushE
+
+advance :: EvalConfig -> MaybeT (State ExecState) ()
+advance cfg = do
+  o <- pop
+
+  case o of
+    Lhs -> do
+      lhs <- popE
+      rhs <- popE
+
+      push (Rfl (Call lhs rhs))
+    Rfl e -> pushE e
+    EvalOnce KCall ->
+      x <- popE
+
+      pushMany [TryStep, Rfl x]
+    EvalOnce SCall ->
+      x <- popE
+      y <- popE
+      z <- popE
+
+      pushMany [TryStep, Rfl (Call (Call x z) (Call y z))]
+    EvalOnce MCall ->
+      lhs <- popE
+      rhs <- popE
+
+      pushMany [TryStep, Rfl (Call (Call (Call M lhs) rhs) (tOut cfg))]
+    EvalOnce Mk ->
+      push $ Rfl (tK cfg)
+    EvalOnce Ms ->
+      push $ Rfl (tS cfg)
+    EvalOnce Mm ->
+      push $ Rfl (tM cfg)
+    TryStep ->
+      e <- popE
+
+      case e of
+        (Call (Call K x) y) ->
+          pushMany [EvalOnce KCall, Rfl x]
+        (Call (Call (Call S x) y) z) ->
+          pushMany [EvalOnce SCall, Rfl x, Rfl y, Rfl z]
+        (Call M K) ->
+          push $ EvalOnce Mk
+        (Call M M) ->
+          push $ EvalOnce Mm
+        (Call M S) ->
+          push $ EvalOnce Ms
+        (Call M (Call lhs rhs)) ->
+          pushMany [EvalOnce MCall, Rfl lhs, Rfl rhs]
+        e ->
+          pushMany [Lhs, Rfl lhs, Rfl rhs]
+
+advanceToEnd 
 
 {- Sample execution:
    (((K K) K) (K K)) = (K (K K))
@@ -90,4 +157,4 @@ advance = runMaybeT doAdvance
 -}
 
 eval :: EvalConfig -> Expr -> Expr
-
+eval cfg e = 
