@@ -29,8 +29,8 @@ parseProgCocStream fname cts = do
         pure $ (stmts', CocP.inlineDefs stmts' <$> body)
   where inlineAll stmts (CocAst.Def id e) = (CocAst.Def id (CocP.inlineDefs stmts e)) : stmts
 
-readProgCoc :: String -> ExceptT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr) String
-readProgCoc fname = do
+readCocSrc :: String -> ExceptT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr) String
+readCocSrc fname = do
   cts <- liftIO $ T.readFile fname
   case parse CocP.pProg fname cts of
     Left err ->
@@ -65,12 +65,8 @@ ccInline (CocAst.Def name value) = do
 
   pure $ CocAst.Def name value'
 
-unwrapCompError :: Show e => Either e t -> MaybeT IO t
-unwrapCompError (Right a)  = pure a
-unwrapCompError (Left err) = liftIO (hPutStrLn stderr (show err)) >> MaybeT (pure Nothing)
-
-findDef :: String -> [CocAst.Stmt] -> Maybe (Either CompilationError Expr)
-findDef name stmts = (body <$> find matches stmts) >>= cc
+flattenDef :: String -> [CocAst.Stmt] -> Either (CompilationError Maybe Expr)
+flattenDef name stmts = (body <$> find matches stmts) >>= cc
   where body    (CocAst.Def _ bdy)   = bdy
         matches (CocAst.Def ident _) = ident == name
 
