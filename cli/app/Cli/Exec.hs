@@ -1,0 +1,76 @@
+module Cli.Exec where
+
+readExpr :: String -> ExceptT IO String Expr
+readExpr fname = do
+  cts <- liftIO $ T.readFile fname
+  case parse pExpr fname cts of
+    Left err ->
+      (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
+    Right e  ->
+      pure e
+
+type StreamName = String
+
+parseSkStream :: StreamName -> Text -> ExceptT IO String Expr
+parseSkStream fname cts = do
+  case parse pExpr fname cts of
+    Left err ->
+      (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
+    Right e  ->
+      pure e
+
+parseProgCocStream :: StreamName -> Text -> ExceptT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr)
+parseProgCocStream fname cts = do
+  case parse CocP.pProg fname cts of
+    Left err ->
+      (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
+    Right (stmts, body)  ->
+      let stmts' = foldl inlineAll [] stmts in do
+        pure $ (stmts', CocP.inlineDefs stmts' <$> body)
+  where inlineAll stmts (CocAst.Def id e) = (CocAst.Def id (CocP.inlineDefs stmts e)) : stmts
+
+readProgCoc :: String -> ExceptT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr) String
+readProgCoc fname = do
+  cts <- liftIO $ T.readFile fname
+  case parse CocP.pProg fname cts of
+    Left err ->
+      (liftIO $ hPutStrLn stderr (errorBundlePretty err)) >> empty
+    Right (stmts, body)  ->
+      let stmts' = foldl inlineAll [] stmts in do
+        pure $ (stmts', CocP.inlineDefs stmts' <$> body)
+  where inlineAll stmts (CocAst.Def id e) =
+          let e' = CocP.inlineDefs stmts e in
+            (CocAst.Def id e') : stmts
+
+readExprCoc :: String -> MaybeT IO CocAst.ReadableExpr
+readExprCoc fname = do
+  (_, maybeE) <- readProgCoc fname
+  hoistMaybe maybeE
+
+cc :: CocAst.ReadableExpr -> Either CompilationError Expr
+cc = ((pure . CocT.opt) <=< CocT.toSk) <=< CocT.lift <=< CocAst.parseReadableExpr
+
+printEval :: Either ExecError (Maybe Expr) -> MaybeT IO ()
+printEval (Left e) =
+  liftIO (hPutStrLn stderr $
+          printf "Execution failed. Offending opcode: %s. Backtrace: %s\n"
+          (show $ offendingOp e)
+          (show $ stackTrace e))
+printEval (Right (Just e)) = liftIO $ putStrLn (show e)
+printEval (Right Nothing)  = liftIO $ putStrLn "execution succeeded, but outputted nothing."
+
+ccInline :: CocAst.Stmt -> Either CocAst.Stmt CompilationError
+ccInline (CocAst.Def name value) = do
+  value' <- ((CocAst.transmuteESk <=< CocT.lift) <=< CocAst.parseReadableExpr) value
+
+  pure $ CocAst.Def name value'
+
+unwrapCompError :: Show e => Either e t -> MaybeT IO t
+unwrapCompError (Right a)  = pure a
+unwrapCompError (Left err) = liftIO (hPutStrLn stderr (show err)) >> MaybeT (pure Nothing)
+
+findDef :: String -> [CocAst.Stmt] -> Maybe (Either CompilationError Expr)
+findDef name stmts = (body <$> find matches stmts) >>= cc
+  where body    (CocAst.Def _ bdy)   = bdy
+        matches (CocAst.Def ident _) = ident == name
+

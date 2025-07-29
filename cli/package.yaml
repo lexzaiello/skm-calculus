@@ -37,5 +37,9 @@ library:
 executable:
   main: Main.hs
   source-dirs: app
+  other-modules:
+    - Cli.OptParse
+    - Cli.Exec
+    - Cli.Repl
   dependencies:
     - skm
