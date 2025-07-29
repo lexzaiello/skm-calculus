@@ -3,39 +3,30 @@ module Skm.Compiler.Translate where
 import Skm.Compiler.Ast
 import qualified Skm.Ast as A
 
-decVars :: Int -> Expr -> Expr
-decVars depth (Var n)
-  | n > depth = Var $ n - 1
-  | otherwise = Var n
-decVars depth (App lhs rhs) = App (decVars depth lhs) (decVars depth rhs)
-decVars depth (Lam bty bdy) = Lam (doDec <$> bty) (doDec bdy)
-  where doDec = decVars (depth + 1)
-decVars _ x = x
+abstract :: Int -> Expr -> Expr
+abstract j (Var i)
+  | i == j    = App (App S K) K -- I
+  | otherwise = App K (Var (if i > j then i - 1 else i))
+abstract j (App m n) = App (App S (abstract j m)) (abstract j n)
+abstract _ e         = App K e
 
--- Attempts to remove as many lambda abstractions as possible
-lift :: Expr -> Expr
-lift (App lhs rhs)           = (App (lift lhs) (lift rhs))
-lift (Lam bty (App lhs rhs)) = lift (App (App S lhs') rhs')
-  where lhs' = Lam bty (lift lhs)
-        rhs' = Lam bty (lift rhs)
-lift (Lam bty (Var 0))           = (App (App S K) K)
-lift (Lam bty0 (Lam bty1 body))  = lift (Lam bty0' body')
+toCombinators :: Expr -> Expr
+toCombinators = go 0
   where
-    bty0' = lift <$> bty0
-    bty1' = lift <$> bty1
-    body' = lift (Lam bty1' body)
-lift (Lam _ x) = lift (App K x')
-  where x' = (decVars 0 . lift) x
-lift e = e
+    go lvl (Lam _ body) = abstract lvl (go (lvl + 1) body)
+    go lvl (App f x)    = App (go lvl f) (go lvl x)
+    go _ S              = S
+    go _ K              = K
+    go _ M              = M
+    go _ (Var n)        = (Var n)
+
+lift :: Expr -> Expr
+lift = toCombinators
 
 opt :: A.Expr -> A.Expr
-opt (A.Call (A.Call A.S (A.Call A.K p)) (A.Call A.K q)) = A.Call A.K (A.Call p q)
-opt (A.Call lhs rhs)                                    = A.Call (opt lhs) (opt rhs)
 opt e = e
 
 optE :: Expr -> Expr
-optE (App (App S (App K p)) (App K q)) = App K (App p q)
-optE (App lhs rhs)                     = App (optE lhs) (optE rhs)
 optE e = e
 
 toSk :: Expr -> Maybe A.Expr

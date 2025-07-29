@@ -169,7 +169,9 @@ advance cfg = do
             x -> [Rfl x])
 
 outE :: ExecState -> Expr -> Maybe Expr
-outE s e = HM.lookup e $ cache s
+outE s e = case register s of
+  [e] -> Just e
+  _   -> Nothing
 
 advanceN :: EvalConfig -> Int -> MaybeT (State ExecState) ()
 advanceN cfg n
@@ -222,5 +224,3 @@ evalN cfg n e = case (runState . runMaybeT) (advanceN cfg n) s0 of
                                              op:_ -> Just op
                                              _ -> Nothing)
                           , stackTrace = s }
-
-
