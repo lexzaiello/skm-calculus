@@ -7,6 +7,7 @@ module Main where
 import Text.Printf
 import Data.List (find)
 import Data.Text (Text, pack)
+import Control.Monad.Trans.Except
 import Data.Maybe (fromMaybe, catMaybes)
 import Control.Monad
 import Control.Monad.Trans.Maybe
@@ -20,6 +21,7 @@ import qualified Skm.Compiler.ProofGen as Proof
 import qualified Skm.Compiler.Ast as CocAst
 import qualified Skm.Compiler.Parse as CocP
 import qualified Skm.Compiler.Translate as CocT
+import Skm.Compiler.Ast (CompilationError)
 import Skm.Parse (pExpr)
 import Options.Applicative
 import qualified Data.Text.IO as T
@@ -110,7 +112,7 @@ cmdParser = hsubparser
     <> command "prove" (info (Prove   <$> proveParser)   $ progDesc "Prove properties of a compiled SKM program, generating a Lean proof definition.")
     <> command "repl"  (info (Repl    <$> replParser)    $ progDesc "Launch an interactive SKM session."))
 
-readExpr :: String -> MaybeT IO Expr
+readExpr :: String -> ExceptT IO String Expr
 readExpr fname = do
   cts <- liftIO $ T.readFile fname
   case parse pExpr fname cts of
@@ -121,7 +123,7 @@ readExpr fname = do
 
 type StreamName = String
 
-parseSkStream :: StreamName -> Text -> MaybeT IO Expr
+parseSkStream :: StreamName -> Text -> ExceptT IO String Expr
 parseSkStream fname cts = do
   case parse pExpr fname cts of
     Left err ->
@@ -129,7 +131,7 @@ parseSkStream fname cts = do
     Right e  ->
       pure e
 
-parseProgCocStream :: StreamName -> Text -> MaybeT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr)
+parseProgCocStream :: StreamName -> Text -> ExceptT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr)
 parseProgCocStream fname cts = do
   case parse CocP.pProg fname cts of
     Left err ->
@@ -139,7 +141,7 @@ parseProgCocStream fname cts = do
         pure $ (stmts', CocP.inlineDefs stmts' <$> body)
   where inlineAll stmts (CocAst.Def id e) = (CocAst.Def id (CocP.inlineDefs stmts e)) : stmts
 
-readProgCoc :: String -> MaybeT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr)
+readProgCoc :: String -> ExceptT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr) String
 readProgCoc fname = do
   cts <- liftIO $ T.readFile fname
   case parse CocP.pProg fname cts of
@@ -157,20 +159,27 @@ readExprCoc fname = do
   (_, maybeE) <- readProgCoc fname
   hoistMaybe maybeE
 
-cc :: CocAst.ReadableExpr -> Maybe Expr
-cc = ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift <=< CocAst.parseReadableExpr
+cc :: CocAst.ReadableExpr -> Either CompilationError Expr
+cc = ((pure . CocT.opt) <=< CocT.toSk) <=< CocT.lift <=< CocAst.parseReadableExpr
 
-printEval :: Either ExecError (Maybe Expr) -> IO ()
+printEval :: Either ExecError (Maybe Expr) -> MaybeT IO ()
 printEval (Left e) =
-  hPutStrLn stderr $ printf "Execution failed. Offending opcode: %s. Backtrace: %s\n" (show $ offendingOp e) (show $ stackTrace e)
-printEval (Right (Just e)) = putStrLn (show e)
-printEval (Right Nothing)  = putStrLn "execution succeeded, but outputted nothing."
+  liftIO (hPutStrLn stderr $
+          printf "Execution failed. Offending opcode: %s. Backtrace: %s\n"
+          (show $ offendingOp e)
+          (show $ stackTrace e))
+printEval (Right (Just e)) = liftIO $ putStrLn (show e)
+printEval (Right Nothing)  = liftIO $ putStrLn "execution succeeded, but outputted nothing."
 
-ccInline :: CocAst.Stmt -> Maybe CocAst.Stmt
+ccInline :: CocAst.Stmt -> Either CocAst.Stmt CompilationError
 ccInline (CocAst.Def name value) = do
-  value' <- ((CocAst.transmuteESk . CocT.lift) <=< CocAst.parseReadableExpr) value
+  value' <- ((CocAst.transmuteESk <=< CocT.lift) <=< CocAst.parseReadableExpr) value
 
   pure $ CocAst.Def name value'
+
+unwrapCompError :: Show e => Either e t -> MaybeT IO t
+unwrapCompError (Right a)  = pure a
+unwrapCompError (Left err) = liftIO (hPutStrLn stderr (show err)) >> MaybeT (pure Nothing)
 
 repl :: EvalConfig -> ReplOptions -> MaybeT IO ()
 repl eCfg opt = do
@@ -183,18 +192,18 @@ repl eCfg opt = do
       (stmts, maybeE) <- parseProgCocStream streamStdinName rawE
       rawE <- hoistMaybe maybeE
       e  <- (hoistMaybe . CocAst.parseReadableExpr) rawE
-      sk <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) e
+      sk <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk <=< CocT.lift)) e
 
       pure sk
     ReplOptions { rLc = False } ->
       parseSkStream streamStdinName rawE
 
   let e' = eval eCfg e
-  liftIO $ printEval e'
+  printEval e'
 
   repl eCfg opt
 
-findDef :: String -> [CocAst.Stmt] -> Maybe Expr
+findDef :: String -> [CocAst.Stmt] -> Maybe (Either CompilationError Expr)
 findDef name stmts = (body <$> find matches stmts) >>= cc
   where body    (CocAst.Def _ bdy)   = bdy
         matches (CocAst.Def ident _) = ident == name
@@ -203,12 +212,12 @@ readEvalConfig :: MaybeT IO EvalConfig
 readEvalConfig = do
   (stmts, _) <- readProgCoc primitivesSrc
 
-  tIn   <- hoistMaybe $ findDef "t_in"  stmts
-  tOut  <- hoistMaybe $ findDef "t_out" stmts
-  arrow <- hoistMaybe $ findDef "arrow" stmts
-  tK    <- hoistMaybe $ findDef "t_k"   stmts
-  tS    <- hoistMaybe $ findDef "t_s"   stmts
-  tM    <- hoistMaybe $ findDef "t_m"   stmts
+  tIn   <- (flatten . unwrapCompError) $ findDef "t_in"  stmts >>= unwrapCompError
+  tOut  <- (flatten . unwrapCompError) $ findDef "t_out" stmts >>= unwrapCompError
+  arrow <- (flatten . unwrapCompError) $ findDef "arrow" stmts >>= unwrapCompError
+  tK    <- (flatten . unwrapCompError) $ findDef "t_k"   stmts >>= unwrapCompError
+  tS    <- (flatten . unwrapCompError) $ findDef "t_s"   stmts >>= unwrapCompError
+  tM    <- (flatten . unwrapCompError) $ findDef "t_m"   stmts >>= unwrapCompError
 
   pure $ EvalConfig { tIn  = tIn
              , tOut = tIn
@@ -217,6 +226,7 @@ readEvalConfig = do
              , tS = tS
              , tM = tM
              }
+  where flatten = MaybeT . fmap join . runMaybeT
 
 doMain :: MaybeT IO ()
 doMain = do
@@ -225,39 +235,41 @@ doMain = do
 
   case cfg of
     Eval (EvalOptions { eNSteps = n, eSrc = src, lc = lc }) -> do
-      e <- if lc then do
-            inlined <- readExprCoc src
-            fromE <- (hoistMaybe . CocAst.parseReadableExpr) inlined
-            sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
-            pure sk
-        else readExpr src
-      liftIO $ printEval (case n of
-                            Just n ->
-                              Just <$> (evalN prim n e)
-                            Nothing ->
-                              eval prim e)
-    Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc }) -> do
-      fromE <- readExpr fromSrc
+      e <- (if lc then ccLc else readExpr) src
+      let e' = case n of
+            Just n -> Just <$> (evalN prim n e)
+            Nothing -> eval prim e
 
-      ((liftIO <$> putStrLn) . Proof.serialize . snd . Proof.cc) fromE
-    Compile (CompileOptions { ccSrc = src, dry = dry }) -> do
-      if not dry then do
-        fromE <- (readExprCoc src) >>= (hoistMaybe . CocAst.parseReadableExpr)
-        sk    <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk) . CocT.lift) fromE
-
-        ((liftIO <$> putStrLn) . show) sk
+      printEval e'
+    Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc }) ->
+      ((Proof.serialize . snd . Proof.cc) <$> readExpr fromSrc) >>= emit
+    Compile (CompileOptions { ccSrc = src, dry = dry }) ->
+      -- Dry indicates whether definitions should be collapsed into one body main expression
+      -- or not.
+      if not dry then
+        ccLc src >>= (emit . show)
       else (do
         (fromStmts, fromE) <- readProgCoc src
-        let fromStmts' = map ccInline fromStmts
-        let fromE'     = CocT.lift <$> (fromE >>= CocAst.parseReadableExpr)
 
-        let fmtStmts = (case fromE' of
-                             (Just fromE') -> ((show fromE') : (map show $ catMaybes fromStmts'))
-                             Nothing       -> (map show) $ catMaybes fromStmts')
+        -- Fold all definitions such that they are inlined and compile main if it exists
+        inlinedStmts       <- mapM (unwrapCompError . ccInline) fromStmts
+        let ccE            = (((fmap (unwrapCompError . CocT.lift)) . CocAst.parseReadableExpr) <$> fromE)
 
-        liftIO $ putStrLn (intercalate "\n" fmtStmts))
+        -- All compiled statements should be included
+        -- but there might not be a main
+        let fmtStmts = map show inlinedStmts
+        let fmtLines = case ccE of
+                         (Just fromE') -> (show fromE') : fmtStmts
+                         Nothing       -> fmtStmts
+
+        emit $ intercalate "\n" fmtLines)
     Repl opts -> repl prim opts
-    _ -> pure ()
+    _ -> empty
+  where ccLc = readExprCoc
+          >=> (hoistMaybe . CocAst.parseReadableExpr)
+          >=> (unwrapCompError . CocT.lift)
+          >=> (hoistMaybe . (fmap CocT.opt) . CocT.toSk)
+        emit = liftIO . putStrLn
 
 main :: IO ()
 main = runMaybeT doMain >> (pure ())

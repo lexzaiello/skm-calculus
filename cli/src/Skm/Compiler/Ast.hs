@@ -16,10 +16,21 @@ data Expr = Lam (Maybe Expr) Expr
   | M
   deriving (Eq, Ord)
 
-type Context = [String]
+
+type Ctx = [Expr]
+type NamedContext = [String]
+
+data CompilationError = VariableInOutput { ctx :: Ctx
+                                         , i   :: Int
+                                         }
+
+instance Show CompilationError where
+  show err = (case err of
+    (VariableInOutput { ctx = ctx, i = i }) ->
+      printf "unexpected variable %s in context %s" (show i) (show ctx))
 
 -- Convert variables to de bruijn indices
-changeVariables :: Context -> ReadableExpr -> ReadableExpr
+changeVariables :: NamedContext -> ReadableExpr -> ReadableExpr
 changeVariables ctx (HFall binder maybeTy body) = HFall binder (doChange <$> maybeTy) (doChange body)
   where doChange = changeVariables (binder : ctx)
 changeVariables ctx (HLam binder maybeTy body)  = HLam binder  (doChange <$> maybeTy) (doChange body)

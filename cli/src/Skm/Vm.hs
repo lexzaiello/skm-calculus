@@ -150,23 +150,25 @@ advance cfg = do
       case maybeE' of
         Just e' ->
           (lift . push) $ Rfl e'
-        Nothing ->
-          (lift . pushMany) $ [Memoize, Rfl e, Dup] ++ (case e of
-            (Call (Call K x) y) ->
-              [EvalOnce KCall, Rfl x]
-            (Call (Call (Call S x) y) z) ->
-              [EvalOnce SCall, Rfl x, Rfl y, Rfl z]
-            (Call M K) ->
-              [EvalOnce Mk]
-            (Call M M) ->
-              [EvalOnce Mm]
-            (Call M S) ->
-              [EvalOnce Ms]
-            (Call M (Call lhs rhs)) ->
-              [EvalOnce MCall, Rfl lhs, Rfl rhs]
-            (Call lhs rhs) ->
-              [Lhs, TryStep, Rfl lhs, Rfl rhs]
-            x -> [Rfl x])
+        Nothing -> do
+          ops <- (case e of
+            (Call (Call K x) y) -> (pure [EvalOnce KCall, Rfl x])
+            (Call (Call (Call S x) y) z) -> (pure [EvalOnce SCall, Rfl x, Rfl y, Rfl z])
+            (Call M K) -> (pure [EvalOnce Mk])
+            (Call M M) -> (pure [EvalOnce Mm])
+            (Call M S) -> (pure [EvalOnce Ms])
+            (Call M (Call lhs rhs)) -> (pure [EvalOnce MCall, Rfl lhs, Rfl rhs])
+            (Call lhs rhs) -> (do
+              lhs' <- (lift . tryMemo) lhs
+
+              case lhs' of
+                Just lhs' ->
+                  pure [TryStep, Memoize, Rfl e, Dup, Lhs, Rfl lhs, Rfl rhs]
+                Nothing ->
+                  pure [TryStep, Memoize, Rfl e, Dup, Lhs, TryStep, Rfl lhs, Rfl rhs])
+            x -> (pure [Rfl x]))
+
+          (lift . pushMany) ([Memoize, Rfl e, Dup] ++ ops)
 
 outE :: ExecState -> Expr -> Maybe Expr
 outE s e = case register s of
