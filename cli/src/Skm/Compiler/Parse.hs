@@ -26,7 +26,7 @@ pComb = choice
   ]
 
 pColon :: Parser ()
-pColon = symbol ":" >> (pure ())
+pColon = symbol ":" >> void
 
 pIdent :: Parser Ident
 pIdent = lexeme $ do
@@ -55,7 +55,7 @@ pVar = HVar <$> pIdent
 type Binder = (Ident, Maybe Ast.HumanExprCoc)
 
 pBinder :: Parser Binder
-pBinder = (try (unifyFromTyped <$> pTypedBinder) <|> (unifyFromUntyped <$> pUntypedBinder))
+pBinder = try (unifyFromTyped <$> pTypedBinder) <|> (unifyFromUntyped <$> pUntypedBinder)
   where
     unifyFromTyped   (binderName, ty) = (binderName, Just ty)
     unifyFromUntyped binderName       = (binderName, Nothing)
@@ -107,7 +107,7 @@ pProg = do
   stmts <- many pDef
   main  <- optional pExpr
 
-  pure $ (stmts, main)
+  pure (stmts, main)
 
 inlineDefs :: [Ast.Stmt] -> Ast.HumanExprCoc -> Ast.HumanExprCoc
 inlineDefs defs (Ast.HVar ident) = fromMaybe (HVar ident) (thisDef >>= defBody)
