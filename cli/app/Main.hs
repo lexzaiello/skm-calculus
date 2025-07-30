@@ -5,6 +5,7 @@
 module Main where
 
 import Text.Printf
+import Cli.OptParse
 import Data.List (find)
 import Data.Text (Text, pack)
 import Control.Monad.Trans.Except
@@ -30,11 +31,10 @@ import Text.Megaparsec (parse, errorBundlePretty)
 
 doMain :: MaybeT IO ()
 doMain = do
-  cfg <- liftIO $ readCommand
-  prim <- readEvalConfig
+  cmd  <- liftIO $ readCommand
 
-  case cfg of
-    Eval (EvalOptions { eNSteps = n, eSrc = src, lc = lc }) -> do
+  case cmd of
+    Eval (EvalOptions { nSteps = n, src = src, lcCfg = lcCfg }) -> do
       e <- (if lc then ccLc else readExpr) src
       let e' = case n of
             Just n -> Just <$> (evalN prim n e)

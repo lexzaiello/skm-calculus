@@ -7,16 +7,16 @@ import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Skm.Util.Parsing
 import qualified Skm.Compiler.Ast as Ast
-import Skm.Compiler.Ast (ReadableExpr(..))
+import Skm.Compiler.Ast (HumanExprCoc(..))
 import Text.Megaparsec
 import Text.Megaparsec.Char (alphaNumChar, char, letterChar)
 
-pApp :: Parser Ast.ReadableExpr
+pApp :: Parser Ast.HumanExprCoc
 pApp = parens $ do
   exprs <- some pExpr
   pure $ foldl1 HApp exprs
 
-pComb :: Parser Ast.ReadableExpr
+pComb :: Parser Ast.HumanExprCoc
 pComb = choice
   [ Hs <$ symbol "S"
   , Hk <$ symbol "K"
@@ -32,7 +32,7 @@ pIdent = lexeme $ do
   rest <- many (alphaNumChar <|> char '_')
   return $ (first : rest)
 
-pTypedBinder :: Parser (String, Ast.ReadableExpr)
+pTypedBinder :: Parser (String, Ast.HumanExprCoc)
 pTypedBinder = parens $ do
   _ <- sc
   binder <- pIdent
@@ -46,10 +46,10 @@ pTypedBinder = parens $ do
 pUntypedBinder :: Parser String
 pUntypedBinder = pIdent
 
-pVar :: Parser Ast.ReadableExpr
+pVar :: Parser Ast.HumanExprCoc
 pVar = HVar <$> pIdent
 
-type Binder = (String, Maybe Ast.ReadableExpr)
+type Binder = (String, Maybe Ast.HumanExprCoc)
 
 pBinder :: Parser Binder
 pBinder = (try (unifyFromTyped <$> pTypedBinder) <|> (unifyFromUntyped <$> pUntypedBinder))
@@ -60,7 +60,7 @@ pBinder = (try (unifyFromTyped <$> pTypedBinder) <|> (unifyFromUntyped <$> pUnty
 pBinders :: Parser [Binder]
 pBinders = many pBinder
 
-pFall :: Parser Ast.ReadableExpr
+pFall :: Parser Ast.HumanExprCoc
 pFall = do
   _ <- symbol "∀"
   (binder, maybeBty) <- pBinder
@@ -71,11 +71,11 @@ pFall = do
   -- Implicitly-typed, we don't recurse for ty
   pure (HLam binder maybeBty body)
 
-currify :: [Binder] -> Ast.ReadableExpr -> Ast.ReadableExpr
+currify :: [Binder] -> Ast.HumanExprCoc -> Ast.HumanExprCoc
 currify ((binder, bty):xs) body = HLam binder bty (currify xs body)
 currify [] body   = body
 
-pLam :: Parser Ast.ReadableExpr
+pLam :: Parser Ast.HumanExprCoc
 pLam = do
   _ <- symbol "λ" <|> symbol "\\"
   binders <- pBinders
@@ -86,7 +86,7 @@ pLam = do
 
   pure (currify binders body)
 
-pExpr :: Parser Ast.ReadableExpr
+pExpr :: Parser Ast.HumanExprCoc
 pExpr = pApp <|> pComb <|> pLam <|> pFall <|> pVar <|> parens pExpr
 
 pDef :: Parser Ast.Stmt
@@ -98,7 +98,7 @@ pDef = do
 
   pure $ Ast.Def name body
 
-pProg :: Parser ([Ast.Stmt], Maybe Ast.ReadableExpr)
+pProg :: Parser ([Ast.Stmt], Maybe Ast.HumanExprCoc)
 pProg = do
   sc
   stmts <- many pDef
@@ -106,7 +106,7 @@ pProg = do
 
   pure $ (stmts, main)
 
-inlineDefs :: [Ast.Stmt] -> Ast.ReadableExpr -> Ast.ReadableExpr
+inlineDefs :: [Ast.Stmt] -> Ast.HumanExprCoc -> Ast.HumanExprCoc
 inlineDefs defs (Ast.HVar ident) = fromMaybe (HVar ident) (thisDef >>= defBody)
   where thisDef = find isDef defs
         isDef   (Ast.Def name _) = name == ident

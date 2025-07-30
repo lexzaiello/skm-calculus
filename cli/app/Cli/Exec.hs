@@ -1,5 +1,32 @@
 module Cli.Exec where
 
+import Skm.Eval (EvalConfig)
+import Skm.Compiler.Ast (CompilationError)
+import Skm.Ast as SkAst
+import Skm.Ast (SkExpr)
+import Skm.Compiler.Ast as CocAst
+import Skm.Compiler.Ast (toHumanExprCoc, fromHumanExprCoc, HumanExprCoc)
+
+type ParseError = String
+type Stream = String
+
+parseSk :: Stream -> Except ParseError SkExpr
+
+parseCocHuman :: HumanExprCoc -> 
+
+data LcCompiler = LcCompiler EvalConfig
+
+instance Compiler LcCompiler 
+
+data Compiler = Raw
+  | LcMode EvalConfig
+
+compiler :: Maybe EvalConfig
+compiler Just cfg = LcMode cfg
+compiler Nothing  = Raw
+
+parse :: Stream -> Compiler -> Except CompilationError 
+
 readExpr :: String -> ExceptT IO String Expr
 readExpr fname = do
   cts <- liftIO $ T.readFile fname
@@ -19,7 +46,7 @@ parseSkStream fname cts = do
     Right e  ->
       pure e
 
-parseProgCocStream :: StreamName -> Text -> ExceptT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr)
+parseProgCocStream :: StreamName -> Text -> ExceptT IO ([CocAst.Stmt], Maybe HumanExprCoc)
 parseProgCocStream fname cts = do
   case parse CocP.pProg fname cts of
     Left err ->
@@ -29,7 +56,7 @@ parseProgCocStream fname cts = do
         pure $ (stmts', CocP.inlineDefs stmts' <$> body)
   where inlineAll stmts (CocAst.Def id e) = (CocAst.Def id (CocP.inlineDefs stmts e)) : stmts
 
-readCocSrc :: String -> ExceptT IO ([CocAst.Stmt], Maybe CocAst.ReadableExpr) String
+readCocSrc :: String -> ExceptT IO ([CocAst.Stmt], Maybe HumanExprCoc) String
 readCocSrc fname = do
   cts <- liftIO $ T.readFile fname
   case parse CocP.pProg fname cts of
@@ -42,12 +69,12 @@ readCocSrc fname = do
           let e' = CocP.inlineDefs stmts e in
             (CocAst.Def id e') : stmts
 
-readExprCoc :: String -> MaybeT IO CocAst.ReadableExpr
+readExprCoc :: String -> MaybeT IO HumanExprCoc
 readExprCoc fname = do
   (_, maybeE) <- readProgCoc fname
   hoistMaybe maybeE
 
-cc :: CocAst.ReadableExpr -> Either CompilationError Expr
+cc :: HumanExprCoc -> Either CompilationError Expr
 cc = ((pure . CocT.opt) <=< CocT.toSk) <=< CocT.lift <=< CocAst.parseReadableExpr
 
 printEval :: Either ExecError (Maybe Expr) -> MaybeT IO ()
