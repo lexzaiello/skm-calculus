@@ -5,12 +5,9 @@ module Skm.Compiler.Parse where
 import qualified Data.Text as T
 import Control.Monad
 import Data.Char (isLetter, isAlphaNum)
-import Data.List (find)
-import Data.Maybe (fromMaybe)
 import Skm.Util.Parsing
-import Skm.Compiler.Ast (OptionalTy(..), Ctx, Program, Stmt(..), HumanReadableExprCoc, ExprCoc(..), Binderless, DebruijnVar, NamedVar, Ident)
+import Skm.Compiler.Ast (OptionalTy(..), Ctx, Program, Stmt(..), HumanReadableExprCoc, ExprCoc(..), Ident)
 import Text.Megaparsec
-import Text.Megaparsec.Char
 
 pApp :: Parser HumanReadableExprCoc
 pApp = parens $ do

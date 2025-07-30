@@ -1,9 +1,9 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ApplicativeDo #-}
 
 module Cli.OptParse where
 
 import Data.Maybe (fromMaybe)
-import Skm.Eval (EvalConfig(..))
 import Options.Applicative
 
 type RawPath = String
@@ -15,7 +15,7 @@ parseRawPathArg = argument str (metavar "FILE"
 primitivesSrc :: RawPath
 primitivesSrc = "std/PrimitiveTypes.skm"
 
-newtype StepCount = StepCount Int
+type StepCount = Int
 
 parseNSteps :: Parser StepCount
 parseNSteps = option auto (long "n_steps"
@@ -42,7 +42,7 @@ data EvalOptions = EvalOptions {
 
 parseEvalOptions :: Parser EvalOptions
 parseEvalOptions = do
-  n      <- optional parseNsteps
+  n      <- optional parseNSteps
   cfg    <- optional parseLambdaExecConfig
   srcPat <- parseRawPathArg
 
