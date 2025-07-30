@@ -24,7 +24,6 @@ library
       Skm.Eval
       Skm.Vm
       Skm.Parse
-      Skm.Std
       Skm.Compiler.Ast
       Skm.Compiler.Parse
       Skm.Compiler.ProofGen
@@ -48,6 +47,10 @@ library
 
 executable skm
   main-is: Main.hs
+  other-modules:
+      Cli.OptParse
+      Cli.Exec
+      Cli.Repl
   hs-source-dirs:
       app
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns

@@ -98,7 +98,7 @@
           program = "${serve-bin}/bin/serve";
         };
         devShells.default = with pkgs.haskellPackages; pkgs.mkShell {
-          nativeBuildInputs = [ ghc hpack haskell-language-server ];
+          nativeBuildInputs = [ ghc hpack haskell-language-server cabal-install ];
         };
         apps.skm = {
           type = "app";
