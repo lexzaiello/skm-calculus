@@ -35,7 +35,7 @@
           name = "book-md";
           src = ./.;
           buildPhase = ''
-            find SkLean -type f -name "*.lean" -not -path "SkLean/tests/*" | while read -r file; do
+            find formal/SkLean -type f -name "*.lean" -not -path "formal/SkLean/tests/*" | while read -r file; do
               ${md}/bin/md < $file > $file.md
             done
             find . -type f -name "*.org" | while read -r file; do
