@@ -1,4 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Skm.Compiler.Ast where
 
@@ -56,7 +58,7 @@ data HumanExprCoc = HLam String (Maybe HumanExprCoc) HumanExprCoc
   | Hm
   deriving (Eq, Ord)
 
-data Stmt = Def String HumanExprCoc
+data Stmt a = Def String a
 
 instance Show HumanExprCoc where
   show (HLam  binder (Just bindTy) body) = printf "λ (%s : %s) => %s" binder (show bindTy) (show body)
@@ -81,7 +83,7 @@ instance Show ExprCoc where
 
   show (Var v)                   = show v
 
-instance Show Stmt where
+instance (Show a) => Show (Stmt a) where
   show (Def name value) = printf "def %s := %s" name (show value)
 
 fromHumanExprCoc :: HumanExprCoc -> Either CompilationError ExprCoc
@@ -113,26 +115,3 @@ fromHumanExprCoc e
           in do
             parsedBody <- go ctx' body'
             pure $ ((ty' >>= go ctx'), parsedBody)
-
-toHumanExprCoc :: ExprCoc -> Either CompilationError HumanExprCoc
-toHumanExprCoc (App lhs rhs) = do
-  lhs' <- toHumanExprCoc lhs
-  rhs' <- toHumanExprCoc rhs
-
-  pure $ HApp lhs' rhs'
-toHumanExprCoc S              = pure Hs
-toHumanExprCoc K              = pure Hk
-toHumanExprCoc M              = pure Hm
-toHumanExprCoc _              = Nothing
-
-fromHumanExprCoc :: HumanExprCoc -> Either CompilationError ExprCoc
-fromHumanExprCoc (HApp lhs rhs) = do
-  lhs' <- fromHumanExprCoc lhs
-  rhs' <- fromHumanExprCoc rhs
-
-  pure $ App lhs' rhs'
-fromHumanExprCoc Hs              = pure S
-fromHumanExprCoc Hk              = pure K
-fromHumanExprCoc Hm              = pure M
-fromHumanExprCoc _               = Nothing
-

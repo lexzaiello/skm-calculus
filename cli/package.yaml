@@ -26,7 +26,6 @@ library:
     - Skm.Eval
     - Skm.Vm
     - Skm.Parse
-    - Skm.Std
     - Skm.Compiler.Ast
     - Skm.Compiler.Parse
     - Skm.Compiler.ProofGen

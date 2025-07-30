@@ -5,7 +5,7 @@ import Skm.Compiler.Ast (CompilationError)
 import Skm.Ast as SkAst
 import Skm.Ast (SkExpr)
 import Skm.Compiler.Ast as CocAst
-import Skm.Compiler.Ast (toHumanExprCoc, fromHumanExprCoc, HumanExprCoc)
+import Skm.Compiler.Ast (fromHumanExprCoc, HumanExprCoc)
 
 type ParseError = String
 type Stream = String
@@ -88,7 +88,7 @@ printEval (Right Nothing)  = liftIO $ putStrLn "execution succeeded, but outputt
 
 ccInline :: CocAst.Stmt -> Either CocAst.Stmt CompilationError
 ccInline (CocAst.Def name value) = do
-  value' <- ((CocAst.transmuteESk <=< CocT.lift) <=< CocAst.parseReadableExpr) value
+  value' <- (CocAst.parseReadableExpr >=> CocT.lift) value
 
   pure $ CocAst.Def name value'
 

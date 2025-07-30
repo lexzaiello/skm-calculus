@@ -170,6 +170,7 @@ advance cfg = do
 
           (lift . pushMany) ([Memoize, Rfl e, Dup] ++ ops)
 
+-- There should be only a single expression in the register at the end of execution
 outE :: ExecState -> Expr -> Maybe Expr
 outE s e = case register s of
   [e] -> Just e
