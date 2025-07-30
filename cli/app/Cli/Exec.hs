@@ -1,6 +1,6 @@
 module Cli.Exec where
 
-import Skm.Cli.OptParse (RawPath)
+import Cli.OptParse (RawPath)
 import Skm.Eval (EvalConfig)
 import Skm.Compiler.Ast (CompilationError, CompilationResult)
 import Skm.Ast as SkAst

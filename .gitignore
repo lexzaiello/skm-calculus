@@ -74,3 +74,9 @@ cabal.sandbox.config
 cabal.project.local
 dist
 /dist-newstyle/
+
+*/.dir-locals.el
+
+.direnv/
+
+*/dist-newstyle

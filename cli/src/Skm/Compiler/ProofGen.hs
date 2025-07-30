@@ -1,7 +1,6 @@
 module Skm.Compiler.ProofGen where
 
 import Skm.Ast
-import Skm.Std
 
 data EvalExpr = SCall
   | KCall
