@@ -3,17 +3,17 @@
 module Skm.Parse where
 
 import Skm.Util.Parsing
-import Skm.Ast
+import Skm.Ast (SkExpr(..))
 import Text.Megaparsec
 
-pCall :: Parser Expr
+pCall :: Parser SkExpr
 pCall = do
   lhs <- pExpr
   rhs <- pExpr
 
-  pure $ (Call lhs rhs)
+  pure $ Call lhs rhs
 
-pExpr :: Parser Expr
+pExpr :: Parser SkExpr
 pExpr = choice
   [ parens pCall
   , S <$ symbol "S"
