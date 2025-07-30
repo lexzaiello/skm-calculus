@@ -81,3 +81,5 @@ dist
 .direnv/
 
 */dist-newstyle
+
+*/.project
