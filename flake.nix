@@ -98,7 +98,7 @@
           program = "${serve-bin}/bin/serve";
         };
         devShells.default = with pkgs.haskellPackages; pkgs.mkShell {
-          nativeBuildInputs = [ ghc hpack ];
+          nativeBuildInputs = [ ghc hpack haskell-language-server ];
         };
         apps.skm = {
           type = "app";
