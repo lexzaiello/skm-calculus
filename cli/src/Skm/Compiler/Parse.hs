@@ -2,25 +2,27 @@
 
 module Skm.Compiler.Parse where
 
+import qualified Data.Text as T
 import Control.Monad
+import Data.Char (isLetter, isAlphaNum)
 import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Skm.Util.Parsing
 import qualified Skm.Compiler.Ast as Ast
-import Skm.Compiler.Ast (HumanExprCoc(..))
+import Skm.Compiler.Ast (ExprCoc, Binderless, DebruijnVar, NamedVar, Ident)
 import Text.Megaparsec
-import Text.Megaparsec.Char (alphaNumChar, char, letterChar)
+import Text.Megaparsec.Char
 
-pApp :: Parser Ast.HumanExprCoc
+pApp :: Parser (ExprCoc tBinder tVar)
 pApp = parens $ do
   exprs <- some pExpr
   pure $ foldl1 HApp exprs
 
-pComb :: Parser Ast.HumanExprCoc
+pComb :: Parser (ExprCoc tBinder tVar)
 pComb = choice
-  [ Hs <$ symbol "S"
-  , Hk <$ symbol "K"
-  , Hm <$ symbol "M"
+  [ S <$ symbol "S"
+  , K <$ symbol "K"
+  , M <$ symbol "M"
   ]
 
 pColon :: Parser ()
@@ -28,11 +30,12 @@ pColon = symbol ":" >> (pure ())
 
 pIdent :: Parser Ident
 pIdent = lexeme $ do
-  first <- letterChar <|> char '_'
-  rest <- many (alphaNumChar <|> char '_')
-  return $ (first : rest)
+  first <- satisfy isLetter <?> "identifier start (letter)"
+  rest  <- takeWhileP (Just "identifier continuation") isIdentChar
+  return $ T.cons first rest
+  where isIdentChar c = isAlphaNum c || c == '_'
 
-pTypedBinder :: Parser (String, Ast.HumanExprCoc)
+pTypedBinder :: Parser (Ident, Ast.HumanExprCoc)
 pTypedBinder = parens $ do
   _ <- sc
   binder <- pIdent
@@ -43,13 +46,13 @@ pTypedBinder = parens $ do
 
   pure (binder, ty)
 
-pUntypedBinder :: Parser String
+pUntypedBinder :: Parser Ident
 pUntypedBinder = pIdent
 
 pVar :: Parser Ast.HumanExprCoc
 pVar = HVar <$> pIdent
 
-type Binder = (String, Maybe Ast.HumanExprCoc)
+type Binder = (Ident, Maybe Ast.HumanExprCoc)
 
 pBinder :: Parser Binder
 pBinder = (try (unifyFromTyped <$> pTypedBinder) <|> (unifyFromUntyped <$> pUntypedBinder))

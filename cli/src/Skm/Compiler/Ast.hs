@@ -8,7 +8,7 @@ import Data.List (intercalate, elemIndex)
 import Text.Read (readMaybe)
 import Text.Printf
 
-type Ident       = String
+type Ident       = Text
 type NamedVar    = Ident
 type DeBruijnVar = Int
 
@@ -33,6 +33,9 @@ data ExprCoc tBinder tVar = Lam tBinder (OptionalTy $ ExprCoc tBinder tVar) Expr
   | K
   | M
   deriving (Eq, Ord)
+
+type HumanReadableExprCoc = ExprCoc NamedVar NamedVar
+type DebruijnExprCoc      = ExprCoc Binderless DebruijnVar
 
 type Ctx tBinder tVar = [ExprCoc tBinder tVar]
 
