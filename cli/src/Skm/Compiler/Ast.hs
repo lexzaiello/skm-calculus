@@ -8,106 +8,102 @@ import Data.List (intercalate, elemIndex)
 import Text.Read (readMaybe)
 import Text.Printf
 
--- Calculus of constructions expr, using 0-indexed De Bruijn Indices
--- Lambda abstractions are optionally typed. Types are inferred
--- where possible.
-data CocExpr = Lam (Maybe ExprCoc) Expr
-  | Fall (Maybe ExprCoc) Expr
-  | Var Int
+type Ident       = String
+type NamedVar    = Ident
+type DeBruijnVar = Int
+
+data Binderless = Binderless
+
+instance Show Binderless where
+  show _ = ""
+
+data OptionalTy tTy = Maybe tTy
+
+instance (Show tTy) => Show (OptionalTy tTy) where
+  show (Just t) = show t
+  show Nothing  = ""
+
+-- Calculus of constructions expr using De bruijn
+-- or named indices
+data ExprCoc tBinder tVar = Lam tBinder (OptionalTy $ ExprCoc tBinder tVar) Expr
+  | Fall binder (Maybe ExprCoc) Expr
+  | Var tVar
   | App ExprCoc ExprCoc
   | S
   | K
   | M
   deriving (Eq, Ord)
 
-type Ctx = [ExprCoc]
-type NamedContext = [String]
+type Ctx tBinder tVar = [ExprCoc tBinder tVar]
 
-data CompilationError =
-  VariableInOutput { ctx :: Ctx
-                   , i   :: Int }
-  | DebruijnFailed { ctx :: NamedContext
-                   , v   :: String }
+data CompilationError tBinder tVar =
+  DebruijnFailed { ctx  :: NamedContext
+                 , v    :: String }
+  | UnknownConst { ctx  :: ExprCoc tBinder tVar
+                 , cnst :: String }
+
+type CompilationResult = Either CompilationError a
 
 instance Show CompilationError where
   show err = (case err of
-    (VariableInOutput { ctx = ctx, i = i }) ->
-      printf "unexpected variable %s in context %s" (show i) (show ctx)
-    (DebruijnFailed   { ctx = ctx, v = v }) ->
-      printf "failed to convert human-readable variable to debruijn %s in context %s" (show i) (show ctx))
+    (DebruijnFailed { ctx = ctx, v = v }) ->
+      printf "failed to convert human-readable variable to debruijn %s in context %s" (show i) (show ctx)
+    (UnknownConst { ctx = ctx, cnst = cntx }) ->
+      printf "encountered an unknown constant %s in expr %s" cnst (show cxt))
 
 -- Convert variables under a binder to de bruijn indices
-changeVariables :: NamedContext -> HumanExprCoc -> HumanExprCoc
-changeVariables ctx (HFall binder maybeTy body) = HFall binder (doChange <$> maybeTy) (doChange body)
+changeVariables :: Ctx NamedVar -> ExprCoc NamedVar NamedVar -> CompilationResult (ExprCoc Binderless DeBruijnVar)
+changeVariables ctx (Fall binder maybeTy body) = Fall () (doChange <$> maybeTy) (doChange body)
   where doChange = changeVariables (binder : ctx)
-changeVariables ctx (HLam binder maybeTy body)  = HLam binder  (doChange <$> maybeTy) (doChange body)
+changeVariables ctx (Lam binder maybeTy body)  = Lam ()  (doChange <$> maybeTy) (doChange body)
   where doChange = changeVariables (binder : ctx)
-changeVariables ctx  (HVar v) = case elemIndex v ctx of
-  Just ix -> HVar (show ix)
-  Nothing -> HVar v
-changeVariables ctx (HApp lhs rhs) = HApp (changeVariables ctx lhs) (changeVariables ctx rhs)
-changeVariables _ e = e
+changeVariables ctx  (Var v) = case elemIndex v ctx of
+  Just ix -> pure $ Var ix
+  Nothing -> Left $ DebruijnFailed { ctx = ctx, v = v }
+changeVariables ctx (App lhs rhs) = do
+  lhs' <- changeVariables ctx lhs
+  rhs' <- changeVariables ctx rhs
 
--- Human readable, not used anywhere except for parsing purposes
-data HumanExprCoc = HLam String (Maybe HumanExprCoc) HumanExprCoc
-  | HFall String (Maybe HumanExprCoc) HumanExprCoc
-  | HVar String
-  | HApp HumanExprCoc HumanExprCoc
-  | Hs
-  | Hk
-  | Hm
-  deriving (Eq, Ord)
+  pure $ App lhs' rhs'
+changeVariables _ e = pure e
 
-data Stmt a = Def String a
+data Stmt tExpr = Def Ident tExpr
 
-instance Show HumanExprCoc where
-  show (HLam  binder (Just bindTy) body) = printf "λ (%s : %s) => %s" binder (show bindTy) (show body)
-  show (HFall binder (Just bindTy) body) = printf "∀ (%s : %s), %s"   binder (show bindTy) (show body)
-  show (HLam  binder Nothing body)       = printf "λ %s => %s"        binder (show body)
-  show (HFall binder Nothing body)       = printf "∀ %s, %s"          binder (show body)
-  show Hs                                = "S"
-  show Hk                                = "K"
-  show Hm                                = "M"
-  show (HApp lhs rhs)                    = printf "(%s %s)" (show lhs) (show rhs)
-  show (HVar v)                          = v
+type Program tStmt tBody = ([Stmt tStmt], Maybe tBody)
 
-instance Show ExprCoc where
-  show (Lam  (Just bindTy) body) = printf "λ ( : %s) => %s" (show bindTy) (show body)
-  show (Fall (Just bindTy) body) = printf "∀ ( : %s), %s"   (show bindTy) (show body)
-  show (Lam  Nothing body)       = printf "λ => %s"         (show body)
-  show (Fall Nothing body)       = printf "∀, %s"           (show body)
+instance (Show tBinder) => (Show tVar) => Show (ExprCoc tBinder tVar) where
+  show (Lam  binder (Just bindTy) body) = printf "λ (%s : %s) => %s" (show binder) (show bindTy) (show body)
+  show (Fall binder (Just bindTy) body) = printf "∀ (%s : %s), %s"   (show binder) (show bindTy) (show body)
   show S                         = "S"
   show K                         = "K"
   show M                         = "M"
   show (App lhs rhs)             = printf "(%s %s)" (show lhs) (show rhs)
-
   show (Var v)                   = show v
 
 instance (Show a) => Show (Stmt a) where
   show (Def name value) = printf "def %s := %s" name (show value)
 
-fromHumanExprCoc :: HumanExprCoc -> Either CompilationError ExprCoc
+fromHumanExprCoc :: ExprCoc NamedVar NamedVar -> CompilationResult (ExprCoc Binderless DebruijnVar)
 fromHumanExprCoc e
-  where go :: NamedContext -> Either CompilationError ExprCoc
-        go _ Hs             = pure S
-        go _ Hk             = pure K
-        go _ Hm             = pure M
-        go binders (HVar n) = maybe
-          (Right . Var)
-          (Left $ DebruijnFailed { ctx = binders
-                                 , v = n })
+  where go :: NamedContext -> CompilationResult (ExprCoc Binderless DebruijnVar)
+        go _ S             = pure S
+        go _ K             = pure K
+        go _ M             = pure M
+        go binders (Var n) = Left $ DebruijnFailed
+                               { ctx = binders
+                               , v = n })
         readMaybe n
-        go ctx (HApp lhs rhs) = do
+        go ctx (App lhs rhs) = do
           lhs' <- go ctx lhs
           rhs' <- go ctx rhs
 
           pure $ App lhs' rhs'
-        go ctx (Hlam binder maybeTy body) = do
+        go ctx (Lam binder maybeTy body) = do
           (ty', body') <- goAbstr ctx binder maybeTy body
-          pure $ HLam ty' body'
-        go ctx (HFall binder maybeTy body) = do
+          pure $ Lam Binderless ty' body'
+        go ctx (Fall binder maybeTy body) = do
           (ty', body') <- goAbstr ctx binder maybeTy body
-          pure $ HFall ty' body'
+          pure $ Fall Binderless ty' body'
         goAbstr ctx binder maybeTy body =
           let ty'   = changeVariables [binder] <$> maybeTy
               body' = changeVariables [binder] body

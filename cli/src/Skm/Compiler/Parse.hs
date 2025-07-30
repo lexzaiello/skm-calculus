@@ -26,7 +26,7 @@ pComb = choice
 pColon :: Parser ()
 pColon = symbol ":" >> (pure ())
 
-pIdent :: Parser String
+pIdent :: Parser Ident
 pIdent = lexeme $ do
   first <- letterChar <|> char '_'
   rest <- many (alphaNumChar <|> char '_')
