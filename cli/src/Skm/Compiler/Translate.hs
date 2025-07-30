@@ -1,8 +1,8 @@
 module Skm.Compiler.Translate where
 
-import Text.Printf
-import Skm.Compiler.Ast
-import qualified Skm.Ast as A
+import Text.Printf (printf)
+import Skm.Compiler.Ast (CocExpr(..))
+import Skm.Ast (SkExpr(..))
 import Skm.Compiler.Ast (Ctx, CompilationError, CompilationError(..))
 
 shiftDownFrom :: Int -> Expr -> Expr

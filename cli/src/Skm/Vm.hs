@@ -1,14 +1,12 @@
 module Skm.Vm where
 
-import Control.Monad
-import Data.Maybe (mapMaybe)
-import Data.List (uncons)
+
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
 import Control.Monad.Trans.Maybe
 import Control.Monad.State.Lazy
-import Skm.Ast
-import Skm.Eval (step, EvalConfig, EvalConfig(..), tK, tM, tS, tOut)
+import Skm.Ast (SkExpr(..))
+import Skm.Eval (EvalConfig, EvalConfig(..), tK, tM, tS, tOut)
 
 -- One-step evaluation valid reductions
 -- Not defined for left-side evaluation
@@ -37,7 +35,7 @@ data Step = KCall
 
 data Op = Lhs
   -- For normal forms
-  | Rfl Expr
+  | Rfl SkExpr
   | Memoize
   | Dup
   -- Attempts to parse out an expression into a form recognizable by eval once
@@ -48,8 +46,8 @@ data Op = Lhs
 
 type Trace    = [Op]
 type Stack    = [Op]
-type Register = [Expr]
-type Cache    = HashMap Expr Expr
+type Register = [SkExpr]
+type Cache    = HashMap SkExpr SkExpr
 
 data ExecState = ExecState
   { trace    :: Trace
@@ -64,20 +62,20 @@ data ExecError = ExecError
   }
   deriving (Show)
 
-memoize :: Expr -> Expr -> State ExecState ()
+memoize :: SkExpr -> SkExpr -> State ExecState ()
 memoize fromE toE = modify insert
   where insert (ExecState { trace = t, stack = s, register = r, cache = c }) =
           ExecState { trace = t, stack = s, register = r, cache = HM.insert fromE toE c }
 
-tryMemo :: Expr -> State ExecState (Maybe Expr)
-tryMemo e = gets $ (HM.lookup e) . cache
+tryMemo :: SkExpr -> State ExecState (Maybe SkExpr)
+tryMemo e = gets $ HM.lookup e . cache
 
 push :: Op -> State ExecState ()
 push = modify . add
   where add op (ExecState { trace = t, stack = s, register = r, cache = c }) =
           ExecState { trace = t, stack = op:s, register = r, cache = c }
 
-pushE :: Expr -> State ExecState ()
+pushE :: SkExpr -> State ExecState ()
 pushE = modify . add
   where add e (ExecState { trace = t, stack = s, register = r, cache = c }) =
           ExecState { trace = t, stack = s, register = e:r, cache = c }
@@ -85,10 +83,10 @@ pushE = modify . add
 pop :: MaybeT (State ExecState) Op
 pop = (MaybeT . state) $ \st ->
   case stack st of
-    (x:xs) -> (Just x, st { stack = xs, trace = x:(trace st) })
+    (x:xs) -> (Just x, st { stack = xs, trace = x:trace st })
     []     -> (Nothing, st)
 
-popE :: MaybeT (State ExecState) Expr
+popE :: MaybeT (State ExecState) SkExpr
 popE = (MaybeT . state) $ \st ->
   case register st of
     (x:xs) -> (Just x, st { register = xs })
@@ -97,7 +95,7 @@ popE = (MaybeT . state) $ \st ->
 pushMany :: [Op] -> State ExecState ()
 pushMany = mapM_ push
 
-mkState :: Expr -> ExecState
+mkState :: SkExpr -> ExecState
 mkState e = snd $ runState (do
     pushMany [TryStep, Rfl e]
   ) $ ExecState { trace = [], stack = [], register = [], cache = HM.fromList [] }
@@ -171,7 +169,7 @@ advance cfg = do
           (lift . pushMany) ([Memoize, Rfl e, Dup] ++ ops)
 
 -- There should be only a single expression in the register at the end of execution
-outE :: ExecState -> Expr -> Maybe Expr
+outE :: ExecState -> SkExpr -> Maybe SkExpr
 outE s e = case register s of
   [e] -> Just e
   _   -> Nothing
@@ -214,11 +212,11 @@ advanceToEnd cfg state = case stack state of
       - Memoize the register. If we ever encounter the same register twice, we are cooked.
 -}
 
-eval :: EvalConfig -> Expr -> Either ExecError (Maybe Expr)
+eval :: EvalConfig -> SkExpr -> Either ExecError (Maybe SkExpr)
 eval cfg e = (flip outE e) <$> advanceToEnd cfg s0
   where s0 = mkState e
 
-evalN :: EvalConfig -> Int -> Expr -> Either ExecError Expr
+evalN :: EvalConfig -> Int -> SkExpr -> Either ExecError SkExpr
 evalN cfg n e = case (runState . runMaybeT) (advanceN cfg n) s0 of
   (Just _, state')  -> maybe (Left $ log state') Right (outE state' e)
   (Nothing, state') -> Left $ log state'
