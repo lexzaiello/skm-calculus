@@ -1,30 +1,30 @@
 module Skm.Compiler.Translate where
 
-import Text.Printf (printf)
-import Skm.Compiler.Ast (CocExpr(..))
-import Skm.Ast (SkExpr(..))
-import Skm.Compiler.Ast (Ctx, CompilationError, CompilationError(..))
+import Skm.Ast (SkExpr (..))
+import qualified Skm.Ast as SkmAst
+import Skm.Compiler.Ast (Binderless(..), DebruijnExprCoc, ExprCoc(..), Ctx, CompilationError, CompilationError(..), CompilationResult)
+import qualified Skm.Compiler.Ast as CAst
 
-shiftDownFrom :: Int -> Expr -> Expr
+shiftDownFrom :: Int -> DebruijnExprCoc -> DebruijnExprCoc
 shiftDownFrom j (Var i)
   | i > j     = Var (i - 1)
   | otherwise = Var i
 shiftDownFrom j (App a b) = App (shiftDownFrom j a) (shiftDownFrom j b)
-shiftDownFrom j (Lam s e) = Lam s (shiftDownFrom (j + 1) e)
+shiftDownFrom j (Lam Binderless s e) = Lam Binderless s (shiftDownFrom (j + 1) e)
 shiftDownFrom _ x = x
 
-abstract :: Int -> Expr -> Expr
+abstract :: Int -> DebruijnExprCoc -> DebruijnExprCoc
 abstract j (Var i)
-  | i == j    = App (App S K) K
-  | otherwise = App K (Var (if i > j then i - 1 else i))
-abstract j (App m n) = App (App S (abstract j m)) (abstract j n)
-abstract j e         = App K (shiftDownFrom j e)
+  | i == j    = App (App CAst.S CAst.K) CAst.K
+  | otherwise = App CAst.K (Var (if i > j then i - 1 else i))
+abstract j (App m n) = App (App CAst.S (abstract j m)) (abstract j n)
+abstract j e         = App CAst.K (shiftDownFrom j e)
 
-lift :: Expr -> Either CompilationError Expr
+lift :: DebruijnExprCoc -> CompilationResult DebruijnExprCoc
 lift e = go [e] 0 e
   where
-    go :: Ctx -> Int -> Expr -> Either CompilationError Expr
-    go ctx lvl e@(Lam _ body) = do
+    go :: Ctx DebruijnExprCoc -> Int -> DebruijnExprCoc -> Either CompilationError DebruijnExprCoc
+    go ctx lvl e@(Lam Binderless _ body) = do
       body' <- go (e:ctx) (lvl + 1) body
 
       pure $ abstract lvl body'
@@ -33,24 +33,22 @@ lift e = go [e] 0 e
       rhs <- go ctx lvl x
 
       pure $ App lhs rhs
-    go ctx _ S              = pure S
-    go ctx _ K              = pure K
-    go ctx _ M              = pure M
-    go ctx _ (Var i)        = Left $ VariableInOutput { ctx = ctx
-                                                      , i = i }
+    go _ _ CAst.S           = pure CAst.S
+    go _ _ CAst.K           = pure CAst.K
+    go _ _ CAst.M           = pure CAst.M
+    go ctx _ (Var i)        = Left $ VariableInOutput { dCtx = ctx
+                                                      , dV = i }
 
-opt :: A.Expr -> A.Expr
-opt e = e
-
-optE :: Expr -> Expr
-optE e = e
-
-toSk :: Expr -> Maybe A.Expr
+toSk :: DebruijnExprCoc -> CompilationResult SkExpr
+toSk CAst.S = pure SkmAst.S
+toSk CAst.K = pure SkmAst.K
+toSk CAst.M = pure SkmAst.M
 toSk (App lhs rhs) = do
   lhs' <- toSk lhs
   rhs' <- toSk rhs
-  pure (A.Call lhs' rhs')
-toSk S = pure A.S
-toSk K = pure A.K
-toSk M = pure A.M
-toSk _ = Nothing
+
+  pure $ Call lhs' rhs'
+toSk e = (Left  . LambdaInOutput) e
+
+opt :: SkExpr -> SkExpr
+opt e = e

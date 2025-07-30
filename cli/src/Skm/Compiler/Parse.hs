@@ -8,15 +8,14 @@ import Data.Char (isLetter, isAlphaNum)
 import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Skm.Util.Parsing
-import qualified Skm.Compiler.Ast as Ast
-import Skm.Compiler.Ast (ExprCoc, Binderless, DebruijnVar, NamedVar, Ident)
+import Skm.Compiler.Ast (OptionalTy(..), Ctx, Program, Stmt(..), HumanReadableExprCoc, ExprCoc(..), Binderless, DebruijnVar, NamedVar, Ident)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 
-pApp :: Parser (ExprCoc tBinder tVar)
+pApp :: Parser HumanReadableExprCoc
 pApp = parens $ do
   exprs <- some pExpr
-  pure $ foldl1 HApp exprs
+  pure $ foldl1 App exprs
 
 pComb :: Parser (ExprCoc tBinder tVar)
 pComb = choice
@@ -26,7 +25,7 @@ pComb = choice
   ]
 
 pColon :: Parser ()
-pColon = symbol ":" >> void
+pColon = void $ symbol ":"
 
 pIdent :: Parser Ident
 pIdent = lexeme $ do
@@ -35,7 +34,7 @@ pIdent = lexeme $ do
   return $ T.cons first rest
   where isIdentChar c = isAlphaNum c || c == '_'
 
-pTypedBinder :: Parser (Ident, Ast.HumanExprCoc)
+pTypedBinder :: Parser (Ident, HumanReadableExprCoc)
 pTypedBinder = parens $ do
   _ <- sc
   binder <- pIdent
@@ -49,21 +48,21 @@ pTypedBinder = parens $ do
 pUntypedBinder :: Parser Ident
 pUntypedBinder = pIdent
 
-pVar :: Parser Ast.HumanExprCoc
-pVar = HVar <$> pIdent
+pVar :: Parser HumanReadableExprCoc
+pVar = Var <$> pIdent
 
-type Binder = (Ident, Maybe Ast.HumanExprCoc)
+type OptionallyTypedBinder = (Ident, OptionalTy HumanReadableExprCoc)
 
-pBinder :: Parser Binder
+pBinder :: Parser OptionallyTypedBinder
 pBinder = try (unifyFromTyped <$> pTypedBinder) <|> (unifyFromUntyped <$> pUntypedBinder)
   where
-    unifyFromTyped   (binderName, ty) = (binderName, Just ty)
-    unifyFromUntyped binderName       = (binderName, Nothing)
+    unifyFromTyped   (binderName, ty) = (binderName, (OptionalTy . Just) ty)
+    unifyFromUntyped binderName       = (binderName, OptionalTy Nothing)
 
-pBinders :: Parser [Binder]
+pBinders :: Parser [OptionallyTypedBinder]
 pBinders = many pBinder
 
-pFall :: Parser Ast.HumanExprCoc
+pFall :: Parser HumanReadableExprCoc
 pFall = do
   _ <- symbol "∀"
   (binder, maybeBty) <- pBinder
@@ -72,13 +71,13 @@ pFall = do
   _ <- sc
   body <- pExpr
   -- Implicitly-typed, we don't recurse for ty
-  pure (HLam binder maybeBty body)
+  pure (Lam binder maybeBty body)
 
-currify :: [Binder] -> Ast.HumanExprCoc -> Ast.HumanExprCoc
-currify ((binder, bty):xs) body = HLam binder bty (currify xs body)
+currify :: Ctx OptionallyTypedBinder -> HumanReadableExprCoc -> HumanReadableExprCoc
+currify ((binder, bty):xs) body = Lam binder bty (currify xs body)
 currify [] body   = body
 
-pLam :: Parser Ast.HumanExprCoc
+pLam :: Parser HumanReadableExprCoc
 pLam = do
   _ <- symbol "λ" <|> symbol "\\"
   binders <- pBinders
@@ -89,34 +88,22 @@ pLam = do
 
   pure (currify binders body)
 
-pExpr :: Parser Ast.HumanExprCoc
+pExpr :: Parser HumanReadableExprCoc
 pExpr = pApp <|> pComb <|> pLam <|> pFall <|> pVar <|> parens pExpr
 
-pDef :: Parser Ast.Stmt
+pDef :: Parser (Stmt HumanReadableExprCoc)
 pDef = do
   _ <- symbol "def"
   name <- pIdent
   _ <- symbol ":="
   body <- pExpr
 
-  pure $ Ast.Def name body
+  pure $ Def name body
 
-pProg :: Parser ([Ast.Stmt], Maybe Ast.HumanExprCoc)
+pProg :: Parser (Program HumanReadableExprCoc HumanReadableExprCoc)
 pProg = do
   sc
   stmts <- many pDef
   main  <- optional pExpr
 
   pure (stmts, main)
-
-inlineDefs :: [Ast.Stmt] -> Ast.HumanExprCoc -> Ast.HumanExprCoc
-inlineDefs defs (Ast.HVar ident) = fromMaybe (HVar ident) (thisDef >>= defBody)
-  where thisDef = find isDef defs
-        isDef   (Ast.Def name _) = name == ident
-        defBody (Ast.Def _ body) = Just body
-inlineDefs defs (Ast.HApp lhs rhs)         = Ast.HApp (inlineDefs defs lhs) (inlineDefs defs rhs)
-inlineDefs defs (Ast.HFall binder ty body) = Ast.HFall binder (inlineDefs defs <$> ty) (inlineDefs defs body)
-inlineDefs defs (Ast.HLam  binder ty body) = Ast.HLam  binder (inlineDefs defs <$> ty) (inlineDefs defs body)
-inlineDefs _ e = e
-
-

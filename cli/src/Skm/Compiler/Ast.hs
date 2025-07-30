@@ -44,10 +44,13 @@ type DebruijnExprCoc      = ExprCoc Binderless DebruijnVar
 type Ctx tBinder = [tBinder]
 
 data CompilationError =
-  DebruijnFailed { vCtx :: !(Ctx NamedVar)
-                 , v    :: !Ident }
-  | UnknownConst { eCtx :: !HumanReadableExprCoc
-                 , cnst :: !Ident }
+  DebruijnFailed     { vCtx :: !(Ctx NamedVar)
+                     , v    :: !Ident }
+  | UnknownConst     { eCtx :: !HumanReadableExprCoc
+                     , cnst :: !Ident }
+  | VariableInOutput { dCtx :: !(Ctx DebruijnExprCoc)
+                     , dV   :: !DebruijnVar }
+  | LambdaInOutput   { e    :: !DebruijnExprCoc }
 
 type CompilationResult a = Either CompilationError a
 
@@ -57,6 +60,10 @@ instance Show CompilationError where
       printf "failed to convert human-readable variable to debruijn %s in context %s" (show vr) (show ctx)
     (UnknownConst { eCtx = ctx, cnst = cn }) ->
       printf "encountered an unknown constant %s in expr %s" cn (show ctx)
+    (VariableInOutput { dCtx = ctx, dV = d }) ->
+      printf "couldn't lift the variable %s in context %s" (show d) (show ctx)
+    (LambdaInOutput { e = cause }) ->
+      printf "compilation produced a lambda expression in output %s" (show cause)
 
 data Stmt tExpr = Def Ident tExpr
 
