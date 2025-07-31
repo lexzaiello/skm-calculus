@@ -5,7 +5,7 @@ module Cli.Exec where
 import Control.Monad
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
-import Data.List (find)
+import Data.List (find, foldl')
 import Cli.OptParse (RawPath)
 import Skm.Parse (pExpr)
 import Skm.Eval (EvalConfig(..))
@@ -40,10 +40,17 @@ ccRawCocToSk = fromHumanExprCoc >=> lift >=> toSk
 
 ccProgramCocToSk :: Program HumanReadableExprCoc HumanReadableExprCoc -> CompilationResult SkExpr
 ccProgramCocToSk (stmts, body) = do
-  let stmts' = foldl (\acc x -> inlineStmt x : acc) [] stmts
+  let stmts' = flattenDefs stmts
   maybe (Left MissingBody) (Right . inlineCallDefsInExpr stmts') body
     >>= ccRawCocToSk
+
+flattenDefs :: [Stmt HumanReadableExprCoc] -> [Stmt HumanReadableExprCoc]
+flattenDefs stmts = foldl' (\acc x -> inlineStmt x : acc) [] stmts
   where inlineStmt (Def name body) = Def name $ inlineCallDefsInExpr stmts body
+
+flattenProgram :: Program HumanReadableExprCoc HumanReadableExprCoc -> Program HumanReadableExprCoc HumanReadableExprCoc
+flattenProgram (stmts, body) = (stmts', inlineCallDefsInExpr stmts' <$> body)
+  where stmts'  = flattenDefs stmts
 
 getStreamRawPath :: RawPath -> IO Stream
 getStreamRawPath = TIO.readFile
@@ -65,7 +72,7 @@ lookupDef stmts vr = bodyOf <$> find isMatchingDef stmts
 
 getEvalConfig :: StreamName -> Stream -> CompilationResult EvalConfig
 getEvalConfig fname s = do
-  (stmts, _)    <- parseResultToCompilationResult $ parseProgramCoc fname s
+  (stmts, _)    <- parseResultToCompilationResult (flattenProgram <$> parseProgramCoc fname s)
   arrowE        <- lookupAndCc stmts "arrow"
   tin           <- lookupAndCc stmts "t_in"
   tout          <- lookupAndCc stmts "t_out"
