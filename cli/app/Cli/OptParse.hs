@@ -73,11 +73,18 @@ parseCompileOptions = do
 
   pure $ CompileOptions { dry = fromMaybe False isDry, src = source }
 
-newtype ProveCommand = BetaEq RawPath
+newtype ProveCommand = BetaEq (RawPath, ExecConfig)
+
+parseBetaEqCommand :: Parser (RawPath, ExecConfig)
+parseBetaEqCommand = do
+  pat <- parseRawPathArg
+  eCfg <- parseExecConfig
+
+  pure (pat, eCfg)
 
 parseProveCommand :: Parser ProveCommand
 parseProveCommand = hsubparser $
-    command "beta_reduce" (info (BetaEq <$> parseRawPathArg) $ progDesc "Generate a proof of valid beta-reduction of an expression.")
+    command "beta_reduce" (info (BetaEq <$> parseBetaEqCommand) $ progDesc "Generate a proof of valid beta-reduction of an expression.")
 
 data ReplOptions = ReplOptions
   { mode    :: !EvalMode

@@ -3,6 +3,7 @@
 
 module Main where
 
+import Data.Either (fromRight)
 import Text.Printf
 import Cli.OptParse
 import Cli.Exec
@@ -44,13 +45,15 @@ doMain = do
       let e' = eval eCfg e
 
       liftIO $ print e'
-    Prove (BetaEq fromSrc) -> do
+    Prove (BetaEq (fromSrc, ExecConfig { stdPath = stdPath })) -> do
+      stdStream <- liftIO $ getStreamRawPath stdPath
+      eCfg <- (ExceptT . pure . ccResultToGenResult) $ getEvalConfig stdPath stdStream
       rawE <- liftIO $ TIO.readFile fromSrc
       e <- (ExceptT . pure . ccResultToGenResult) (parseResultToCompilationResult $ parseSk fromSrc rawE)
 
-      liftIO $ (print . snd . Proof.cc) e
+      liftIO $ (print . snd . Proof.cc eCfg) e
     Compile (CompileOptions { dry = dry, src = src }) -> do
-      rawE <- TIO.readFile src
+      rawE <- liftIO $ TIO.readFile src
       -- Dry indicates whether definitions should be collapsed into one body main expression
       -- or not.
       if not dry then do
@@ -58,29 +61,32 @@ doMain = do
           $ parseResultToCompilationResult (parseProgramCoc src rawE) >>= ccProgramCocToSk
         liftIO $ print prog
       else (do
-        (fromStmts, fromE) <- parseProgramCoc src rawE
+        (fromStmts, fromE) <- (ExceptT . pure . ccResultToGenResult . parseResultToCompilationResult) $ parseProgramCoc src rawE
 
         -- Fold all definitions such that they are inlined and compile main if it exists
-        let inlinedStmts = foldl (\acc x -> inlineStmt x : acc) [] fromStmts
-        ccStmts          <- (ExceptT . pure . ccResultToGenResult) $ mapM ccStmt inlinedStmts
-        let ccE          = inlineCallDefsInExpr ccStmts <$> fromE
+        let inlinedStmts = foldl (\acc x -> inlineStmt acc x : acc) [] fromStmts
+        ccStmts <- (ExceptT . pure . ccResultToGenResult) $ mapM ccStmt inlinedStmts
+        ccE     <- (ExceptT . pure . ccResultToGenResult . maybeEitherToEitherMaybe) $ ccRawCocToSk . inlineCallDefsInExpr inlinedStmts <$> fromE
 
         -- All compiled statements should be included
         -- but there might not be a main
-        let fmtStmts = map show inlinedStmts
+        let fmtStmts = map show ccStmts
         let fmtLines = case ccE of
                          (Just fromE') -> show fromE' : fmtStmts
                          Nothing       -> fmtStmts
 
         liftIO . putStrLn $ intercalate "\n" fmtLines)
-    Repl (ReplOptions { mode = mode, execCfg = execCfg }) -> do
-      eCfg <- (liftIO . ccResultToGenResult) $ getEvalConfig stdPath <$> getStreamRawPath stdPath
-      repl eCfg mode
-    _ -> empty)
-  where inlineStmt (Def name body) = Def name $ inlineCallDefsInExpr stmts body
+    Repl (ReplOptions { mode = mode, execCfg = ExecConfig { stdPath = stdPath} }) -> do
+      stdStream <- liftIO $ getStreamRawPath stdPath
+      eCfg <- (ExceptT . pure . ccResultToGenResult) $ getEvalConfig stdPath stdStream
+      repl eCfg mode)
+  where inlineStmt stmts (Def name body) = Def name $ inlineCallDefsInExpr stmts body
         ccStmt     (Def name body) = do
-          body' <- ccRawToSk body
-          Def name $ either body id body'
+          body' <- ccRawCocToSk body
+          pure $ Def name body'
+        maybeEitherToEitherMaybe Nothing = Right Nothing
+        maybeEitherToEitherMaybe (Just (Left e)) = Left e
+        maybeEitherToEitherMaybe (Just (Right x)) = Right (Just x)
 
 main :: IO ()
-main = void $ runMaybeT doMain
+main = void $ runExceptT doMain
