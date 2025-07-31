@@ -28,8 +28,10 @@ library
       Skm.Compiler.Parse
       Skm.Compiler.ProofGen
       Skm.Compiler.Translate
-  other-modules:
       Skm.Util.Parsing
+  other-modules:
+      Skm
+      Skm.Compiler
   hs-source-dirs:
       src
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns

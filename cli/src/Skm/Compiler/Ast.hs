@@ -38,10 +38,22 @@ data ExprCoc tBinder tVar = Lam !tBinder !(OptionalTy (ExprCoc tBinder tVar)) !(
   | M
   deriving (Eq, Ord)
 
+instance Functor (ExprCoc tBinder) where
+  fmap f (App lhs rhs) = App (fmap f lhs) (fmap f rhs)
+  fmap f (Lam binder  bindTy body) = Lam binder (fmap f <$> bindTy) (fmap f body)
+  fmap f (Fall binder bindTy body) = Fall binder (fmap f <$> bindTy) (fmap f body)
+  fmap f (Var x) = Var $ f x
+  fmap _ S = S
+  fmap _ K = K
+  fmap _ M = M
+
 type HumanReadableExprCoc = ExprCoc NamedVar NamedVar
 type DebruijnExprCoc      = ExprCoc Binderless DebruijnVar
 
 type Ctx tBinder = [tBinder]
+
+type ParseError = String
+type ParseResult a = Either ParseError a
 
 data CompilationError =
   DebruijnFailed     { vCtx :: !(Ctx NamedVar)
@@ -51,11 +63,12 @@ data CompilationError =
   | VariableInOutput { dCtx :: !(Ctx DebruijnExprCoc)
                      , dV   :: !DebruijnVar }
   | LambdaInOutput   { e    :: !DebruijnExprCoc }
+  | ParseError       { err  :: !ParseError }
 
 type CompilationResult a = Either CompilationError a
 
 instance Show CompilationError where
-  show err = case err of
+  show e = case e of
     (DebruijnFailed { vCtx = ctx, v = vr }) ->
       printf "failed to convert human-readable variable to debruijn %s in context %s" (show vr) (show ctx)
     (UnknownConst { eCtx = ctx, cnst = cn }) ->
@@ -64,8 +77,10 @@ instance Show CompilationError where
       printf "couldn't lift the variable %s in context %s" (show d) (show ctx)
     (LambdaInOutput { e = cause }) ->
       printf "compilation produced a lambda expression in output %s" (show cause)
+    p@ParseError {} ->
+      printf "parsing produced an error: %s" $ show (err p)
 
-data Stmt tExpr = Def Ident tExpr
+data Stmt tExpr = Def !Ident tExpr
 
 type Program tStmt tBody = ([Stmt tStmt], Maybe tBody)
 
