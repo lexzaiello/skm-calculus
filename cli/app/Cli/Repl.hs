@@ -8,6 +8,7 @@ import Skm.Compiler.Ast (CompilationError, parseResultToCompilationResult)
 import System.IO (stdout, hFlush)
 import Data.Text (pack)
 import Cli.Exec
+import Cli.OptParse (EvalMode(..))
 
 promptPs :: String
 promptPs = ">> "
@@ -15,21 +16,15 @@ promptPs = ">> "
 streamStdinName :: String
 streamStdinName = "<STDIN>"
 
-repl :: Maybe EvalConfig -> ExceptT CompilationError IO ()
-repl eCfg = do
+repl :: EvalConfig -> EvalMode -> ExceptT CompilationError IO ()
+repl eCfg mode = do
   liftIO $ putStr promptPs
   liftIO $ hFlush stdout
   rawE <- pack <$> liftIO getLine
 
-  e <- case eCfg of
-    Just cfg -> do
-      (stmts, maybeE) <- parseProgramCoc streamStdinName rawE
-      rawE <- hoistMaybe maybeE
-      e  <- (hoistMaybe . CocAst.parseReadableExpr) rawE
-      sk <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk <=< CocT.lift)) e
-
-      pure sk
-    Nothing -> (ExceptT . parseResultToCompilationResult) $ parseSk streamStdinName rawE
+  e <- ExceptT (case mode of
+    Lc -> parseResultToCompilationResult $ parseProgramCoc streamStdinName rawE >>= ccProgramCocToSk
+    Raw -> parseResultToCompilationResult $ parseSk streamStdinName rawE)
 
   let e' = eval eCfg e
   printEval e'

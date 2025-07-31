@@ -22,32 +22,40 @@ parseNSteps = option auto (long "n_steps"
                            <> short 'n'
                            <> help "Limit execution to a specific number of steps.")
 
--- Some commands can be run in pure SKM or lambda calculus (comp to SKM) mode
-newtype LambdaExecConfig = LambdaExecConfig { stdPath :: RawPath }
+newtype ExecConfig = ExecConfig { stdPath :: RawPath }
 
-parseLambdaExecConfig :: Parser LambdaExecConfig
-parseLambdaExecConfig = do
+parseExecConfig :: Parser ExecConfig
+parseExecConfig = do
   pathStd <- optional $
       option auto (long "std_src"
                    <> help "Sets a custom path to the standard library. Should be a directory."
                    <> metavar "PATH")
 
-  pure $ LambdaExecConfig
+  pure $ ExecConfig
     { stdPath = fromMaybe primitivesSrc pathStd }
 
+data EvalMode = Lc
+  | Raw
+
+parseEvalMode :: Parser EvalMode
+parseEvalMode = flag Raw Lc $ long "lc" <> help "Precompiles lambda calculus to SKM before evaluation."
+
 data EvalOptions = EvalOptions {
-  nSteps  :: !(Maybe StepCount)
-  , lcCfg :: !(Maybe LambdaExecConfig)
-  , src   :: !RawPath }
+  nSteps    :: !(Maybe StepCount)
+  , execCfg :: !ExecConfig
+  , mode    :: !EvalMode
+  , src     :: !RawPath }
 
 parseEvalOptions :: Parser EvalOptions
 parseEvalOptions = do
   n      <- optional parseNSteps
-  cfg    <- optional parseLambdaExecConfig
+  cfg    <- parseExecConfig
+  isLc   <- parseEvalMode
   srcPat <- parseRawPathArg
 
-  pure $ EvalOptions { nSteps = n
-                     , lcCfg = cfg
+  pure $ EvalOptions { nSteps  = n
+                     , execCfg = cfg
+                     , mode    = isLc
                      , src = srcPat }
 
 -- Dry mode puts all SK compilations inline, retaining definition names
@@ -71,17 +79,30 @@ parseProveCommand :: Parser ProveCommand
 parseProveCommand = hsubparser $
     command "beta_reduce" (info (BetaEq <$> parseRawPathArg) $ progDesc "Generate a proof of valid beta-reduction of an expression.")
 
+data ReplOptions = ReplOptions
+  { mode    :: EvalMode
+  , execCfg :: ExecConfig
+  }
+
+parseReplCommand :: Parser ReplOptions
+parseReplCommand = do
+  cfg    <- parseExecConfig
+  isLc   <- parseEvalMode
+
+  pure $ ReplOptions { mode    = isLc
+                     , execCfg = cfg }
+
 data Command = Eval !EvalOptions
   | Prove !ProveCommand
   | Compile !CompileOptions
-  | Repl !(Maybe LambdaExecConfig)
+  | Repl !ReplOptions
 
 cmdParser :: Parser Command
 cmdParser = hsubparser
-  (command     "eval"  (info (Eval    <$> parseEvalOptions)                  $ progDesc "Evaluate a compiled SKM program.")
-    <> command "build" (info (Compile <$> parseCompileOptions)               $ progDesc "Compiles a CoC program to an SKM program.")
-    <> command "prove" (info (Prove   <$> parseProveCommand)                 $ progDesc "Prove properties of a compiled SKM program, generating a Lean proof definition.")
-    <> command "repl"  (info (Repl    <$> optional parseLambdaExecConfig)    $ progDesc "Launch an interactive SKM session."))
+  (command     "eval"  (info (Eval    <$> parseEvalOptions)    $ progDesc "Evaluate a compiled SKM program.")
+    <> command "build" (info (Compile <$> parseCompileOptions) $ progDesc "Compiles a CoC program to an SKM program.")
+    <> command "prove" (info (Prove   <$> parseProveCommand)   $ progDesc "Prove properties of a compiled SKM program, generating a Lean proof definition.")
+    <> command "repl"  (info (Repl    <$> parseReplCommand)    $ progDesc "Launch an interactive SKM session."))
 
 readCommand :: IO Command
 readCommand = execParser $ info (cmdParser <**> helper) $ progDesc "Tools for building SKM applications."
