@@ -42,25 +42,22 @@ ccRawCocToSk = fromHumanExprCoc >=> toSk
 ccProgramCocToSk :: Program HumanReadableExprCoc HumanReadableExprCoc -> CompilationResult SkExpr
 ccProgramCocToSk (stmts, body) = do
   let stmts' = foldl (\acc x -> inlineStmt x : acc) [] stmts
-  maybe (Left MissingBody) Right (inlineCallDefsInExpr stmts' body)
+  maybe (Left MissingBody) (Right . inlineCallDefsInExpr stmts') body
     >>= ccRawCocToSk
   where inlineStmt (Def name body) = Def name $ inlineCallDefsInExpr stmts body
 
 getStreamRawPath :: RawPath -> IO Stream
 getStreamRawPath = TIO.readFile
 
-data NamedVarOrInlinedDef = Variable !NamedVar
-  | InlinedDef !HumanReadableExprCoc
-
 -- Converts all const function calls to inline definition calls
 -- where possible
 inlineCallDefsInExpr :: [Stmt HumanReadableExprCoc] -> HumanReadableExprCoc -> HumanReadableExprCoc
 inlineCallDefsInExpr defs = inlineDef
-  where inlineDef v@(Variable vr)    = fromMaybe v $ lookupDef defs vr
-        inlineDef (App lhs rhs)      = App  (inlineDef lhs) (inlineDef rhs)
-        inlineDef (Fall bindTy body) = Fall (inlineDef bindTy) (inlineDef body)
-        inlineDef (Lam bindTy body)  = Lam  (inlineDef bindTy) (inlineDef body)
-        inlineDef e                  = e
+  where inlineDef v@(Var vr)    = fromMaybe v $ lookupDef defs vr
+        inlineDef (App lhs rhs) = App  (inlineDef lhs) (inlineDef rhs)
+        inlineDef (Fall binder bindTy body) = Fall binder (inlineDef <$> bindTy) (inlineDef body)
+        inlineDef (Lam binder bindTy body)  = Lam binder  (inlineDef <$> bindTy) (inlineDef body)
+        inlineDef e = e
 
 lookupDef :: [Stmt HumanReadableExprCoc] -> Ident -> Maybe HumanReadableExprCoc
 lookupDef stmts vr = bodyOf <$> find isMatchingDef stmts
