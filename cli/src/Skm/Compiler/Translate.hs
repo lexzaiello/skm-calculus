@@ -33,11 +33,10 @@ lift e = go [e] 0 e
       rhs <- go ctx lvl x
 
       pure $ App lhs rhs
-    go _ _ CAst.S           = pure CAst.S
-    go _ _ CAst.K           = pure CAst.K
-    go _ _ CAst.M           = pure CAst.M
-    go ctx _ (Var i)        = Left $ VariableInOutput { dCtx = ctx
-                                                      , dV = i }
+    go _ _ CAst.S  = pure CAst.S
+    go _ _ CAst.K  = pure CAst.K
+    go _ _ CAst.M  = pure CAst.M
+    go _ _ (Var i) = pure (Var i)
 
 toSk :: DebruijnExprCoc -> CompilationResult SkExpr
 toSk CAst.S = pure SkmAst.S
