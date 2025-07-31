@@ -36,9 +36,9 @@ parseLambdaExecConfig = do
     { stdPath = fromMaybe primitivesSrc pathStd }
 
 data EvalOptions = EvalOptions {
-  nSteps  :: Maybe StepCount
-  , lcCfg :: Maybe LambdaExecConfig
-  , src   :: RawPath }
+  nSteps  :: !(Maybe StepCount)
+  , lcCfg :: !(Maybe LambdaExecConfig)
+  , src   :: !RawPath }
 
 parseEvalOptions :: Parser EvalOptions
 parseEvalOptions = do
@@ -52,8 +52,8 @@ parseEvalOptions = do
 
 -- Dry mode puts all SK compilations inline, retaining definition names
 data CompileOptions = CompileOptions
-  { dry   :: Bool
-  , src   :: RawPath }
+  { dry   :: !Bool
+  , src   :: !RawPath }
 
 parseCompileOptions :: Parser CompileOptions
 parseCompileOptions = do
@@ -71,10 +71,10 @@ parseProveCommand :: Parser ProveCommand
 parseProveCommand = hsubparser $
     command "beta_reduce" (info (BetaEq <$> parseRawPathArg) $ progDesc "Generate a proof of valid beta-reduction of an expression.")
 
-data Command = Eval EvalOptions
-  | Prove ProveCommand
-  | Compile CompileOptions
-  | Repl (Maybe LambdaExecConfig)
+data Command = Eval !EvalOptions
+  | Prove !ProveCommand
+  | Compile !CompileOptions
+  | Repl !(Maybe LambdaExecConfig)
 
 cmdParser :: Parser Command
 cmdParser = hsubparser
@@ -84,4 +84,4 @@ cmdParser = hsubparser
     <> command "repl"  (info (Repl    <$> optional parseLambdaExecConfig)    $ progDesc "Launch an interactive SKM session."))
 
 readCommand :: IO Command
-readCommand = execParser $ info (cmdParser <**> helper) $ (progDesc "Tools for building SKM applications.")
+readCommand = execParser $ info (cmdParser <**> helper) $ progDesc "Tools for building SKM applications."

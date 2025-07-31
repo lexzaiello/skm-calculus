@@ -1,27 +1,35 @@
 module Cli.Repl where
 
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Except
+import Skm.Eval (EvalConfig)
+import Skm.Vm (eval)
+import Skm.Compiler.Ast (CompilationError, parseResultToCompilationResult)
+import System.IO (stdout, hFlush)
+import Data.Text (pack)
+import Cli.Exec
+
 promptPs :: String
 promptPs = ">> "
 
 streamStdinName :: String
 streamStdinName = "<STDIN>"
 
-repl :: EvalConfig -> ReplOptions -> MaybeT IO ()
-repl eCfg opt = do
+repl :: Maybe EvalConfig -> ExceptT CompilationError IO ()
+repl eCfg = do
   liftIO $ putStr promptPs
   liftIO $ hFlush stdout
-  rawE <- pack <$> (liftIO getLine)
+  rawE <- pack <$> liftIO getLine
 
-  e <- case opt of
-    ReplOptions { rLc = True } -> do
-      (stmts, maybeE) <- parseProgCocStream streamStdinName rawE
+  e <- case eCfg of
+    Just cfg -> do
+      (stmts, maybeE) <- parseProgramCoc streamStdinName rawE
       rawE <- hoistMaybe maybeE
       e  <- (hoistMaybe . CocAst.parseReadableExpr) rawE
       sk <- (hoistMaybe . ((pure . CocT.opt) <=< CocT.toSk <=< CocT.lift)) e
 
       pure sk
-    ReplOptions { rLc = False } ->
-      parseSkStream streamStdinName rawE
+    Nothing -> (ExceptT . parseResultToCompilationResult) $ parseSk streamStdinName rawE
 
   let e' = eval eCfg e
   printEval e'

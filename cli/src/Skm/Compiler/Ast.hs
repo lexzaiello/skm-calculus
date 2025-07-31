@@ -67,6 +67,7 @@ data CompilationError =
                      , dV   :: !DebruijnVar }
   | LambdaInOutput   { e    :: !DebruijnExprCoc }
   | ParseFailure !ParseError
+  | MissingBody
 
 type CompilationResult a = Either CompilationError a
 
@@ -80,6 +81,7 @@ instance Show CompilationError where
     (LambdaInOutput { e = cause }) ->
       printf "compilation produced a lambda expression in output %s" (show cause)
     ParseFailure p -> printf "parsing produced an error: %s" p
+    MissingBody -> "program is missing body"
 
 data Stmt tExpr = Def !Ident !tExpr
 

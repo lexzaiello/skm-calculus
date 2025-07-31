@@ -2,7 +2,9 @@
 
 module Cli.Exec where
 
+import Data.Foldable (foldlM)
 import Control.Monad
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.List (find)
 import Cli.OptParse (RawPath)
@@ -22,8 +24,8 @@ type StreamName = String
 
 doParse :: Parser a -> StreamName -> Stream -> ParseResult a
 doParse parser fname stream = case parse parser fname stream of
-  Left err -> Left $ errorBundlePretty err
-  Right e  -> Right e
+  Left err  -> Left $ errorBundlePretty err
+  Right er  -> Right er
 
 parseSk :: StreamName -> Stream -> ParseResult SkExpr
 parseSk = doParse pExpr
@@ -37,6 +39,13 @@ parseExprCoc = doParse SkP.pExpr
 ccRawCocToSk :: HumanReadableExprCoc -> CompilationResult SkExpr
 ccRawCocToSk = fromHumanExprCoc >=> toSk
 
+ccProgramCocToSk :: Program HumanReadableExprCoc HumanReadableExprCoc -> CompilationResult SkExpr
+ccProgramCocToSk (stmts, body) = do
+  let stmts' = foldl (\acc x -> inlineStmt x : acc) [] stmts
+  maybe (Left MissingBody) Right (inlineCallDefsInExpr stmts' body)
+    >>= ccRawCocToSk
+  where inlineStmt (Def name body) = Def name $ inlineCallDefsInExpr stmts body
+
 getStreamRawPath :: RawPath -> IO Stream
 getStreamRawPath = TIO.readFile
 
@@ -45,9 +54,13 @@ data NamedVarOrInlinedDef = Variable !NamedVar
 
 -- Converts all const function calls to inline definition calls
 -- where possible
-inlineCallDefsInExpr :: [Stmt HumanReadableExprCoc] -> HumanReadableExprCoc -> ExprCoc NamedVar NamedVarOrInlinedDef
-inlineCallDefsInExpr defs = fmap inlineDef
-  where inlineDef vr = maybe (Variable vr) InlinedDef $ lookupDef defs vr
+inlineCallDefsInExpr :: [Stmt HumanReadableExprCoc] -> HumanReadableExprCoc -> HumanReadableExprCoc
+inlineCallDefsInExpr defs = inlineDef
+  where inlineDef v@(Variable vr)    = fromMaybe v $ lookupDef defs vr
+        inlineDef (App lhs rhs)      = App  (inlineDef lhs) (inlineDef rhs)
+        inlineDef (Fall bindTy body) = Fall (inlineDef bindTy) (inlineDef body)
+        inlineDef (Lam bindTy body)  = Lam  (inlineDef bindTy) (inlineDef body)
+        inlineDef e                  = e
 
 lookupDef :: [Stmt HumanReadableExprCoc] -> Ident -> Maybe HumanReadableExprCoc
 lookupDef stmts vr = bodyOf <$> find isMatchingDef stmts
