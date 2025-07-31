@@ -33,6 +33,9 @@ library:
     - Skm.Compiler.ProofGen
     - Skm.Compiler.Translate
     - Skm.Util.Parsing
+    - Skm.Cli.OptParse
+    - Skm.Cli.Exec
+    - Skm.Cli.Repl
 
 tests:
   spec:
@@ -44,9 +47,5 @@ tests:
 executable:
   main: Main.hs
   source-dirs: app
-  other-modules:
-    - Cli.OptParse
-    - Cli.Exec
-    - Cli.Repl
   dependencies:
     - skm

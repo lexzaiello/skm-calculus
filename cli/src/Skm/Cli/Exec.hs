@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Cli.Exec where
+module Skm.Cli.Exec where
 
 import Control.Monad
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.List (find, foldl')
-import Cli.OptParse (RawPath)
+import Skm.Cli.OptParse (RawPath)
 import Skm.Parse (pExpr)
 import Skm.Eval (EvalConfig(..))
 import Skm.Util.Parsing (Parser)

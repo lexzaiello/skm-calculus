@@ -1,4 +1,4 @@
-module Cli.Repl where
+module Skm.Cli.Repl where
 
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except
@@ -8,8 +8,8 @@ import Skm (Error, ccResultToGenResult, execResultToGenResult)
 import Skm.Compiler.Ast (CompilationError, parseResultToCompilationResult)
 import System.IO (stdout, hFlush)
 import Data.Text (pack)
-import Cli.Exec
-import Cli.OptParse (EvalMode(..))
+import Skm.Cli.Exec
+import Skm.Cli.OptParse (EvalMode(..))
 
 promptPs :: String
 promptPs = ">> "

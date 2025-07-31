@@ -1,7 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ApplicativeDo #-}
 
-module Cli.OptParse where
+module Skm.Cli.OptParse where
 
 import Data.Maybe (fromMaybe)
 import Options.Applicative

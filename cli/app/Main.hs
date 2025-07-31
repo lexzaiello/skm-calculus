@@ -3,9 +3,9 @@
 
 module Main where
 
-import Cli.OptParse
-import Cli.Exec
-import Cli.Repl (repl)
+import Skm.Cli.OptParse
+import Skm.Cli.Exec
+import Skm.Cli.Repl (repl)
 import qualified Data.Text.IO as TIO
 import Control.Monad.Trans.Except
 import Control.Monad.IO.Class
