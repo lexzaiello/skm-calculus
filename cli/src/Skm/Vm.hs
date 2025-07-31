@@ -13,6 +13,8 @@ import Skm.Eval (ReductionMode(..), EvalConfig, EvalConfig(..), tK, tM, tS, tOut
 data Step = KCall
   | SCall
   | MCall
+  | ICall
+  | BCall
   | Ms
   | Mk
   | Mm
@@ -119,6 +121,16 @@ advance cfg = do
 
       (lift . pushMany) $ [Rfl (Call lhs rhs)]
     Rfl e -> (lift . pushE) e
+    EvalOnce ICall -> do
+      x <- popE
+
+      (lift . pushMany) [TryStep, Rfl x]
+    EvalOnce BCall -> do
+      f <- popE
+      g <- popE
+      x <- popE
+
+      (lift . pushMany) [TryStep, Rfl (Call f (Call g x))]
     EvalOnce KCall -> do
       x <- popE
 
@@ -153,7 +165,8 @@ advance cfg = do
           (lift . push) $ Rfl e'
         Nothing -> do
           ops <- (case e of
-            
+            (Call (Call (Call S (Call K f)) g) x) -> (pure [EvalOnce BCall, Rfl f, Rfl g, Rfl x])
+            (Call (Call (Call S K) K) x) -> (pure [EvalOnce ICall, Rfl x])
             (Call (Call K x) y) -> (pure [EvalOnce KCall, Rfl x])
             (Call (Call (Call S x) y) z) -> (pure [EvalOnce SCall, Rfl x, Rfl y, Rfl z])
             (Call M K) -> (pure [EvalOnce Mk])
