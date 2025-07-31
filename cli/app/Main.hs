@@ -3,29 +3,17 @@
 
 module Main where
 
-import Data.Either (fromRight)
-import Text.Printf
 import Cli.OptParse
 import Cli.Exec
 import Cli.Repl (repl)
-import Data.Text (Text, pack)
 import qualified Data.Text.IO as TIO
 import Control.Monad.Trans.Except
-import Data.Maybe (fromMaybe, catMaybes)
 import Control.Monad
-import Control.Monad.Trans.Maybe
 import Control.Monad.IO.Class
-import System.IO (putStrLn, putStr, hPutStrLn, stdout, stderr, hFlush, getLine)
-import System.Exit (exitWith, ExitCode(ExitFailure))
 import Skm (ccResultToGenResult, Error)
-import Skm.Ast
 import Skm.Vm
-import Skm.Eval (EvalConfig, EvalConfig(..))
 import qualified Skm.Compiler.ProofGen as Proof
-import qualified Skm.Compiler.Translate as CocT
-import Skm.Compiler.Ast (Stmt(..), CompilationError, parseResultToCompilationResult)
-import Skm.Parse (pExpr)
-import Options.Applicative
+import Skm.Compiler.Ast (Stmt(..), parseResultToCompilationResult)
 import Data.List (intercalate)
 
 doMain :: ExceptT Error IO ()
