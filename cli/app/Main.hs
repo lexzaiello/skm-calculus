@@ -81,5 +81,5 @@ main = do
   e <- runExceptT doMain
 
   case e of
-    Left e  -> hPrint stderr (show e)
+    Left e  -> hPrint stderr e
     Right _ -> pure ()

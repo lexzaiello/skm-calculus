@@ -2,7 +2,6 @@
 
 module Cli.Exec where
 
-import Data.Foldable (foldlM)
 import Control.Monad
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
@@ -14,7 +13,7 @@ import Skm.Util.Parsing (Parser)
 import Skm.Ast (SkExpr)
 import Skm.Compiler.Ast (CompilationError(..), parseResultToCompilationResult, NamedVar, ParseResult, HumanReadableExprCoc, fromHumanExprCoc, Ident, CompilationResult, Stmt(..), Program, fromHumanExprCoc, ExprCoc(..))
 import Skm.Compiler.Parse (pProg)
-import Skm.Compiler.Translate (toSk)
+import Skm.Compiler.Translate (toSk, lift)
 import qualified Skm.Compiler.Parse as SkP
 import Text.Megaparsec (parse, errorBundlePretty)
 import Data.Text.IO as TIO
@@ -37,7 +36,7 @@ parseExprCoc :: StreamName -> Stream -> ParseResult HumanReadableExprCoc
 parseExprCoc = doParse SkP.pExpr
 
 ccRawCocToSk :: HumanReadableExprCoc -> CompilationResult SkExpr
-ccRawCocToSk = fromHumanExprCoc >=> toSk
+ccRawCocToSk = fromHumanExprCoc >=> lift >=> toSk
 
 ccProgramCocToSk :: Program HumanReadableExprCoc HumanReadableExprCoc -> CompilationResult SkExpr
 ccProgramCocToSk (stmts, body) = do
