@@ -37,7 +37,7 @@ def zero := λ f g => g
 def succ := λ n f x => (f (n f x))
 def one  := (succ zero)
 
-(M zero)
+(M one)
 #+END_SRC
 
 #+BEGIN_SRC lean
@@ -45,7 +45,18 @@ def zero := λ f g => g
 def succ := λ n f x => (f (n f x))
 def one  := (succ zero)
 
-(M one)
+(M (succ zero))
 #+END_SRC
 
 These two programs output the same expression.
+
+Type of =M= (try this out):
+
+#+BEGIN_SRC lean
+>> (M M)
+#+END_SRC
+
+#+BEGIN_SRC lean
+>> (M (M M))
+#+END_SRC
+
