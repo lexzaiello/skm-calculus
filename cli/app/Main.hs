@@ -4,8 +4,10 @@
 
 module Main where
 
+import Control.Monad.Trans.Except
 import Text.Printf
 import Cli.OptParse
+import Cli.Exec
 import Data.List (find)
 import Data.Text (Text, pack)
 import Control.Monad.Trans.Except
@@ -29,18 +31,20 @@ import qualified Data.Text.IO as T
 import Data.List (intercalate)
 import Text.Megaparsec (parse, errorBundlePretty)
 
-doMain :: MaybeT IO ()
+doMain :: ExceptT CompilationError IO ()
 doMain = do
-  cmd  <- liftIO $ readCommand
+  cmd  <- liftIO readCommand
 
   case cmd of
-    Eval (EvalOptions { nSteps = n, src = src, lcCfg = lcCfg }) -> do
-      e <- (if lc then ccLc else readExpr) src
-      let e' = case n of
-            Just n -> Just <$> (evalN prim n e)
-            Nothing -> eval prim e
+    Eval (EvalOptions { nSteps = n, src = src, exeCfg = ExecConfig { stdPath }, mode = mode }) -> do
+      eCfg <- getStreamRawPath stdPath >>= getEvalConfig stdPath
+      e <- (ExceptT . pure) (case mode of
+        Lc  -> parseResultToCompilationResult (parseProgramCoc streamStdinName rawE) >>= ccProgramCocToSk
+        Raw -> parseResultToCompilationResult $ parseSk streamStdinName rawE)
 
-      printEval e'
+      let e' = eval eCfg e
+
+      liftIO $ print e'
     Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc }) ->
       ((Proof.serialize . snd . Proof.cc) <$> readExpr fromSrc) >>= emit
     Compile (CompileOptions { ccSrc = src, dry = dry }) ->
