@@ -16,7 +16,7 @@ import Skm.Cli.OptParse (RawPath)
 
 -- TODO: Better way to do this with Nix
 primitives :: Text
-primitives = "def arrow := λ a b f => ((f a) b)\ndef t_in  := λ a b => a\ndef t_out := λ a b => b\ndef t_k   := λ a => (arrow (M a) (λ b => (arrow (M b) (M a))))\ndef t_s   := λ x => (arrow (M x) (λ y => (arrow (M y) (λ z => (arrow (M z) (M ((x z) (y z))))))))\ndef t_m   := λ e => (arrow (M e) (M (M e)))"
+primitives = "def arrow := λ a b f => ((f a) b)\ndef t_in  := λ a b => a\ndef t_out := λ a b => b\ndef t_k   := λ a => (arrow (M a) (λ b => (arrow (M b) (M a))))\ndef t_s   := λ x => (arrow (M x) (λ y => (arrow (M y) (λ z => (arrow (M z) (M ((x z) (y z))))))))\ndef t_m   := λ e => (arrow (M e) (M (M e)))\ndef t_i   := λ e => (arrow (M e) (M e))"
 
 type TestM = ExceptT String IO
 

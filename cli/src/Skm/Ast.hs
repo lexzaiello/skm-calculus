@@ -8,7 +8,7 @@ import Data.Hashable
 data SkExpr = S
   | K
   | M
-  | Call SkExpr SkExpr
+  | Call !SkExpr !SkExpr
   deriving (Eq, Generic)
 
 instance Show SkExpr where

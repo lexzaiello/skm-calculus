@@ -37,6 +37,7 @@ data ExprCoc tBinder tVar = Lam !tBinder !(OptionalTy (ExprCoc tBinder tVar)) !(
   | S
   | K
   | M
+  | I
   deriving (Eq, Ord)
 
 instance Functor (ExprCoc tBinder) where
@@ -47,6 +48,7 @@ instance Functor (ExprCoc tBinder) where
   fmap _ S = S
   fmap _ K = K
   fmap _ M = M
+  fmap _ I = I
 
 type HumanReadableExprCoc = ExprCoc NamedVar NamedVar
 type DebruijnExprCoc      = ExprCoc Binderless DebruijnVar
@@ -96,6 +98,7 @@ instance (Show tBinder, Show tVar) => Show (ExprCoc tBinder tVar) where
   show S                         = "S"
   show K                         = "K"
   show M                         = "M"
+  show I                         = "I"
   show (App lhs rhs)             = printf "(%s %s)" (show lhs) (show rhs)
   show (Var x)                   = show x
 

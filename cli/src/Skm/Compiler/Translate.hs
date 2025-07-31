@@ -102,4 +102,7 @@ toSk (App lhs rhs) = do
 toSk e = (Left  . LambdaInOutput) e
 
 opt :: SkExpr -> SkExpr
+opt (Call (Call SkmAst.S (Call SkmAst.K p)) (Call SkmAst.K q)) = Call SkmAst.K (Call p q)
+opt (Call lhs rhs) = Call (opt lhs) (opt rhs)
+
 opt e = e

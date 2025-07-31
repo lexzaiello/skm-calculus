@@ -153,6 +153,7 @@ advance cfg = do
           (lift . push) $ Rfl e'
         Nothing -> do
           ops <- (case e of
+            
             (Call (Call K x) y) -> (pure [EvalOnce KCall, Rfl x])
             (Call (Call (Call S x) y) z) -> (pure [EvalOnce SCall, Rfl x, Rfl y, Rfl z])
             (Call M K) -> (pure [EvalOnce Mk])
