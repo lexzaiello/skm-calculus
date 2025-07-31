@@ -3,6 +3,7 @@
 
 module Skm.Cli.OptParse where
 
+import Skm.Eval (ReductionMode(..))
 import Data.Maybe (fromMaybe)
 import Options.Applicative
 
@@ -37,6 +38,9 @@ parseExecConfig = do
 data EvalMode = Lc
   | Raw
 
+parseReductionMode :: Parser ReductionMode
+parseReductionMode = flag Lazy Strict $ long "strict" <> help "Uses the call-by-value reduction strategy."
+
 parseEvalMode :: Parser EvalMode
 parseEvalMode = flag Raw Lc $ long "lc" <> help "Precompiles lambda calculus to SKM before evaluation."
 
@@ -44,19 +48,22 @@ data EvalOptions = EvalOptions {
   nSteps    :: !(Maybe StepCount)
   , execCfg :: !ExecConfig
   , mode    :: !EvalMode
-  , src     :: !RawPath }
+  , src     :: !RawPath
+  , redMode :: !ReductionMode }
 
 parseEvalOptions :: Parser EvalOptions
 parseEvalOptions = do
   n      <- optional parseNSteps
   cfg    <- parseExecConfig
   isLc   <- parseEvalMode
+  redMod <- parseReductionMode
   srcPat <- parseRawPathArg
 
   pure $ EvalOptions { nSteps  = n
                      , execCfg = cfg
                      , mode    = isLc
-                     , src = srcPat }
+                     , src = srcPat
+                     , redMode = redMod }
 
 -- Dry mode puts all SK compilations inline, retaining definition names
 data CompileOptions = CompileOptions
@@ -73,31 +80,27 @@ parseCompileOptions = do
 
   pure $ CompileOptions { dry = fromMaybe False isDry, src = source }
 
-newtype ProveCommand = BetaEq (RawPath, ExecConfig)
-
-parseBetaEqCommand :: Parser (RawPath, ExecConfig)
-parseBetaEqCommand = do
-  pat <- parseRawPathArg
-  eCfg <- parseExecConfig
-
-  pure (pat, eCfg)
+newtype ProveCommand = BetaEq EvalOptions
 
 parseProveCommand :: Parser ProveCommand
 parseProveCommand = hsubparser $
-    command "beta_reduce" (info (BetaEq <$> parseBetaEqCommand) $ progDesc "Generate a proof of valid beta-reduction of an expression.")
+    command "beta_reduce" (info (BetaEq <$> parseEvalOptions) $ progDesc "Generate a proof of valid beta-reduction of an expression.")
 
 data ReplOptions = ReplOptions
   { mode    :: !EvalMode
   , execCfg :: !ExecConfig
+  , redMode :: !ReductionMode
   }
 
 parseReplCommand :: Parser ReplOptions
 parseReplCommand = do
   cfg    <- parseExecConfig
   isLc   <- parseEvalMode
+  redMod <- parseReductionMode
 
   pure $ ReplOptions { mode    = isLc
-                     , execCfg = cfg }
+                     , execCfg = cfg
+                     , redMode = redMod }
 
 data Command = Eval !EvalOptions
   | Prove !ProveCommand

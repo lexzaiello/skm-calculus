@@ -6,9 +6,9 @@ import Control.Monad
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.List (find, foldl')
-import Skm.Cli.OptParse (RawPath)
+import Skm.Cli.OptParse (RawPath, EvalOptions, EvalOptions(redMode))
 import Skm.Parse (pExpr)
-import Skm.Eval (EvalConfig(..))
+import Skm.Eval (ReductionMode, EvalConfig(..))
 import Skm.Util.Parsing (Parser)
 import Skm.Ast (SkExpr)
 import Skm.Compiler.Ast (CompilationError(..), parseResultToCompilationResult, NamedVar, ParseResult, HumanReadableExprCoc, fromHumanExprCoc, Ident, CompilationResult, Stmt(..), Program, fromHumanExprCoc, ExprCoc(..))
@@ -70,8 +70,8 @@ lookupDef stmts vr = bodyOf <$> find isMatchingDef stmts
   where isMatchingDef (Def name _) = vr == name
         bodyOf (Def _ body) = body
 
-getEvalConfig :: StreamName -> Stream -> CompilationResult EvalConfig
-getEvalConfig fname s = do
+getEvalConfig :: ReductionMode -> StreamName -> Stream -> CompilationResult EvalConfig
+getEvalConfig mode fname s = do
   (stmts, _)    <- parseResultToCompilationResult (flattenProgram <$> parseProgramCoc fname s)
   arrowE        <- lookupAndCc stmts "arrow"
   tin           <- lookupAndCc stmts "t_in"
@@ -86,6 +86,7 @@ getEvalConfig fname s = do
     , tK    = tk
     , tS    = ts
     , tM    = tm
-    , arrow = arrowE }
+    , arrow = arrowE
+    , mode  = mode }
   where lookupAndCc stmts name =
           maybe (Left $ UnknownConst name) Right (lookupDef stmts name) >>= ccRawCocToSk

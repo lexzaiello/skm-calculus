@@ -21,9 +21,9 @@ doMain = do
   cmd  <- liftIO readCommand
 
   (case cmd of
-    (Eval (EvalOptions { nSteps = n, src = src, execCfg = ExecConfig { stdPath = stdPath }, mode = mode })) -> do
+    (Eval o@(EvalOptions { nSteps = n, src = src, execCfg = ExecConfig { stdPath = stdPath }, mode = mode, redMode = m })) -> do
       stdStream <- liftIO $ getStreamRawPath stdPath
-      eCfg <- (ExceptT . pure . ccResultToGenResult) $ getEvalConfig stdPath stdStream
+      eCfg <- (ExceptT . pure . ccResultToGenResult) $ getEvalConfig m stdPath stdStream
       rawE <- liftIO $ TIO.readFile src
       let parsed = case mode of
                      Lc  -> parseResultToCompilationResult (parseProgramCoc src rawE) >>= ccProgramCocToSk
@@ -37,11 +37,11 @@ doMain = do
           liftIO $ print e'
         Nothing ->
           pure ()
-    Prove (BetaEq (fromSrc, ExecConfig { stdPath = stdPath })) -> do
+    Prove (BetaEq o@(EvalOptions { src = src, execCfg = ExecConfig { stdPath = stdPath }, mode = mode, redMode = m })) -> do
       stdStream <- liftIO $ getStreamRawPath stdPath
-      eCfg <- (ExceptT . pure . ccResultToGenResult) $ getEvalConfig stdPath stdStream
-      rawE <- liftIO $ TIO.readFile fromSrc
-      e <- (ExceptT . pure . ccResultToGenResult) (parseResultToCompilationResult $ parseSk fromSrc rawE)
+      eCfg <- (ExceptT . pure . ccResultToGenResult) $ getEvalConfig m stdPath stdStream
+      rawE <- liftIO $ TIO.readFile src
+      e <- (ExceptT . pure . ccResultToGenResult) (parseResultToCompilationResult $ parseSk src rawE)
 
       liftIO $ (print . snd . Proof.cc eCfg) e
     Compile (CompileOptions { dry = dry, src = src }) -> do
@@ -68,9 +68,9 @@ doMain = do
                          Nothing       -> fmtStmts
 
         liftIO . putStrLn $ intercalate "\n" fmtLines)
-    Repl (ReplOptions { mode = mode, execCfg = ExecConfig { stdPath = stdPath} }) -> do
+    Repl (ReplOptions { mode = mode, execCfg = ExecConfig { stdPath = stdPath}, redMode = m }) -> do
       stdStream <- liftIO $ getStreamRawPath stdPath
-      eCfg <- (ExceptT . pure . ccResultToGenResult) $ getEvalConfig stdPath stdStream
+      eCfg <- (ExceptT . pure . ccResultToGenResult) $ getEvalConfig m stdPath stdStream
       repl eCfg mode)
   where inlineStmt stmts (Def name body) = Def name $ inlineCallDefsInExpr stmts body
         ccStmt     (Def name body) = do

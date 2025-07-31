@@ -3,13 +3,17 @@ module Skm.Eval where
 import Skm.Ast (SkExpr(..))
 import Data.Maybe (fromMaybe)
 
+data ReductionMode = Lazy
+  | Strict
+
 data EvalConfig = EvalConfig
-  { tIn   :: !SkExpr
-  , tOut  :: !SkExpr
-  , tK    :: !SkExpr
-  , tS    :: !SkExpr
-  , tM    :: !SkExpr
-  , arrow :: !SkExpr
+  { tIn    :: !SkExpr
+  , tOut   :: !SkExpr
+  , tK     :: !SkExpr
+  , tS     :: !SkExpr
+  , tM     :: !SkExpr
+  , arrow  :: !SkExpr
+  , mode   :: !ReductionMode
   }
 
 step :: EvalConfig -> SkExpr -> Maybe SkExpr

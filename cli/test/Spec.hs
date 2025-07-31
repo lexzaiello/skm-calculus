@@ -7,7 +7,7 @@ import Data.Text (Text)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except
 import Test.Hspec
-import Skm.Eval (EvalConfig)
+import Skm.Eval (EvalConfig, ReductionMode(..))
 import Skm.Vm (eval)
 import Skm (Error(..))
 import Skm.Compiler.Ast (CompilationError(..))
@@ -44,7 +44,7 @@ doTest m = do
 getCfg :: TestM EvalConfig
 getCfg = do
   let stdStream = primitives
-  ExceptT $ fmap stringifyErr (pure $ getEvalConfig "" stdStream)
+  ExceptT $ fmap stringifyErr (pure $ getEvalConfig Lazy "" stdStream)
 
 testExprEval :: RawExpr -> Maybe String -> TestM ()
 testExprEval input expected = do
