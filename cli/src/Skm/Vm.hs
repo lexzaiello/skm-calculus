@@ -17,6 +17,7 @@ data Step = KCall
   | BCall
   | B0Call
   | CCall
+  | S'Call
   | Ms
   | Mk
   | Mm
@@ -143,6 +144,13 @@ advance cfg = do
       x <- popE
 
       (lift . pushMany) [TryStep, Rfl (Call (Call f x) g)]
+    EvalOnce S'Call -> do
+      c <-popE
+      f <- popE
+      g <- popE
+      x <- popE
+
+      (lift . pushMany) [TryStep, Rfl (Call (Call c (Call f x)) (Call g x))]
     EvalOnce KCall -> do
       x <- popE
 
@@ -177,6 +185,8 @@ advance cfg = do
           (lift . push) $ Rfl e'
         Nothing -> do
           ops <- (case e of
+            -- S' c f g x -> c (f x) (g x)
+            (Call (Call (Call S (Call (Call S (Call K c)) f)) g) x) -> (pure [EvalOnce S'Call, Rfl c, Rfl f, Rfl g, Rfl x])
             -- C f g x -> f x g
             (Call (Call (Call S f) (Call K g)) x) -> (pure [EvalOnce CCall, Rfl f, Rfl g, Rfl x])
             -- B p i -> p
