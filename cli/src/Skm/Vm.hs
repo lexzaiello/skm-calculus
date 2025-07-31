@@ -62,6 +62,7 @@ data ExecError = ExecError
   , err         :: ExecError
   }
   | EmptyStack
+  | NoResult
   deriving (Show)
 
 memoize :: SkExpr -> SkExpr -> State ExecState ()
@@ -234,7 +235,8 @@ reduceAll cfg = do
 
 eval :: EvalConfig -> SkExpr -> Either ExecError (Maybe SkExpr)
 eval cfg e     = do
-  sFinal <- advanceToEnd cfg s0
+  let (e, sFinal) = runState (runExceptT $ advanceToEnd cfg) s0
+  e
   let eFinal = outE sFinal
   case eFinal of
     Just e'  ->
@@ -257,11 +259,12 @@ eval cfg e     = do
         wasNoop s            = length (filter isEval $ trace s) == 0
 
 evalN :: EvalConfig -> Int -> SkExpr -> Either ExecError SkExpr
-evalN cfg n e = case (runState . runMaybeT) (advanceN cfg n) s0 of
-  (Just _, state')  -> maybe (Left $ log state') Right (outE state')
-  (Nothing, state') -> Left $ log state'
-  where s0   = mkState e
-        log s = ExecError { offendingOp = (case trace s of
-                                             op:_ -> Just op
-                                             _ -> Nothing)
-                          , stackTrace = s }
+evalN cfg n e = do
+  let (e, sFinal) = runState (runExceptT $ advanceN cfg n) s0
+  e
+  case outE sFinal of
+    Just e  -> pure e
+    Nothing -> Left $ ExecError { offendingOp = Nothing,
+                                  stackTrace = sFinal,
+                                  err = NoResult }
+  where s0 = mkState e
