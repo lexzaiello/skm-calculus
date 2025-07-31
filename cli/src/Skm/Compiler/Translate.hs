@@ -27,7 +27,7 @@ lift e = go [e] 0 e
     go ctx lvl e@(Lam Binderless _ body) = do
       body' <- go (e:ctx) (lvl + 1) body
 
-      pure $ abstract lvl body'
+      pure $ abstract 0 body'
     go ctx lvl (App f x)    = do
       lhs <- go ctx lvl f
       rhs <- go ctx lvl x

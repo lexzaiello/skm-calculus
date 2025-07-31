@@ -1,6 +1,5 @@
 module Skm.Vm where
 
-
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
 import Control.Monad.Trans.Maybe
@@ -169,8 +168,8 @@ advance cfg = do
           (lift . pushMany) ([Memoize, Rfl e, Dup] ++ ops)
 
 -- There should be only a single expression in the register at the end of execution
-outE :: ExecState -> SkExpr -> Maybe SkExpr
-outE s e = case register s of
+outE :: ExecState -> Maybe SkExpr
+outE s = case register s of
   [e] -> Just e
   _   -> Nothing
 
@@ -213,12 +212,12 @@ advanceToEnd cfg state = case stack state of
 -}
 
 eval :: EvalConfig -> SkExpr -> Either ExecError (Maybe SkExpr)
-eval cfg e = (flip outE e) <$> advanceToEnd cfg s0
+eval cfg e = outE <$> advanceToEnd cfg s0
   where s0 = mkState e
 
 evalN :: EvalConfig -> Int -> SkExpr -> Either ExecError SkExpr
 evalN cfg n e = case (runState . runMaybeT) (advanceN cfg n) s0 of
-  (Just _, state')  -> maybe (Left $ log state') Right (outE state' e)
+  (Just _, state')  -> maybe (Left $ log state') Right (outE state')
   (Nothing, state') -> Left $ log state'
   where s0   = mkState e
         log s = ExecError { offendingOp = (case trace s of
