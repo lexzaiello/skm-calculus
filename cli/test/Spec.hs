@@ -2,6 +2,7 @@
 
 module Main where
 
+import Control.Applicative ((<|>))
 import Data.Text (Text)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except
@@ -15,6 +16,9 @@ import Skm.Cli.OptParse (RawPath)
 
 primitivesSrc :: RawPath
 primitivesSrc = "../std/PrimitiveTypes.skm"
+
+primitivesSrcBackup :: RawPath
+primitivesSrcBackup = "./std/PrimitiveTypes.skm"
 
 type TestM = ExceptT String IO
 
@@ -41,7 +45,7 @@ doTest m = do
 
 getCfg :: TestM EvalConfig
 getCfg = do
-  stdStream <- liftIO $ getStreamRawPath primitivesSrc
+  stdStream <- liftIO $ (getStreamRawPath primitivesSrc) <|> (getStreamRawPath primitivesSrcBackup)
   ExceptT $ fmap stringifyErr (pure $ getEvalConfig primitivesSrc stdStream)
 
 testExprEval :: RawExpr -> Maybe String -> TestM ()
