@@ -18,7 +18,7 @@ primitivesSrc :: RawPath
 primitivesSrc = "../std/PrimitiveTypes.skm"
 
 primitivesSrcBackup :: RawPath
-primitivesSrcBackup = "./std/PrimitiveTypes.skm"
+primitivesSrcBackup = "std/PrimitiveTypes.skm"
 
 type TestM = ExceptT String IO
 
