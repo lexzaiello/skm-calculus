@@ -55,3 +55,7 @@ main :: IO ()
 main = hspec $ do
   describe "SKM E2E tests" $ do
     it "compiles and evaluates identity function correctly" $ doTest (testExprEval "((\\x => x) K)" (Just "K"))
+    it "compiles and evaluates a boolean correctly" $ doTest $ do
+      testExprEval "((\\a b => a) K S)" (Just "K")
+      testExprEval "((\\a b => b) K S)" (Just "S")
+      testExprEval "((\\a b c => c) K K S)" (Just "S")
