@@ -12,6 +12,7 @@
         overlays = [
           haskellNix.overlay
           (final: _prev: {
+            
             # This overlay adds our project to pkgs
             skm-cli = final.haskell-nix.project' {
               src = ./cli;

@@ -39,7 +39,8 @@ library
       src
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
-      base
+      array ==0.5.8.0
+    , base
     , containers
     , hashable
     , hspec
@@ -57,7 +58,8 @@ executable skm
       app
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
-      base
+      array ==0.5.8.0
+    , base
     , containers
     , hashable
     , hspec
@@ -77,7 +79,8 @@ test-suite spec
       test
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
-      base
+      array ==0.5.8.0
+    , base
     , containers
     , hashable
     , hspec
