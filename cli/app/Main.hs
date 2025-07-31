@@ -6,6 +6,7 @@ module Main where
 import Text.Printf
 import Cli.OptParse
 import Cli.Exec
+import Cli.Repl (repl)
 import Data.Text (Text, pack)
 import qualified Data.Text.IO as TIO
 import Control.Monad.Trans.Except
@@ -32,18 +33,22 @@ doMain = do
 
   (case cmd of
     (Eval (EvalOptions { nSteps = n, src = src, execCfg = ExecConfig { stdPath = stdPath }, mode = mode })) -> do
-      eCfg <- liftIO $ getEvalConfig stdPath <$> getStreamRawPath stdPath
-      rawE <- TIO.readFile src
+      stdStream <- liftIO $ getStreamRawPath stdPath
+      eCfg <- (ExceptT . pure . ccResultToGenResult) $ getEvalConfig stdPath stdStream
+      rawE <- liftIO $ TIO.readFile src
       let parsed = case mode of
                      Lc  -> parseResultToCompilationResult (parseProgramCoc src rawE) >>= ccProgramCocToSk
-                     Raw -> parseResultToCompilationResult $ parseSk streamStdinName rawE
-      e <- ExceptT . pure . ccResultToGenResult =<< parsed
+                     Raw -> parseResultToCompilationResult $ parseSk src rawE
+      e <- ExceptT . pure . ccResultToGenResult $ parsed
 
       let e' = eval eCfg e
 
       liftIO $ print e'
-    Prove (BetaEq fromSrc) ->
-      (show . snd . Proof.cc) readExpr fromSrc >>= emit
+    Prove (BetaEq fromSrc) -> do
+      rawE <- liftIO $ TIO.readFile fromSrc
+      e <- (ExceptT . pure . ccResultToGenResult) (parseResultToCompilationResult $ parseSk fromSrc rawE)
+
+      liftIO $ (print . snd . Proof.cc) e
     Compile (CompileOptions { dry = dry, src = src }) -> do
       rawE <- TIO.readFile src
       -- Dry indicates whether definitions should be collapsed into one body main expression
@@ -53,11 +58,11 @@ doMain = do
           $ parseResultToCompilationResult (parseProgramCoc src rawE) >>= ccProgramCocToSk
         liftIO $ print prog
       else (do
-        (fromStmts, fromE) <- parseProgramCoc streamStdinName rawE
+        (fromStmts, fromE) <- parseProgramCoc src rawE
 
         -- Fold all definitions such that they are inlined and compile main if it exists
         let inlinedStmts = foldl (\acc x -> inlineStmt x : acc) [] fromStmts
-        let ccStmts      = map ccStmt inlinedStmts
+        ccStmts          <- (ExceptT . pure . ccResultToGenResult) $ mapM ccStmt inlinedStmts
         let ccE          = inlineCallDefsInExpr ccStmts <$> fromE
 
         -- All compiled statements should be included
@@ -68,7 +73,9 @@ doMain = do
                          Nothing       -> fmtStmts
 
         liftIO . putStrLn $ intercalate "\n" fmtLines)
-    Repl opts -> repl prim opts
+    Repl (ReplOptions { mode = mode, execCfg = execCfg }) -> do
+      eCfg <- (liftIO . ccResultToGenResult) $ getEvalConfig stdPath <$> getStreamRawPath stdPath
+      repl eCfg mode
     _ -> empty)
   where inlineStmt (Def name body) = Def name $ inlineCallDefsInExpr stmts body
         ccStmt     (Def name body) = do

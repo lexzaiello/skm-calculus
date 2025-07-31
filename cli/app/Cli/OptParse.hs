@@ -80,8 +80,8 @@ parseProveCommand = hsubparser $
     command "beta_reduce" (info (BetaEq <$> parseRawPathArg) $ progDesc "Generate a proof of valid beta-reduction of an expression.")
 
 data ReplOptions = ReplOptions
-  { mode    :: EvalMode
-  , execCfg :: ExecConfig
+  { mode    :: !EvalMode
+  , execCfg :: !ExecConfig
   }
 
 parseReplCommand :: Parser ReplOptions
