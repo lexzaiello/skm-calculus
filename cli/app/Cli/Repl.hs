@@ -22,11 +22,11 @@ repl eCfg mode = do
   liftIO $ hFlush stdout
   rawE <- pack <$> liftIO getLine
 
-  e <- ExceptT (case mode of
-    Lc -> parseResultToCompilationResult $ parseProgramCoc streamStdinName rawE >>= ccProgramCocToSk
+  e <- (ExceptT . pure) (case mode of
+    Lc -> parseResultToCompilationResult (parseProgramCoc streamStdinName rawE) >>= ccProgramCocToSk
     Raw -> parseResultToCompilationResult $ parseSk streamStdinName rawE)
 
   let e' = eval eCfg e
-  printEval e'
+  liftIO $ print e'
 
-  repl eCfg opt
+  repl eCfg mode
