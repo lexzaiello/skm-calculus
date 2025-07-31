@@ -11,7 +11,7 @@ To jump right in, check out the =skm= command-line tool in =./cli=. This tool al
 To enter into an interactive shell, use:
 
 #+BEGIN_SRC bash
-nix run .#skm repl
+nix run .#skm repl -- --lc
 #+END_SRC
 
 Optionally use the =--lc= flag to enable precompilation from lambda calculus to SKM.
@@ -30,20 +30,20 @@ Other commands include:
 
 ** Example
 
-Dependent Church nuemrals can be encoded in *SKM* using a simple translation algorithm from the untyped lambda calculus. Types are inferred. See the =LcSkmEtaUntyped.lean= file for more:
+Dependent Church nuemrals can be encoded in *SKM* using a simple translation algorithm from the untyped lambda calculus. Types are inferred. See the =LcSkmEtaUntyped.lean= file and =examples/church.skm= for more:
 
 #+BEGIN_SRC lean
 def zero := λ f g => g
-def one  := λ f g => (f g)
-def succ := λ x y z => (y (x y z))
+def succ := λ n f x => (f (n f x))
+def one  := (succ zero)
 
 (M zero)
 #+END_SRC
 
 #+BEGIN_SRC lean
 def zero := λ f g => g
-def one  := λ f g => (f g)
-def succ := λ x y z => (y (x y z))
+def succ := λ n f x => (f (n f x))
+def one  := (succ zero)
 
 (M one)
 #+END_SRC

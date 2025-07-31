@@ -1,5 +1,5 @@
 def zero := λ f g => g
-def one  := λ f g => (f g)
 def succ := λ n f x => (f (n f x))
+def one  := (succ zero)
 
 (M one)
