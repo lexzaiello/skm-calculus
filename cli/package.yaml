@@ -33,6 +33,11 @@ library:
     - Skm.Compiler.Translate
     - Skm.Util.Parsing
 
+tests:
+  spec:
+    main:        Spec.hs
+    source-dirs: test
+
 executable:
   main: Main.hs
   source-dirs: app
