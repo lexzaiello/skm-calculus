@@ -1,79 +1,79 @@
-{-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ApplicativeDo              #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module Main where
 
-import Control.Monad.Trans.Except
 import Text.Printf
 import Cli.OptParse
 import Cli.Exec
-import Data.List (find)
 import Data.Text (Text, pack)
+import qualified Data.Text.IO as TIO
 import Control.Monad.Trans.Except
 import Data.Maybe (fromMaybe, catMaybes)
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import Control.Monad.IO.Class
-import System.IO (putStr, hPutStrLn, stdout, stderr, hFlush, getLine)
+import System.IO (putStrLn, putStr, hPutStrLn, stdout, stderr, hFlush, getLine)
 import System.Exit (exitWith, ExitCode(ExitFailure))
+import Skm (ccResultToGenResult, Error)
 import Skm.Ast
 import Skm.Vm
 import Skm.Eval (EvalConfig, EvalConfig(..))
 import qualified Skm.Compiler.ProofGen as Proof
-import qualified Skm.Compiler.Ast as CocAst
-import qualified Skm.Compiler.Parse as CocP
 import qualified Skm.Compiler.Translate as CocT
-import Skm.Compiler.Ast (CompilationError)
+import Skm.Compiler.Ast (Stmt(..), CompilationError, parseResultToCompilationResult)
 import Skm.Parse (pExpr)
 import Options.Applicative
-import qualified Data.Text.IO as T
 import Data.List (intercalate)
-import Text.Megaparsec (parse, errorBundlePretty)
 
-doMain :: ExceptT CompilationError IO ()
+doMain :: ExceptT Error IO ()
 doMain = do
   cmd  <- liftIO readCommand
 
-  case cmd of
-    Eval (EvalOptions { nSteps = n, src = src, exeCfg = ExecConfig { stdPath }, mode = mode }) -> do
-      eCfg <- getStreamRawPath stdPath >>= getEvalConfig stdPath
-      e <- (ExceptT . pure) (case mode of
-        Lc  -> parseResultToCompilationResult (parseProgramCoc streamStdinName rawE) >>= ccProgramCocToSk
-        Raw -> parseResultToCompilationResult $ parseSk streamStdinName rawE)
+  (case cmd of
+    (Eval (EvalOptions { nSteps = n, src = src, execCfg = ExecConfig { stdPath = stdPath }, mode = mode })) -> do
+      eCfg <- liftIO $ getEvalConfig stdPath <$> getStreamRawPath stdPath
+      rawE <- TIO.readFile src
+      let parsed = case mode of
+                     Lc  -> parseResultToCompilationResult (parseProgramCoc src rawE) >>= ccProgramCocToSk
+                     Raw -> parseResultToCompilationResult $ parseSk streamStdinName rawE
+      e <- ExceptT . pure . ccResultToGenResult =<< parsed
 
       let e' = eval eCfg e
 
       liftIO $ print e'
-    Prove (BetaEq BetaEqOptions { bFromSrc = fromSrc }) ->
-      ((Proof.serialize . snd . Proof.cc) <$> readExpr fromSrc) >>= emit
-    Compile (CompileOptions { ccSrc = src, dry = dry }) ->
+    Prove (BetaEq fromSrc) ->
+      (show . snd . Proof.cc) readExpr fromSrc >>= emit
+    Compile (CompileOptions { dry = dry, src = src }) -> do
+      rawE <- TIO.readFile src
       -- Dry indicates whether definitions should be collapsed into one body main expression
       -- or not.
-      if not dry then
-        ccLc src >>= (emit . show)
+      if not dry then do
+        prog <- (ExceptT . pure . ccResultToGenResult)
+          $ parseResultToCompilationResult (parseProgramCoc src rawE) >>= ccProgramCocToSk
+        liftIO $ print prog
       else (do
-        (fromStmts, fromE) <- readProgCoc src
+        (fromStmts, fromE) <- parseProgramCoc streamStdinName rawE
 
         -- Fold all definitions such that they are inlined and compile main if it exists
-        inlinedStmts       <- mapM (unwrapCompError . ccInline) fromStmts
-        let ccE            = (((fmap (unwrapCompError . CocT.lift)) . CocAst.parseReadableExpr) <$> fromE)
+        let inlinedStmts = foldl (\acc x -> inlineStmt x : acc) [] fromStmts
+        let ccStmts      = map ccStmt inlinedStmts
+        let ccE          = inlineCallDefsInExpr ccStmts <$> fromE
 
         -- All compiled statements should be included
         -- but there might not be a main
         let fmtStmts = map show inlinedStmts
         let fmtLines = case ccE of
-                         (Just fromE') -> (show fromE') : fmtStmts
+                         (Just fromE') -> show fromE' : fmtStmts
                          Nothing       -> fmtStmts
 
-        emit $ intercalate "\n" fmtLines)
+        liftIO . putStrLn $ intercalate "\n" fmtLines)
     Repl opts -> repl prim opts
-    _ -> empty
-  where ccLc = readExprCoc
-          >=> (hoistMaybe . CocAst.parseReadableExpr)
-          >=> (unwrapCompError . CocT.lift)
-          >=> (hoistMaybe . (fmap CocT.opt) . CocT.toSk)
-        emit = liftIO . putStrLn
+    _ -> empty)
+  where inlineStmt (Def name body) = Def name $ inlineCallDefsInExpr stmts body
+        ccStmt     (Def name body) = do
+          body' <- ccRawToSk body
+          Def name $ either body id body'
 
 main :: IO ()
-main = runMaybeT doMain >> (pure ())
+main = void $ runMaybeT doMain

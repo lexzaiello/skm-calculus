@@ -20,6 +20,7 @@ source-repository head
 
 library
   exposed-modules:
+      Skm
       Skm.Ast
       Skm.Eval
       Skm.Vm
@@ -30,7 +31,6 @@ library
       Skm.Compiler.Translate
       Skm.Util.Parsing
   other-modules:
-      Skm
       Skm.Compiler
   hs-source-dirs:
       src

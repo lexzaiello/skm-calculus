@@ -22,6 +22,7 @@ dependencies:
 library:
   source-dirs: src
   exposed-modules:
+    - Skm
     - Skm.Ast
     - Skm.Eval
     - Skm.Vm
