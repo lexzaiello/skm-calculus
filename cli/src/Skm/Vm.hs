@@ -6,7 +6,7 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Except
 import Control.Monad.State.Lazy
 import Skm.Ast (SkExpr(..))
-import Skm.Eval (EvalConfig, EvalConfig(..), tK, tM, tS, tOut)
+import Skm.Eval (ReductionMode(..), EvalConfig, EvalConfig(..), tK, tM, tS, tOut)
 
 -- One-step evaluation valid reductions
 -- Not defined for left-side evaluation
@@ -242,13 +242,13 @@ eval cfg e     = do
     Just e'  ->
       if wasNoop sFinal then
         -- Try the right hand side evaluation path
-        case e' of
-          Call lhs rhs -> do
+        case (e', mode cfg) of
+          ((Call lhs rhs), Strict) -> do
             lhs' <- eval cfg lhs
             rhs' <- eval cfg lhs
 
             eval cfg $ Call lhs rhs
-          e' ->
+          (e', _) ->
             pure $ Just e'
       else
         eval cfg e'

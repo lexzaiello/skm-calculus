@@ -5,6 +5,7 @@ import Data.Maybe (fromMaybe)
 
 data ReductionMode = Lazy
   | Strict
+  deriving (Eq)
 
 data EvalConfig = EvalConfig
   { tIn    :: !SkExpr
