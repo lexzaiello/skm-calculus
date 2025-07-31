@@ -8,8 +8,8 @@ import Cli.Exec
 import Cli.Repl (repl)
 import qualified Data.Text.IO as TIO
 import Control.Monad.Trans.Except
-import Control.Monad
 import Control.Monad.IO.Class
+import System.IO (hPrint, stderr)
 import Skm (ccResultToGenResult, Error)
 import Skm.Vm
 import qualified Skm.Compiler.ProofGen as Proof
@@ -77,4 +77,9 @@ doMain = do
         maybeEitherToEitherMaybe (Just (Right x)) = Right (Just x)
 
 main :: IO ()
-main = void $ runExceptT doMain
+main = do
+  e <- runExceptT doMain
+
+  case e of
+    Left e  -> hPrint stderr (show e)
+    Right _ -> pure ()
