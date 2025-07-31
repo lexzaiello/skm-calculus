@@ -3,6 +3,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Skm.Compiler.Ast where
 
@@ -55,43 +56,46 @@ type Ctx tBinder = [tBinder]
 type ParseError = String
 type ParseResult a = Either ParseError a
 
+parseResultToCompilationResult :: ParseResult a -> CompilationResult a
+parseResultToCompilationResult = either (Left . ParseFailure) Right
+
 data CompilationError =
   DebruijnFailed     { vCtx :: !(Ctx NamedVar)
                      , v    :: !Ident }
-  | UnknownConst     { eCtx :: !HumanReadableExprCoc
-                     , cnst :: !Ident }
+  | UnknownConst !Ident
   | VariableInOutput { dCtx :: !(Ctx DebruijnExprCoc)
                      , dV   :: !DebruijnVar }
   | LambdaInOutput   { e    :: !DebruijnExprCoc }
-  | ParseError       { err  :: !ParseError }
+  | ParseFailure !ParseError
 
 type CompilationResult a = Either CompilationError a
 
 instance Show CompilationError where
-  show e = case e of
+  show = \case
     (DebruijnFailed { vCtx = ctx, v = vr }) ->
       printf "failed to convert human-readable variable to debruijn %s in context %s" (show vr) (show ctx)
-    (UnknownConst { eCtx = ctx, cnst = cn }) ->
-      printf "encountered an unknown constant %s in expr %s" cn (show ctx)
+    (UnknownConst cn) -> printf "encountered an unknown constant %s" cn
     (VariableInOutput { dCtx = ctx, dV = d }) ->
       printf "couldn't lift the variable %s in context %s" (show d) (show ctx)
     (LambdaInOutput { e = cause }) ->
       printf "compilation produced a lambda expression in output %s" (show cause)
-    p@ParseError {} ->
-      printf "parsing produced an error: %s" $ show (err p)
+    ParseFailure p -> printf "parsing produced an error: %s" p
 
-data Stmt tExpr = Def !Ident tExpr
+data Stmt tExpr = Def !Ident !tExpr
+
+defBody :: Stmt tExpr -> Maybe tExpr
+defBody (Def _ bdy) = Just bdy
 
 type Program tStmt tBody = ([Stmt tStmt], Maybe tBody)
 
 instance (Show tBinder, Show tVar) => Show (ExprCoc tBinder tVar) where
-  show (Lam  binder (OptionalTy (Just bindTy)) body) = printf "λ (%s : %s) => %s" (show binder) (show bindTy) (show body)
-  show (Fall binder (OptionalTy (Just bindTy)) body) = printf "∀ (%s : %s), %s"   (show binder) (show bindTy) (show body)
+  show (Lam  binder bindTy body) = printf "λ (%s : %s) => %s" (show binder) (show bindTy) (show body)
+  show (Fall binder bindTy body) = printf "∀ (%s : %s), %s"   (show binder) (show bindTy) (show body)
   show S                         = "S"
   show K                         = "K"
   show M                         = "M"
   show (App lhs rhs)             = printf "(%s %s)" (show lhs) (show rhs)
-  show (Var v)                   = show v
+  show (Var x)                   = show x
 
 instance (Show a) => Show (Stmt a) where
   show (Def name value) = printf "def %s := %s" name (show value)
@@ -108,9 +112,9 @@ changeVariables ctx (Lam binder maybeTy body) = do
 
   pure $ Lam Binderless (maybeTy >>= (either (const $ OptionalTy Nothing) (OptionalTy . Just) . doChange)) body'
   where doChange = changeVariables (binder : ctx)
-changeVariables ctx  (Var v) = case elemIndex v ctx of
+changeVariables ctx  (Var x) = case elemIndex x ctx of
   Just ix -> pure $ Var ix
-  Nothing -> Left $ DebruijnFailed { vCtx = ctx, v = v }
+  Nothing -> Left $ DebruijnFailed { vCtx = ctx, v = x }
 changeVariables ctx (App lhs rhs) = do
   lhs' <- changeVariables ctx lhs
   rhs' <- changeVariables ctx rhs

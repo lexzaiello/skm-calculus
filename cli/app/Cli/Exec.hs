@@ -4,13 +4,13 @@ module Cli.Exec where
 
 import Control.Monad
 import Data.Text (Text)
+import Data.List (find)
 import Cli.OptParse (RawPath)
 import Skm.Parse (pExpr)
-import Skm.Eval (EvalConfig)
-import Skm.Ast as SkAst
+import Skm.Eval (EvalConfig(..))
 import Skm.Util.Parsing (Parser)
 import Skm.Ast (SkExpr)
-import Skm.Compiler.Ast (ParseResult, ParseError, HumanReadableExprCoc, fromHumanExprCoc, Ident, CompilationError, CompilationResult, Stmt(..), Program, fromHumanExprCoc, ExprCoc)
+import Skm.Compiler.Ast (CompilationError(..), parseResultToCompilationResult, NamedVar, ParseResult, HumanReadableExprCoc, fromHumanExprCoc, Ident, CompilationResult, Stmt(..), Program, fromHumanExprCoc, ExprCoc(..))
 import Skm.Compiler.Parse (pProg)
 import Skm.Compiler.Translate (toSk)
 import qualified Skm.Compiler.Parse as SkP
@@ -40,18 +40,36 @@ ccRawCocToSk = fromHumanExprCoc >=> toSk
 getStreamRawPath :: RawPath -> IO Stream
 getStreamRawPath = TIO.readFile
 
--- Converts all const fn calls to inline calls of the corresponding definition
-inlineCallDefsIn :: [Stmt HumanReadableExprCoc] -> HumanReadableExprCoc -> CompilationResult HumanReadableExprCoc
-inlineCallDefsIn defs (App lhs rhs) = do
-  lhs' <- inlineCallDefsIn defs lhs
-  rhs' <- inlineCallDefsIn defs lhs
+data NamedVarOrInlinedDef = Variable !NamedVar
+  | InlinedDef !HumanReadableExprCoc
 
-  pure $ App lhs' rhs'
-inlineCallDefsIn e = case e of
+-- Converts all const function calls to inline definition calls
+-- where possible
+inlineCallDefsInExpr :: [Stmt HumanReadableExprCoc] -> HumanReadableExprCoc -> ExprCoc NamedVar NamedVarOrInlinedDef
+inlineCallDefsInExpr defs = fmap inlineDef
+  where inlineDef vr = maybe (Variable vr) InlinedDef $ lookupDef defs vr
 
-  where doInlineAbstr bindTy body = do
-          bindTy' <- inlineCallDefsIn 
+lookupDef :: [Stmt HumanReadableExprCoc] -> Ident -> Maybe HumanReadableExprCoc
+lookupDef stmts vr = bodyOf <$> find isMatchingDef stmts
+  where isMatchingDef (Def name _) = vr == name
+        bodyOf (Def _ body) = body
 
-getEvalConfig :: StreamName -> Stream -> ComplationResult EvalConfig
-getEvalConfig fname s = parseProgramCoc fname s
-                          >>= 
+getEvalConfig :: StreamName -> Stream -> CompilationResult EvalConfig
+getEvalConfig fname s = do
+  (stmts, _)    <- parseResultToCompilationResult $ parseProgramCoc fname s
+  arrowE        <- lookupAndCc stmts "arrow"
+  tin           <- lookupAndCc stmts "t_in"
+  tout          <- lookupAndCc stmts "t_out"
+  tk            <- lookupAndCc stmts "t_k"
+  ts            <- lookupAndCc stmts "t_s"
+  tm            <- lookupAndCc stmts "t_m"
+
+  pure $ EvalConfig
+    { tIn   = tin
+    , tOut  = tout
+    , tK    = tk
+    , tS    = ts
+    , tM    = tm
+    , arrow = arrowE }
+  where lookupAndCc stmts name =
+          maybe (Left $ UnknownConst name) Right (lookupDef stmts name) >>= ccRawCocToSk
