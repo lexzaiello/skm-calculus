@@ -3,6 +3,7 @@ module Skm.Vm where
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
 import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Except
 import Control.Monad.State.Lazy
 import Skm.Ast (SkExpr(..))
 import Skm.Eval (EvalConfig, EvalConfig(..), tK, tM, tS, tOut)
@@ -58,7 +59,9 @@ data ExecState = ExecState
 data ExecError = ExecError
   { offendingOp :: Maybe Op
   , stackTrace  :: ExecState
+  , err         :: ExecError
   }
+  | EmptyStack
   deriving (Show)
 
 memoize :: SkExpr -> SkExpr -> State ExecState ()
@@ -79,17 +82,17 @@ pushE = modify . add
   where add e (ExecState { trace = t, stack = s, register = r, cache = c }) =
           ExecState { trace = t, stack = s, register = e:r, cache = c }
 
-pop :: MaybeT (State ExecState) Op
-pop = (MaybeT . state) $ \st ->
+pop :: ExceptT ExecError (State ExecState) Op
+pop = (ExceptT . state) $ \st ->
   case stack st of
-    (x:xs) -> (Just x, st { stack = xs, trace = x:trace st })
-    []     -> (Nothing, st)
+    (x:xs) -> (pure x, st { stack = xs, trace = x:trace st })
+    []     -> (Left EmptyStack, st)
 
-popE :: MaybeT (State ExecState) SkExpr
-popE = (MaybeT . state) $ \st ->
+popE :: ExceptT ExecError (State ExecState) SkExpr
+popE = (ExceptT . state) $ \st ->
   case register st of
-    (x:xs) -> (Just x, st { register = xs })
-    []     -> (Nothing, st)
+    (x:xs) -> (pure x, st { register = xs })
+    []     -> (Left EmptyStack, st)
 
 pushMany :: [Op] -> State ExecState ()
 pushMany = mapM_ push
@@ -99,7 +102,7 @@ mkState e = snd $ runState (do
     pushMany [TryStep, Rfl e]
   ) $ ExecState { trace = [], stack = [], register = [], cache = HM.fromList [] }
 
-advance :: EvalConfig -> MaybeT (State ExecState) ()
+advance :: EvalConfig -> ExceptT ExecError (State ExecState) ()
 advance cfg = do
   o <- pop
 
@@ -174,18 +177,35 @@ outE s = case register s of
   [e] -> Just e
   _   -> Nothing
 
-advanceN :: EvalConfig -> Int -> MaybeT (State ExecState) ()
+advanceN :: EvalConfig -> Int -> ExceptT ExecError (State ExecState) ()
 advanceN cfg n
   | n <= 0 = pure ()
   | otherwise = advance cfg >> advanceN cfg (n - 1)
 
-advanceToEnd :: EvalConfig -> ExecState -> Either ExecError ExecState
-advanceToEnd cfg state = case stack state of
-  op:ops ->
-    case (runState . runMaybeT) (advance cfg) state of
-      (Just _, state')  -> advanceToEnd cfg state'
-      (Nothing, state') -> Left $ ExecError { offendingOp = Just op, stackTrace = state' }
-  _ -> Right state
+advanceToEnd :: EvalConfig -> ExceptT ExecError (State ExecState) ExecState
+advanceToEnd cfg = do
+  stk <- lift $ gets stack
+  case stk of
+    [] -> lift get
+    op:_ -> do
+      res <- withExceptT (\e -> ExecError { offendingOp = Just op, stackTrace = undefined, err = e }) $
+               advance cfg
+      advanceToEnd cfg
+
+reduceAll :: EvalConfig -> ExceptT ExecError (State ExecState) ExecState
+reduceAll cfg = do
+  s' <- advanceToEnd cfg
+  if wasNoop s' then
+    pure s'
+  else
+    case outE s' of
+      Just c@(Call lhs rhs) -> do
+        (lift . pushMany) [TryStep, Rfl c]
+        reduceAll cfg
+      Nothing -> pure s'
+  where isEval  (EvalOnce _) = True
+        isEval  _            = False
+        wasNoop s            = length (filter isEval $ trace s) == 0
 
 {- Sample execution:
    (((K K) K) (K K)) = (K (K K))
