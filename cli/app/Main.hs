@@ -10,7 +10,7 @@ import qualified Data.Text.IO as TIO
 import Control.Monad.Trans.Except
 import Control.Monad.IO.Class
 import System.IO (hPrint, stderr)
-import Skm (ccResultToGenResult, Error)
+import Skm (ccResultToGenResult, execResultToGenResult, Error)
 import Skm.Vm
 import qualified Skm.Compiler.ProofGen as Proof
 import Skm.Compiler.Ast (Stmt(..), parseResultToCompilationResult)
@@ -28,11 +28,15 @@ doMain = do
       let parsed = case mode of
                      Lc  -> parseResultToCompilationResult (parseProgramCoc src rawE) >>= ccProgramCocToSk
                      Raw -> parseResultToCompilationResult $ parseSk src rawE
+
       e <- ExceptT . pure . ccResultToGenResult $ parsed
+      e' <- (ExceptT . pure . execResultToGenResult) $ eval eCfg e
 
-      let e' = eval eCfg e
-
-      liftIO $ print e'
+      case e' of
+        Just e' ->
+          liftIO $ print e'
+        Nothing ->
+          pure ()
     Prove (BetaEq (fromSrc, ExecConfig { stdPath = stdPath })) -> do
       stdStream <- liftIO $ getStreamRawPath stdPath
       eCfg <- (ExceptT . pure . ccResultToGenResult) $ getEvalConfig stdPath stdStream

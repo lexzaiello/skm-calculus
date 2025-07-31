@@ -27,7 +27,12 @@ repl eCfg mode = do
     Lc -> parseResultToCompilationResult (parseProgramCoc streamStdinName rawE) >>= ccProgramCocToSk
     Raw -> parseResultToCompilationResult $ parseSk streamStdinName rawE)
 
-  let e' = execResultToGenResult $ eval eCfg e
-  liftIO $ print e'
+  e' <- (ExceptT . pure . execResultToGenResult) $ eval eCfg e
+
+  case e' of
+    Just e' ->
+      liftIO $ print e'
+    Nothing ->
+      pure ()
 
   repl eCfg mode
