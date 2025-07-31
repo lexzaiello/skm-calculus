@@ -15,7 +15,7 @@
             # This overlay adds our project to pkgs
             skm-cli = final.haskell-nix.project' {
               src = ./cli;
-              compiler-nix-name = "ghc96";
+              compiler-nix-name = "ghc983";
               # This is used by `nix develop .` to open a shell for use with
               # `cabal`, `hlint` and `haskell-language-server`
               shell.tools = {
