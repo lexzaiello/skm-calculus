@@ -85,6 +85,7 @@ test-suite spec
     , megaparsec ==9.7.0
     , mtl ==2.3.1
     , optparse-applicative ==0.18.1.0
+    , skm
     , text >=2.0.0
     , transformers >=0.6.0.0
     , unordered-containers ==0.2.20

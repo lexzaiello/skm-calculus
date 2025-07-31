@@ -38,6 +38,8 @@ tests:
   spec:
     main:        Spec.hs
     source-dirs: test
+    dependencies:
+      - skm
 
 executable:
   main: Main.hs
