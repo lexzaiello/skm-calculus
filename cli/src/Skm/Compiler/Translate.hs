@@ -24,12 +24,8 @@ abstract :: Int -> DebruijnExprCoc -> DebruijnExprCoc
 abstract j (Var i)
   | i == j    = App (App CAst.S CAst.K) CAst.K
   | otherwise = App CAst.K (Var (if i > j then i - 1 else i))
-abstract j e@(App m n)
-  | allSk e = e
-  | otherwise = App (App CAst.S (abstract j m)) (abstract j n)
-abstract j e
-  | allSk e   = e
-  | otherwise = App CAst.K (shiftDownFrom j e)
+abstract j e@(App m n) = App (App CAst.S (abstract j m)) (abstract j n)
+abstract j e         = App CAst.K (shiftDownFrom j e)
 
 lift :: DebruijnExprCoc -> CompilationResult DebruijnExprCoc
 lift e = go [e] 0 e
