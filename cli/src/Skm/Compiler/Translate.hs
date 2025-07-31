@@ -5,6 +5,13 @@ import qualified Skm.Ast as SkmAst
 import Skm.Compiler.Ast (Binderless(..), DebruijnExprCoc, ExprCoc(..), Ctx, CompilationError, CompilationError(..), CompilationResult)
 import qualified Skm.Compiler.Ast as CAst
 
+allSk :: DebruijnExprCoc -> Bool
+allSk CAst.S = True
+allSk CAst.K = True
+allSk CAst.M = True
+allSk (App lhs rhs) = allSk lhs && allSk rhs
+allSk _ = False
+
 shiftDownFrom :: Int -> DebruijnExprCoc -> DebruijnExprCoc
 shiftDownFrom j (Var i)
   | i > j     = Var (i - 1)
@@ -17,8 +24,12 @@ abstract :: Int -> DebruijnExprCoc -> DebruijnExprCoc
 abstract j (Var i)
   | i == j    = App (App CAst.S CAst.K) CAst.K
   | otherwise = App CAst.K (Var (if i > j then i - 1 else i))
-abstract j (App m n) = App (App CAst.S (abstract j m)) (abstract j n)
-abstract j e         = App CAst.K (shiftDownFrom j e)
+abstract j e@(App m n)
+  | allSk e = e
+  | otherwise = App (App CAst.S (abstract j m)) (abstract j n)
+abstract j e
+  | allSk e   = e
+  | otherwise = App CAst.K (shiftDownFrom j e)
 
 lift :: DebruijnExprCoc -> CompilationResult DebruijnExprCoc
 lift e = go [e] 0 e
