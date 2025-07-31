@@ -161,17 +161,9 @@ advance cfg = do
 
               case lhs' of
                 Just lhs' ->
-                  case rhs' of
-                    Just rhs' ->
-                      pure [TryStep, Memoize, Rfl e, Dup, Lhs, Rfl lhs, Rfl rhs]
-                    Nothing ->
-                      pure [TryStep, Memoize, Rfl e, Dup, TryStep, Lhs, Rfl lhs, TryStep, Rfl rhs]
+                  pure [TryStep, Memoize, Rfl e, Dup, Lhs, Rfl lhs, Rfl rhs]
                 Nothing ->
-                  case rhs' of
-                    Just rhs' ->
-                      pure [TryStep, Memoize, Rfl e, Dup, TryStep, Lhs, TryStep, Rfl lhs, Rfl rhs]
-                    Nothing ->
-                      pure [TryStep, Memoize, Rfl e, Dup, TryStep, Lhs, TryStep, Rfl lhs, TryStep, Rfl rhs])
+                  pure [TryStep, Memoize, Rfl e, Dup, TryStep, Lhs, TryStep, Rfl lhs, Rfl rhs])
             x -> (pure [Rfl x]))
 
           (lift . pushMany) ([Memoize, Rfl e, Dup] ++ ops)
@@ -227,7 +219,15 @@ eval cfg e     = do
   case eFinal of
     Just e'  ->
       if wasNoop sFinal then
-        pure $ Just e'
+        -- Try the right hand side evaluation path
+        case e' of
+          Call lhs rhs -> do
+            lhs' <- eval cfg lhs
+            rhs' <- eval cfg lhs
+
+            eval cfg $ Call lhs rhs
+          e' ->
+            pure $ Just e'
       else
         eval cfg e'
     Nothing -> Right Nothing
