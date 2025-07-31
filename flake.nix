@@ -4,11 +4,36 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    haskellNix.url = "github:input-output-hk/haskell.nix";
   };
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, haskellNix }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        overlays = [
+          haskellNix.overlay
+          (final: _prev: {
+            # This overlay adds our project to pkgs
+            skm-cli = final.haskell-nix.project' {
+              src = ./cli;
+              compiler-nix-name = "ghc96";
+              # This is used by `nix develop .` to open a shell for use with
+              # `cabal`, `hlint` and `haskell-language-server`
+              shell.tools = {
+                cabal = { };
+                # hlint = {};
+                haskell-language-server = {};
+              };
+              # Non-Haskell shell tools go here
+              shell.buildInputs = with pkgs; [ nixpkgs-fmt ];
+              # This adds `js-unknown-ghcjs-cabal` to the shell.
+              # shell.crossPlatforms = p: [p.ghcjs];
+            };
+          })
+        ];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+          inherit (haskellNix) config;
+        };
         booktoml = ''
           [book]
           title = "The Dependently-Typed SK(M) Calculus"
@@ -39,7 +64,9 @@
               ${md}/bin/md < $file > $file.md
             done
             find . -type f -name "*.org" | while read -r file; do
-              ${pkgs.pandoc}/bin/pandoc --lua-filter=${./scripts/fixinlinelatexorg.lua} -s $file -o $file.md
+              ${pkgs.pandoc}/bin/pandoc --lua-filter=${
+                ./scripts/fixinlinelatexorg.lua
+              } -s $file -o $file.md
             done
           '';
           installPhase = ''
@@ -49,13 +76,14 @@
             done
           '';
         };
-        skm-cli = pkgs.haskellPackages.developPackage {
-          root = ./cli;
+        flake = pkgs.skm-cli.flake {
+          # This adds support for `nix build .#js-unknown-ghcjs:hello:exe:hello`
+          # crossPlatforms = p: [p.ghcjs];
         };
-      in rec {
+      in flake // rec {
         packages.md = md;
         packages.book-md = book-md;
-        packages.skm = skm-cli;
+        packages.skm = flake.packages."skm:exe:skm";
         packages.book-site = let
           summarymd = ''
             # Summary
@@ -97,12 +125,9 @@
           type = "app";
           program = "${serve-bin}/bin/serve";
         };
-        devShells.default = with pkgs.haskellPackages; pkgs.mkShell {
-          nativeBuildInputs = [ ghc hpack haskell-language-server cabal-install ];
-        };
         apps.skm = {
           type = "app";
-          program = "${skm-cli}/bin/skm";
+          program = "${flake.packages."skm:exe:skm"}/bin/skm";
         };
         apps.serve-live = let
           serve-live = pkgs.writeShellScriptBin "serve-live" ''
