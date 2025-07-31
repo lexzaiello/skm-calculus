@@ -221,8 +221,20 @@ advanceToEnd cfg state = case stack state of
 -}
 
 eval :: EvalConfig -> SkExpr -> Either ExecError (Maybe SkExpr)
-eval cfg e = outE <$> advanceToEnd cfg s0
-  where s0 = mkState e
+eval cfg e     = do
+  sFinal <- advanceToEnd cfg s0
+  let eFinal = outE sFinal
+  case eFinal of
+    Just e'  ->
+      if wasNoop sFinal then
+        pure $ Just e'
+      else
+        eval cfg e'
+    Nothing -> Right Nothing
+  where s0     = mkState e
+        isEval  (EvalOnce _) = True
+        isEval  _            = False
+        wasNoop s            = length (filter isEval $ trace s) == 0
 
 evalN :: EvalConfig -> Int -> SkExpr -> Either ExecError SkExpr
 evalN cfg n e = case (runState . runMaybeT) (advanceN cfg n) s0 of
