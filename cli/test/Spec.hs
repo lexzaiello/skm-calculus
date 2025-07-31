@@ -1,48 +1,57 @@
-module Spec where
+{-# LANGUAGE OverloadedStrings #-}
 
+module Main where
+
+import Data.Text (Text)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except
-import Data.Either (either)
 import Test.Hspec
 import Skm.Eval (EvalConfig)
 import Skm.Vm (eval)
-import Skm (Error(..), ccResultToGenResult)
+import Skm (Error(..))
 import Skm.Compiler.Ast (CompilationError(..))
 import Skm.Cli.Exec (getEvalConfig, getStreamRawPath, parseExprCoc, ccRawCocToSk)
-import Skm.Cli.OptParse (primitivesSrc)
+import Skm.Cli.OptParse (RawPath)
 
-type TestM = ExceptT Error IO
+primitivesSrc :: RawPath
+primitivesSrc = "../std/PrimitiveTypes.skm"
 
-type RawExpr = String
+type TestM = ExceptT String IO
 
-runRawE :: EvalConfig -> RawExpr -> Either Error RawExpr
+type RawExpr = Text
+
+stringifyErr :: Show a => Either a out -> Either String out
+stringifyErr = either (Left . show) Right
+
+runRawE :: EvalConfig -> RawExpr -> Either Error (Maybe String)
 runRawE cfg s = do
   parsed <- either (Left . CompError . ParseFailure) Right $ parseExprCoc "" s
   skE   <- either (Left . CompError) Right $ ccRawCocToSk parsed
 
   e' <- either (Left . ExecutionError) Right $ eval cfg skE
 
-  pure (show e')
+  pure $ (show <$> e')
 
 doTest :: TestM () -> IO ()
 doTest m = do
   res <- runExceptT m
   case res of
-    Left err -> expectationFailure err
+    Left err -> expectationFailure . show $ err
     Right () -> pure ()
 
-getCfg :: ExceptT Error IO EvalConfig
+getCfg :: TestM EvalConfig
 getCfg = do
   stdStream <- liftIO $ getStreamRawPath primitivesSrc
-  (ExceptT . pure . ccResultToGenResult) $ getEvalConfig primitivesSrc stdStream
+  ExceptT $ fmap stringifyErr (pure $ getEvalConfig primitivesSrc stdStream)
 
-testIdentity :: TestM ()
-testIdentity = do
-  let input = "((\\x => x) K)"
-  res <- runRawE
-  res `shouldBe` "K"
+testExprEval :: RawExpr -> Maybe String -> TestM ()
+testExprEval input expected = do
+  cfg <- ExceptT $ fmap stringifyErr (runExceptT getCfg)
+  res <- ExceptT . pure . stringifyErr $ runRawE cfg input
+  liftIO $ res `shouldBe` (expected)
+  pure ()
 
 main :: IO ()
 main = hspec $ do
   describe "SKM E2E tests" $ do
-    it "compiles and evaluates identity function correctly" $ doTest testIdentity
+    it "compiles and evaluates identity function correctly" $ doTest (testExprEval "((\\x => x) K)" (Just "K"))
