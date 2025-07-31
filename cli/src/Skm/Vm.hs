@@ -157,12 +157,21 @@ advance cfg = do
             (Call M (Call lhs rhs)) -> (pure [EvalOnce MCall, Rfl lhs, Rfl rhs])
             (Call lhs rhs) -> (do
               lhs' <- (lift . tryMemo) lhs
+              rhs' <- (lift . tryMemo) rhs
 
               case lhs' of
                 Just lhs' ->
-                  pure [TryStep, Memoize, Rfl e, Dup, Lhs, Rfl lhs, Rfl rhs]
+                  case rhs' of
+                    Just rhs' ->
+                      pure [TryStep, Memoize, Rfl e, Dup, Lhs, Rfl lhs, Rfl rhs]
+                    Nothing ->
+                      pure [TryStep, Memoize, Rfl e, Dup, TryStep, Lhs, Rfl lhs, TryStep, Rfl rhs]
                 Nothing ->
-                  pure [TryStep, Memoize, Rfl e, Dup, Lhs, TryStep, Rfl lhs, Rfl rhs])
+                  case rhs' of
+                    Just rhs' ->
+                      pure [TryStep, Memoize, Rfl e, Dup, TryStep, Lhs, TryStep, Rfl lhs, Rfl rhs]
+                    Nothing ->
+                      pure [TryStep, Memoize, Rfl e, Dup, TryStep, Lhs, TryStep, Rfl lhs, TryStep, Rfl rhs])
             x -> (pure [Rfl x]))
 
           (lift . pushMany) ([Memoize, Rfl e, Dup] ++ ops)
