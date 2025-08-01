@@ -30,7 +30,10 @@ doMain = do
                      Raw -> parseResultToCompilationResult $ parseSk src rawE
 
       e <- ExceptT . pure . ccResultToGenResult $ parsed
-      e' <- (ExceptT . pure . execResultToGenResult) $ eval eCfg e
+      e' <- (ExceptT . pure . execResultToGenResult) $
+            (case n of
+               Just n  -> evalN eCfg n e
+               Nothing -> eval eCfg e)
 
       case e' of
         Just e' ->

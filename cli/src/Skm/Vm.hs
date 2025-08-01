@@ -208,7 +208,7 @@ advance cfg = do
                 Just lhs' ->
                   pure [TryStep, Memoize, Rfl e, Dup, Lhs, Rfl lhs, Rfl rhs]
                 Nothing ->
-                  pure [TryStep, Memoize, Rfl e, Dup, TryStep, Lhs, TryStep, Rfl lhs, Rfl rhs])
+                  pure [TryStep, Memoize, Rfl e, Dup, Lhs, TryStep, Rfl lhs, Rfl rhs])
             x -> (pure [Rfl x]))
 
           (lift . pushMany) ([Memoize, Rfl e, Dup] ++ ops)
@@ -216,7 +216,7 @@ advance cfg = do
 -- There should be only a single expression in the register at the end of execution
 outE :: ExecState -> Maybe SkExpr
 outE s = case register s of
-  [e] -> Just e
+  e:_  -> Just e
   _   -> Nothing
 
 advanceN :: EvalConfig -> Int -> ExceptT ExecError (State ExecState) ()
@@ -233,21 +233,6 @@ advanceToEnd cfg = do
       res <- withExceptT (\e -> ExecError { offendingOp = Just op, stackTrace = undefined, err = e }) $
                advance cfg
       advanceToEnd cfg
-
-reduceAll :: EvalConfig -> ExceptT ExecError (State ExecState) ExecState
-reduceAll cfg = do
-  s' <- advanceToEnd cfg
-  if wasNoop s' then
-    pure s'
-  else
-    case outE s' of
-      Just c@(Call lhs rhs) -> do
-        (lift . pushMany) [TryStep, Rfl c]
-        reduceAll cfg
-      Nothing -> pure s'
-  where isEval  (EvalOnce _) = True
-        isEval  _            = False
-        wasNoop s            = length (filter isEval $ trace s) == 0
 
 {- Sample execution:
    (((K K) K) (K K)) = (K (K K))
@@ -292,20 +277,19 @@ eval cfg e     = do
           (e', _) ->
             pure $ Just e'
       else
-        eval cfg e'
+        if (mode cfg == Strict) then
+          eval cfg e'
+        else
+          pure $ Just e'
     Nothing -> Right Nothing
   where s0     = mkState e
         isEval  (EvalOnce _) = True
         isEval  _            = False
         wasNoop s            = length (filter isEval $ trace s) == 0
 
-evalN :: EvalConfig -> Int -> SkExpr -> Either ExecError SkExpr
+evalN :: EvalConfig -> Int -> SkExpr -> Either ExecError (Maybe SkExpr)
 evalN cfg n e = do
   let (e, sFinal) = runState (runExceptT $ advanceN cfg n) s0
   e
-  case outE sFinal of
-    Just e  -> pure e
-    Nothing -> Left $ ExecError { offendingOp = Nothing,
-                                  stackTrace = sFinal,
-                                  err = NoResult }
+  pure $ outE sFinal
   where s0 = mkState e
