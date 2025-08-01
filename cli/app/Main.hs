@@ -35,11 +35,7 @@ doMain = do
                Just n  -> evalN eCfg n e
                Nothing -> eval eCfg e)
 
-      case e' of
-        Just e' ->
-          liftIO $ print e'
-        Nothing ->
-          pure ()
+      liftIO $ print e'
     Prove (BetaEq o@(EvalOptions { src = src, execCfg = ExecConfig { stdPath = stdPath }, mode = mode, redMode = m })) -> do
       stdStream <- liftIO $ getStreamRawPath stdPath
       eCfg <- (ExceptT . pure . ccResultToGenResult) $ getEvalConfig m stdPath stdStream

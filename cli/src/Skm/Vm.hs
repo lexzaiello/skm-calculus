@@ -1,5 +1,6 @@
 module Skm.Vm where
 
+import Data.Maybe (fromMaybe)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
 import Control.Monad.Trans.Maybe
@@ -214,10 +215,31 @@ advance cfg = do
           (lift . pushMany) ([Memoize, Rfl e, Dup] ++ ops)
 
 -- There should be only a single expression in the register at the end of execution
-outE :: ExecState -> Maybe SkExpr
+outE :: ExecState -> Either ExecError SkExpr
 outE s = case register s of
-  e:_  -> Just e
-  _   -> Nothing
+  [e]  -> pure e
+  _    -> Left NoResult
+
+lastE :: ExecState -> Either ExecError SkExpr
+lastE s = case register s of
+  e:_ -> pure e
+  _   -> Left NoResult
+
+reduceAll :: EvalConfig -> ExceptT ExecError (State ExecState) ExecState
+reduceAll cfg = do
+  s' <- advanceToEnd cfg
+  e' <- (ExceptT . pure) $ outE s'
+  if wasNoop s' then
+    pure s'
+  else
+    case e' of
+      c@(Call lhs rhs) -> do
+        (lift . pushMany) [TryStep, Memoize, Rfl c, Dup, Lhs, TryStep, Rfl lhs, TryStep, Rfl rhs]
+        reduceAll cfg
+      _ -> pure s'
+  where isEval  (EvalOnce _) = True
+        isEval  _            = False
+        wasNoop s            = length (filter isEval $ trace s) == 0
 
 advanceN :: EvalConfig -> Int -> ExceptT ExecError (State ExecState) ()
 advanceN cfg n
@@ -259,37 +281,23 @@ advanceToEnd cfg = do
       - Memoize the register. If we ever encounter the same register twice, we are cooked.
 -}
 
-eval :: EvalConfig -> SkExpr -> Either ExecError (Maybe SkExpr)
+eval :: EvalConfig -> SkExpr -> Either ExecError SkExpr
 eval cfg e     = do
-  let (e, sFinal) = runState (runExceptT $ advanceToEnd cfg) s0
+  let (e, sFinal) = (if mode cfg == Strict then
+                       runState (runExceptT $ reduceAll cfg) s0
+                     else
+                       runState (runExceptT $ advanceToEnd cfg) s0)
   e
-  let eFinal = outE sFinal
-  case eFinal of
-    Just e'  ->
-      if wasNoop sFinal then
-        -- Try the right hand side evaluation path
-        case (e', mode cfg) of
-          ((Call lhs rhs), Strict) -> do
-            lhs' <- eval cfg lhs
-            rhs' <- eval cfg lhs
-
-            eval cfg $ Call lhs rhs
-          (e', _) ->
-            pure $ Just e'
-      else
-        if (mode cfg == Strict) then
-          eval cfg e'
-        else
-          pure $ Just e'
-    Nothing -> Right Nothing
+  eFinal <- outE sFinal
+  pure eFinal
   where s0     = mkState e
         isEval  (EvalOnce _) = True
         isEval  _            = False
         wasNoop s            = length (filter isEval $ trace s) == 0
 
-evalN :: EvalConfig -> Int -> SkExpr -> Either ExecError (Maybe SkExpr)
+evalN :: EvalConfig -> Int -> SkExpr -> Either ExecError SkExpr
 evalN cfg n e = do
   let (e, sFinal) = runState (runExceptT $ advanceN cfg n) s0
   e
-  pure $ outE sFinal
+  outE sFinal
   where s0 = mkState e

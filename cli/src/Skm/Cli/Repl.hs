@@ -29,10 +29,6 @@ repl eCfg mode = do
 
   e' <- (ExceptT . pure . execResultToGenResult) $ eval eCfg e
 
-  case e' of
-    Just e' ->
-      liftIO $ print e'
-    Nothing ->
-      pure ()
+  liftIO $ print e'
 
   repl eCfg mode
