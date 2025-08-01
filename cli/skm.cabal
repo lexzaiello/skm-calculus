@@ -75,7 +75,7 @@ executable skm
 
 test-suite spec
   type: exitcode-stdio-1.0
-  main-is: Spec.hs
+  main-is: Main.hs
   hs-source-dirs:
       test
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
