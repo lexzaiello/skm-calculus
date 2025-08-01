@@ -6,11 +6,5 @@ cradle:
     - path: "app/Main.hs"
       component: "skm:exe:skm"
 
-    - path: "app/Cli/OptParse.hs"
-      component: "skm:exe:skm"
-
-    - path: "app/Cli/Exec.hs"
-      component: "skm:exe:skm"
-
-    - path: "app/Cli/Repl.hs"
-      component: "skm:exe:skm"
+    - path: "test"
+      component: "skm:test:spec"
