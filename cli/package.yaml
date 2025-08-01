@@ -20,6 +20,7 @@ dependencies:
   - mtl
   - hspec
   - array == 0.5.8.0
+  - haskeline
 
 library:
   source-dirs: src

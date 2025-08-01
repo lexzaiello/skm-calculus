@@ -44,6 +44,7 @@ library
     , base
     , containers
     , hashable
+    , haskeline
     , hspec
     , megaparsec
     , mtl
@@ -63,6 +64,7 @@ executable skm
     , base
     , containers
     , hashable
+    , haskeline
     , hspec
     , megaparsec
     , mtl
@@ -84,6 +86,7 @@ test-suite spec
     , base
     , containers
     , hashable
+    , haskeline
     , hspec
     , megaparsec
     , mtl
