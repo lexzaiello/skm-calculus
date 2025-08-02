@@ -44,11 +44,11 @@ repl eCfg mode = do
   repl eCfg mode
 
 liftStateStack :: ExceptT ExecError (State ExecState) () -> InputT (ExceptT Error (StateT ExecState IO)) ()
-liftStateStack = lift . ExceptT . runExceptT . mapExceptT liftState . mapExceptT liftError
+liftStateStack = lift . ExceptT . runExceptT . mapExceptT liftState . withExceptT ExecutionError
   where liftError :: Either ExecError a -> Either Error a
         liftError = either (Left . ExecutionError) Right
         liftState :: State ExecState (Either Error ()) -> StateT ExecState IO (Either Error ())
-        liftState = mapStateT $ (\(s, x) -> pure (s, x)) . runIdentity
+        liftState = mapStateT $ pure . runIdentity
 
 execSession :: EvalConfig -> EvalMode -> InputT (ExceptT Error (StateT ExecState IO)) ()
 execSession cfg eMode = do
