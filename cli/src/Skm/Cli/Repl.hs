@@ -27,22 +27,6 @@ promptPs = ">> "
 streamStdinName :: String
 streamStdinName = "<STDIN>"
 
-repl :: EvalConfig -> EvalMode -> ExceptT Error IO ()
-repl eCfg mode = do
-  liftIO $ putStr promptPs
-  liftIO $ hFlush stdout
-  rawE <- pack <$> liftIO getLine
-
-  e <- (ExceptT . pure . ccResultToGenResult) (case mode of
-    Lc -> parseResultToCompilationResult (parseProgramCoc streamStdinName rawE) >>= ccProgramCocToSk
-    Raw -> parseResultToCompilationResult $ parseSk streamStdinName rawE)
-
-  e' <- (ExceptT . pure . execResultToGenResult) $ eval eCfg e
-
-  liftIO $ print e'
-
-  repl eCfg mode
-
 liftStateStack :: ExceptT ExecError (State s) out -> InputT (ExceptT Error (StateT s IO)) out
 liftStateStack = lift . ExceptT . runExceptT . mapExceptT liftState . withExceptT ExecutionError
   where liftState :: State s (Either Error out) -> StateT s IO (Either Error out)
@@ -81,7 +65,7 @@ execSession cfg eMode = do
 
 exprSession :: RawExpr -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
 exprSession ctxExpr cfg eMode = do
-  minput <- getInputLine $ printf "%s %s exit|parse|exec" ctxExpr promptPs
+  minput <- getInputLine $ printf "%s exit|parse|exec %s" ctxExpr promptPs
   case minput of
     Just "exit" -> return ()
     Just "parse" ->
@@ -107,5 +91,5 @@ root cfg md = do
       exprSession input cfg md
     Nothing -> return ()
 
-repl' :: EvalConfig -> EvalMode -> ExceptT Error IO ()
-repl' cfg md = runInputT defaultSettings $ root cfg md
+repl :: EvalConfig -> EvalMode -> ExceptT Error IO ()
+repl cfg md = runInputT defaultSettings $ root cfg md

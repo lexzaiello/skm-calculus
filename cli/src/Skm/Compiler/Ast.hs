@@ -18,6 +18,9 @@ type DebruijnVar = Int
 data Binderless = Binderless
   deriving (Eq, Ord)
 
+instance PrintfArg Binderless where
+  formatArg _ = const (const "")
+
 instance Show Binderless where
   show _ = ""
 
@@ -92,9 +95,9 @@ defBody (Def _ bdy) = Just bdy
 
 type Program tStmt tBody = ([Stmt tStmt], Maybe tBody)
 
-instance (Show tBinder, Show tVar) => Show (ExprCoc tBinder tVar) where
-  show (Lam  binder bindTy body) = printf "λ (%s : %s) => %s" (show binder) (show bindTy) (show body)
-  show (Fall binder bindTy body) = printf "∀ (%s : %s), %s"   (show binder) (show bindTy) (show body)
+instance (PrintfArg tBinder, Show tVar) => Show (ExprCoc tBinder tVar) where
+  show (Lam  binder bindTy body) = printf "λ (%s : %s) => %s" binder (show bindTy) (show body)
+  show (Fall binder bindTy body) = printf "∀ (%s : %s), %s"   binder (show bindTy) (show body)
   show S                         = "S"
   show K                         = "K"
   show M                         = "M"
