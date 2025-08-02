@@ -10,7 +10,7 @@ import Text.Printf (printf)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except
 import Skm.Eval (EvalConfig(..))
-import Skm.Vm (ExecError(..), outE, advance, advanceToEnd, eval, ExecState(..))
+import Skm.Vm (mkState, ExecError(..), outE, advance, advanceToEnd, eval, ExecState(..))
 import Skm (Error(..), ccResultToGenResult, execResultToGenResult)
 import Skm.Compiler.Ast (CompilationError(..), parseResultToCompilationResult)
 import System.IO (stdout, hFlush)
@@ -92,8 +92,8 @@ exprSession ctxExpr cfg eMode = do
       e <- (lift . ExceptT . pure . liftErr) (case eMode of
         Raw -> liftPErr $ parseSk streamStdinName $ pack ctxExpr
         Lc -> (liftPErr . parseExprCoc streamStdinName) (pack ctxExpr) >>= ccRawCocToSk)
-      
-      pure ()
+      let e' = execSession cfg eMode
+      lift $ ExceptT $ fmap fst (runStateT (runExceptT $ runInputT defaultSettings e') (mkState e))
     Nothing -> return ()
   where liftErr  = either (Left . CompError) Right
         liftPErr = either (Left . ParseFailure) Right
