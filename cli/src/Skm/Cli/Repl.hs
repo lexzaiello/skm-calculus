@@ -1,5 +1,7 @@
 module Skm.Cli.Repl where
 
+import Data.Either (fromLeft)
+import Data.Maybe (fromMaybe)
 import Data.Functor.Identity
 import Control.Monad
 import Control.Monad.Error.Class
@@ -35,9 +37,11 @@ liftStateStack = lift . ExceptT . runExceptT . mapExceptT liftState . withExcept
 execSession :: EvalConfig -> EvalMode -> InputT (ExceptT Error (StateT ExecState IO)) ()
 execSession cfg eMode = do
   ctxExpr <- lift' $ gets outE
-  minput <- getInputLine $ printf "%s %s exit|step|run|cache|stack|register|log" (show ctxExpr) promptPs
+  minput <- getInputLine $ printf "%s %s" (either (const "") show ctxExpr) promptPs
   (case minput of
     Just "exit" -> pure ()
+    Just "help" -> outputStrLn "exit | help | step | run | stack | register | log | cache"
+    Just "left" ->
     Just "step" -> do
       _ <- liftStateStack $ advance cfg
       execSession cfg eMode
@@ -61,33 +65,39 @@ execSession cfg eMode = do
       outputStrLn $ (show . cache) s
       execSession cfg eMode
     _ -> pure ())
-  where lift'   = lift . lift
-
-exprSession :: RawExpr -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
+  where lift'   = lift . lift :: RawExpr -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
 exprSession ctxExpr cfg eMode = do
-  minput <- getInputLine $ printf "%s exit|parse|exec %s" ctxExpr promptPs
+  minput <- getInputLine $ printf "%s %s" ctxExpr promptPs
   case minput of
     Just "exit" -> return ()
-    Just "parse" ->
+    Just "help" -> do
+      outputStrLn "exit | help | parse | exec"
+      exprSession ctxExpr cfg eMode
+    Just "parse" -> do
       (lift . ExceptT . pure . liftErr . liftPErr) (case eMode of
         Raw -> fmap show $ parseSk streamStdinName $ pack ctxExpr
         Lc -> fmap show $ parseExprCoc streamStdinName $ pack ctxExpr) >>= outputStrLn
+      exprSession ctxExpr cfg eMode
     Just "exec" -> do
       e <- (lift . ExceptT . pure . liftErr) (case eMode of
         Raw -> liftPErr $ parseSk streamStdinName $ pack ctxExpr
         Lc -> (liftPErr . parseExprCoc streamStdinName) (pack ctxExpr) >>= ccRawCocToSk)
+      outputStrLn "Entered virtual machine session. Type \"help\" to see available commands."
       let e' = execSession cfg eMode
       lift $ ExceptT $ fmap fst (runStateT (runExceptT $ runInputT defaultSettings e') (mkState e))
-    Nothing -> return ()
+      exprSession ctxExpr cfg eMode
+    _ -> return ()
   where liftErr  = either (Left . CompError) Right
         liftPErr = either (Left . ParseFailure) Right
 
 root :: EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
 root cfg md = do
+  outputStrLn "Entered the SK(M) shell. Enter an expression to begin."
   minput <- getInputLine $ printf promptPs
   case minput of
     Just "exit" -> return ()
-    Just input ->
+    Just input -> do
+      outputStrLn "Entered expression session. Type \"help\" to see available commands."
       exprSession input cfg md
     Nothing -> return ()
 

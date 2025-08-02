@@ -185,30 +185,29 @@ advance cfg = do
         Nothing -> do
           ops <- (case e of
             -- S' c f g x -> c (f x) (g x)
-            (Call (Call (Call S (Call (Call S (Call K c)) f)) g) x) -> (pure [EvalOnce S'Call, Rfl c, Rfl f, Rfl g, Rfl x])
+            (Call (Call (Call S (Call (Call S (Call K c)) f)) g) x) -> pure [EvalOnce S'Call, Rfl c, Rfl f, Rfl g, Rfl x]
             -- C f g x -> f x g
-            (Call (Call (Call S f) (Call K g)) x) -> (pure [EvalOnce CCall, Rfl f, Rfl g, Rfl x])
+            (Call (Call (Call S f) (Call K g)) x) -> pure [EvalOnce CCall, Rfl f, Rfl g, Rfl x]
             -- B p i -> p
-            (Call (Call S (Call K f)) g) -> (pure [EvalOnce B0Call, Rfl f])
+            (Call (Call S (Call K f)) g) -> pure [EvalOnce B0Call, Rfl f]
              -- B f g x
-            (Call (Call (Call S (Call K f)) g) x) -> (pure [EvalOnce BCall, Rfl f, Rfl g, Rfl x])
-            (Call (Call (Call S K) K) x) -> (pure [EvalOnce ICall, Rfl x])
-            (Call (Call K x) y) -> (pure [EvalOnce KCall, Rfl x])
-            (Call (Call (Call S x) y) z) -> (pure [EvalOnce SCall, Rfl x, Rfl y, Rfl z])
-            (Call M K) -> (pure [EvalOnce Mk])
-            (Call M M) -> (pure [EvalOnce Mm])
-            (Call M S) -> (pure [EvalOnce Ms])
-            (Call M (Call lhs rhs)) -> (pure [EvalOnce MCall, Rfl lhs, Rfl rhs])
+            (Call (Call (Call S (Call K f)) g) x) -> pure [EvalOnce BCall, Rfl f, Rfl g, Rfl x]
+            (Call (Call (Call S K) K) x) -> pure [EvalOnce ICall, Rfl x]
+            (Call (Call K x) y) -> pure [EvalOnce KCall, Rfl x]
+            (Call (Call (Call S x) y) z) -> pure [EvalOnce SCall, Rfl x, Rfl y, Rfl z]
+            (Call M K) -> pure [EvalOnce Mk]
+            (Call M M) -> pure [EvalOnce Mm]
+            (Call M S) -> pure [EvalOnce Ms]
+            (Call M (Call lhs rhs)) -> pure [EvalOnce MCall, Rfl lhs, Rfl rhs]
             (Call lhs rhs) -> (do
               lhs' <- (lift . tryMemo) lhs
-              rhs' <- (lift . tryMemo) rhs
 
               case lhs' of
-                Just lhs' ->
-                  pure [TryStep, Memoize, Rfl e, Dup, Lhs, Rfl lhs, Rfl rhs]
+                Just l ->
+                  pure [TryStep, Memoize, Rfl e, Dup, Lhs, Rfl l, Rfl rhs]
                 Nothing ->
                   pure [TryStep, Memoize, Rfl e, Dup, Lhs, TryStep, Rfl lhs, Rfl rhs])
-            x -> (pure [Rfl x]))
+            x -> pure [Rfl x])
 
           (lift . pushMany) ([Memoize, Rfl e, Dup] ++ ops)
 
@@ -237,7 +236,7 @@ reduceAll cfg = do
       _ -> pure s'
   where isEval  (EvalOnce _) = True
         isEval  _            = False
-        wasNoop s            = length (filter isEval $ trace s) == 0
+        wasNoop s            = any isEval $ trace s
 
 advanceN :: EvalConfig -> Int -> ExceptT ExecError (State ExecState) ()
 advanceN cfg n
@@ -285,13 +284,10 @@ eval cfg e     = do
                        runState (runExceptT $ reduceAll cfg) s0
                      else
                        runState (runExceptT $ advanceToEnd cfg) s0)
-  e
+  _ <- e
   eFinal <- outE sFinal
   pure eFinal
-  where s0     = mkState e
-        isEval  (EvalOnce _) = True
-        isEval  _            = False
-        wasNoop s            = length (filter isEval $ trace s) == 0
+  where s0 = mkState e
 
 evalN :: EvalConfig -> Int -> SkExpr -> Either ExecError SkExpr
 evalN cfg n e = do
