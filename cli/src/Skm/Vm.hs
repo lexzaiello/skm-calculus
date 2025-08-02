@@ -1,9 +1,7 @@
 module Skm.Vm where
 
-import Data.Maybe (fromMaybe)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
-import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Except
 import Control.Monad.State.Lazy
 import Skm.Ast (SkExpr(..))
