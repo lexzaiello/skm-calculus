@@ -43,11 +43,9 @@ repl eCfg mode = do
 
   repl eCfg mode
 
-liftStateStack :: ExceptT ExecError (State ExecState) () -> InputT (ExceptT Error (StateT ExecState IO)) ()
+liftStateStack :: ExceptT ExecError (State s) out -> InputT (ExceptT Error (StateT s IO)) out
 liftStateStack = lift . ExceptT . runExceptT . mapExceptT liftState . withExceptT ExecutionError
-  where liftError :: Either ExecError a -> Either Error a
-        liftError = either (Left . ExecutionError) Right
-        liftState :: State ExecState (Either Error ()) -> StateT ExecState IO (Either Error ())
+  where liftState :: State s (Either Error out) -> StateT s IO (Either Error out)
         liftState = mapStateT $ pure . runIdentity
 
 execSession :: EvalConfig -> EvalMode -> InputT (ExceptT Error (StateT ExecState IO)) ()
@@ -55,27 +53,31 @@ execSession cfg eMode = do
   ctxExpr <- lift' $ gets outE
   minput <- getInputLine $ printf "%s %s exit|step|run|cache|stack|register|log" (show ctxExpr) promptPs
   (case minput of
+    Just "exit" -> pure ()
     Just "step" -> do
-      advance cfg
+      _ <- liftStateStack $ advance cfg
       execSession cfg eMode
     Just "run" -> do
-      lift' $ advanceToEnd cfg
+      _ <- liftStateStack $ advanceToEnd cfg
       execSession cfg eMode
     Just "stack" -> do
       s <- lift' get
-      stack s
+      outputStrLn $ (show . stack) s
+      execSession cfg eMode
     Just "register" -> do
       s <- lift' get
-      stack s
+      outputStrLn $ (show . register) s
+      execSession cfg eMode
     Just "log" -> do
       s <- lift' get
-      trace s
+      outputStrLn $ (show . trace) s
+      execSession cfg eMode
     Just "cache" -> do
       s <- lift' get
-      cache s
+      outputStrLn $ (show . cache) s
+      execSession cfg eMode
     _ -> pure ())
   where lift'   = lift . lift
-        
 
 exprSession :: RawExpr -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
 exprSession ctxExpr cfg eMode = do
