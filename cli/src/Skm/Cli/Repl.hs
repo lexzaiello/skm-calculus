@@ -41,7 +41,6 @@ execSession cfg eMode = do
   (case minput of
     Just "exit" -> pure ()
     Just "help" -> outputStrLn "exit | help | step | run | stack | register | log | cache"
-    Just "left" ->
     Just "step" -> do
       _ <- liftStateStack $ advance cfg
       execSession cfg eMode
@@ -65,7 +64,9 @@ execSession cfg eMode = do
       outputStrLn $ (show . cache) s
       execSession cfg eMode
     _ -> pure ())
-  where lift'   = lift . lift :: RawExpr -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
+  where lift'   = lift . lift
+
+exprSession :: RawExpr -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
 exprSession ctxExpr cfg eMode = do
   minput <- getInputLine $ printf "%s %s" ctxExpr promptPs
   case minput of
