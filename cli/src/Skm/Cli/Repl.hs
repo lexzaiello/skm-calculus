@@ -100,6 +100,7 @@ root cfg md = do
     Just input -> do
       outputStrLn "Entered expression session. Type \"help\" to see available commands."
       exprSession input cfg md
+      root cfg md
     Nothing -> return ()
 
 repl :: EvalConfig -> EvalMode -> ExceptT Error IO ()

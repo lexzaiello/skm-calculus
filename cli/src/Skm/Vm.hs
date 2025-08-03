@@ -164,7 +164,7 @@ advance cfg = do
       lhs <- popE
       rhs <- popE
 
-      (lift . pushMany) [TryStep, Rfl (Call (Call (Call M lhs) rhs) (tOut cfg))]
+      (lift . pushMany) [TryStep, Rfl (Call (Call M lhs) rhs)]
     EvalOnce Mk ->
       (lift . push) $ Rfl (tK cfg)
     EvalOnce Ms ->
@@ -189,7 +189,7 @@ advance cfg = do
             -- C f g x -> f x g
             (Call (Call (Call S f) (Call K g)) x) -> pure [EvalOnce CCall, Rfl f, Rfl g, Rfl x]
             -- B p i -> p
-            (Call (Call S (Call K f)) g) -> pure [EvalOnce B0Call, Rfl f]
+            (Call (Call S (Call K f)) _g) -> pure [EvalOnce B0Call, Rfl f]
              -- B f g x
             (Call (Call (Call S (Call K f)) g) x) -> pure [EvalOnce BCall, Rfl f, Rfl g, Rfl x]
             (Call (Call (Call S K) K) x) -> pure [EvalOnce ICall, Rfl x]

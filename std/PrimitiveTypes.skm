@@ -4,6 +4,6 @@ def arrow := λ a b f => ((f a) b)
 def t_in  := λ a b => a
 def t_out := λ a b => b
 
-def t_k   := λ a => (arrow (M a) (λ b => (arrow (M b) (M a))))
-def t_s   := λ x => (arrow (M x) (λ y => (arrow (M y) (λ z => (arrow (M z) (M ((x z) (y z))))))))
-def t_m   := λ e => (arrow (M e) (M (M e)))
+def t_k   := λ a => (λ b => (M a))
+def t_s   := λ x => (λ y => (λ z => (M ((x z) (y z)))))
+def t_m   := λ e => (M (M e))
