@@ -5,7 +5,7 @@ defaultTargets = ["SkLean"]
 [[require]]
 name = "mathlib"
 git = "https://github.com/leanprover-community/mathlib4"
-rev = "v4.19.0-rc2"
+rev = "v4.22.0-rc4"
 
 [[lean_lib]]
 name = "SkLean"

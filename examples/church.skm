@@ -2,4 +2,4 @@ def zero := λ f g => g
 def succ := λ n f x => (f (n f x))
 def one  := (succ zero)
 
-(M one)
+(M zero)

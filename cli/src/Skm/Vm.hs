@@ -224,16 +224,16 @@ lastE s = case register s of
 
 reduceAll :: EvalConfig -> ExceptT ExecError (State ExecState) ExecState
 reduceAll cfg = do
-  s' <- advanceToEnd cfg
-  e' <- (ExceptT . pure) $ outE s'
-  if wasNoop s' then
-    pure s'
-  else
-    case e' of
-      c@(Call lhs rhs) -> do
-        (lift . pushMany) [TryStep, Memoize, Rfl c, Dup, Lhs, TryStep, Rfl lhs, TryStep, Rfl rhs]
-        reduceAll cfg
-      _ -> pure s'
+  s <- get
+  case outE s of
+    (Right c@(Call lhs rhs)) -> do
+      (lift . pushMany) [TryStep, Memoize, Rfl c, Dup, Lhs, TryStep, Rfl lhs, TryStep, Rfl rhs]
+      _ <- advanceToEnd cfg
+      s' <- get
+      if wasNoop s' then
+        pure s'
+      else reduceAll cfg
+    _ -> pure s
   where isEval  (EvalOnce _) = True
         isEval  _            = False
         wasNoop s            = any isEval $ trace s
@@ -281,7 +281,7 @@ advanceToEnd cfg = do
 eval :: EvalConfig -> SkExpr -> Either ExecError SkExpr
 eval cfg e     = do
   let (e, sFinal) = (if mode cfg == Strict then
-                       runState (runExceptT $ reduceAll cfg) s0
+                       runState (runExceptT $ advanceToEnd cfg >> reduceAll cfg) s0
                      else
                        runState (runExceptT $ advanceToEnd cfg) s0)
   _ <- e

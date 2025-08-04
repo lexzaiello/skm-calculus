@@ -12,7 +12,7 @@ import Text.Printf (printf)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except
 import Skm.Eval (EvalConfig(..))
-import Skm.Vm (mkState, ExecError(..), outE, advance, advanceToEnd, eval, ExecState(..))
+import Skm.Vm (reduceAll, mkState, ExecError(..), outE, advance, advanceToEnd, eval, ExecState(..))
 import Skm (Error(..), ccResultToGenResult, execResultToGenResult)
 import Skm.Compiler.Ast (CompilationError(..), parseResultToCompilationResult)
 import System.IO (stdout, hFlush)
@@ -46,6 +46,9 @@ execSession cfg eMode = do
       execSession cfg eMode
     Just "run" -> do
       _ <- liftStateStack $ advanceToEnd cfg
+      execSession cfg eMode
+    Just "reduce" -> do
+      _ <- liftStateStack $ reduceAll cfg
       execSession cfg eMode
     Just "stack" -> do
       s <- lift' get
