@@ -106,22 +106,31 @@ exprSession ctx@(stmts, ctxExpr) cfg eMode = do
           cts <- liftIO $ TIO.readFile src
           (stmts', _) <- (lift . ExceptT . pure . liftErr . liftPErr . parseProgramCoc src) cts
           exprSession (fmap show stmts' ++ stmts, ctxExpr) cfg eMode
-    _ -> exprSession ctx cfg eMode
+    _ -> pure ()
   where liftErr  = either (Left . CompError) Right
         liftPErr = either (Left . ParseFailure) Right
         pProg    = parseProgramCoc streamStdinName (pack $ intercalate "\n" (show <$> stmts ++ [ctxExpr]))
 
-root :: EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
-root cfg md = do
-  outputStrLn "Entered the SK(M) shell. Enter an expression to begin."
+root :: [RawExpr] -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
+root stmts cfg md = do
   minput <- getInputLine $ printf promptPs
   case minput of
     Just "exit" -> return ()
     Just input -> do
-      outputStrLn "Entered expression session. Type \"help\" to see available commands."
-      exprSession input cfg md
-      root cfg md
+      let cmd = words input
+      case cmd of
+        "load":src:_ -> do
+          cts <- liftIO $ TIO.readFile src
+          (stmts', _) <- (lift . ExceptT . pure . liftErr . liftPErr . parseProgramCoc src) cts
+          root (fmap show stmts' ++ stmts) cfg md
+        _ -> do
+          outputStrLn "Entered expression session. Type \"help\" to see available commands."
+          exprSession ([], input) cfg md
+          root stmts cfg md
     Nothing -> return ()
+  where
+    liftErr  = either (Left . CompError) Right
+    liftPErr = either (Left . ParseFailure) Right
 
 repl :: EvalConfig -> EvalMode -> ExceptT Error IO ()
-repl cfg md = runInputT defaultSettings $ root cfg md
+repl cfg md = runInputT defaultSettings $ root [] cfg md
