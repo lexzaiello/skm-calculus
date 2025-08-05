@@ -121,7 +121,7 @@ advance cfg = do
       lhs <- popE
       rhs <- popE
 
-      (lift . pushMany) $ [Rfl (Call lhs rhs)]
+      (lift . pushMany) [Rfl (Call lhs rhs)]
     Rfl e -> (lift . pushE) e
     EvalOnce ICall -> do
       x <- popE
@@ -184,6 +184,7 @@ advance cfg = do
           (lift . push) $ Rfl e'
         Nothing -> do
           ops <- (case e of
+            (Call M (Call M M)) -> pure [Rfl e]
             -- S' c f g x -> c (f x) (g x)
             (Call (Call (Call S (Call (Call S (Call K c)) f)) g) x) -> pure [EvalOnce S'Call, Rfl c, Rfl f, Rfl g, Rfl x]
             -- C f g x -> f x g
@@ -196,7 +197,6 @@ advance cfg = do
             (Call (Call K x) y) -> pure [EvalOnce KCall, Rfl x]
             (Call (Call (Call S x) y) z) -> pure [EvalOnce SCall, Rfl x, Rfl y, Rfl z]
             (Call M K) -> pure [EvalOnce Mk]
-            (Call M M) -> pure [EvalOnce Mm]
             (Call M S) -> pure [EvalOnce Ms]
             (Call M (Call lhs rhs)) -> pure [EvalOnce MCall, Rfl lhs, Rfl rhs]
             (Call lhs rhs) -> (do
@@ -224,19 +224,16 @@ lastE s = case register s of
 
 reduceAll :: EvalConfig -> ExceptT ExecError (State ExecState) ExecState
 reduceAll cfg = do
-  s <- get
-  case outE s of
-    (Right c@(Call lhs rhs)) -> do
-      (lift . pushMany) [TryStep, Memoize, Rfl c, Dup, Lhs, TryStep, Rfl lhs, TryStep, Rfl rhs]
+  e <- popE
+  case e of
+    c@(Call lhs rhs) -> do
+      _ <- (if mode cfg == Strict then
+        (lift . pushMany) [TryStep, Lhs, TryStep, Rfl lhs, TryStep, Rfl rhs]
+      else
+        (lift . pushMany) [TryStep, Lhs, TryStep, Rfl lhs, Rfl rhs])
       _ <- advanceToEnd cfg
-      s' <- get
-      if wasNoop s' then
-        pure s'
-      else reduceAll cfg
-    _ -> pure s
-  where isEval  (EvalOnce _) = True
-        isEval  _            = False
-        wasNoop s            = any isEval $ trace s
+      get
+    _ -> get
 
 advanceN :: EvalConfig -> Int -> ExceptT ExecError (State ExecState) ()
 advanceN cfg n

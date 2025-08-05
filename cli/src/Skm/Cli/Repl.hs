@@ -126,7 +126,6 @@ root stmts cfg md = do
           cts <- liftIO $ TIO.readFile src
           (stmts', _) <- (lift . ExceptT . pure . liftErr . liftPErr . parseProgramCoc src) cts
           root stmts' cfg md
-        "run"
         _ -> do
           outputStrLn "Entered expression session. Type \"help\" to see available commands."
           exprSession (stmts, input) cfg md
