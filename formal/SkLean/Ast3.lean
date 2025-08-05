@@ -128,3 +128,7 @@ lemma s_stuck : is_normal_n 0 SKM[S] SKM[S] := by
   case a.intro h =>
     cases h
 
+lemma preservation : valid_judgment_hard e t → is_eval_once e e' → valid_judgment_hard e' t := by
+  intro h_t h_eval
+  induction t
+  

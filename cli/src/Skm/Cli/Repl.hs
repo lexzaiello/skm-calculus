@@ -43,7 +43,7 @@ execSession :: EvalConfig -> EvalMode -> InputT (ExceptT Error (StateT ExecState
 execSession cfg eMode = do
   ctxExpr <- lift' $ gets outE
   minput <- getInputLine $ printf "%s %s" (either (const "") show ctxExpr) promptPs
-  ( case minput of
+  (case minput of
       Just "exit" -> pure ()
       Just "help" -> outputStrLn "exit | help | step | run | stack | register | log | cache"
       Just "step" -> do
@@ -77,13 +77,17 @@ execSession cfg eMode = do
     lift' = lift . lift
 
 exprSession :: ProgramSrc -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
-exprSession (stmts, ctxExpr) cfg eMode = do
+exprSession c@(stmts, ctxExpr) cfg eMode = do
   minput <- getInputLine $ printf "%s %s" ctxExpr promptPs
   case minput of
     Just "exit" -> return ()
     Just "help" -> do
-      outputStrLn "exit | help | parse | exec | load <path>"
+      outputStrLn "exit | help | parse | exec | load <path> | compile"
       exprSession (stmts, ctxExpr) cfg eMode
+    Just "compile" -> do
+      compiled <- (lift . ExceptT . pure . liftErr) (snd <$> liftPErr pProg)
+      outputStrLn $ maybe "" show compiled
+      exprSession c cfg eMode
     Just "parse" -> do
       (lift . ExceptT . pure . liftErr . liftPErr)
         (case eMode of
