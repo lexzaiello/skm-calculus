@@ -16,7 +16,7 @@ import Skm (Error (..), ccResultToGenResult, execResultToGenResult)
 import Skm.Ast (SkExpr)
 import Skm.Cli.Exec
 import Skm.Cli.OptParse (EvalMode (..))
-import Skm.Compiler.Ast (CompilationError (..), parseResultToCompilationResult)
+import Skm.Compiler.Ast (Stmt, HumanReadableExprCoc, CompilationError (..), parseResultToCompilationResult)
 import Skm.Eval (EvalConfig (..))
 import Skm.Vm (ExecError (..), ExecState (..), advance, advanceToEnd, eval, mkState, outE, reduceAll)
 import System.Console.Haskeline
@@ -25,7 +25,7 @@ import Text.Printf (printf)
 
 type RawExpr = String
 
-type ProgramSrc = ([RawExpr], RawExpr)
+type ProgramSrc = ([Stmt HumanReadableExprCoc], RawExpr)
 
 promptPs :: String
 promptPs = ">> "
@@ -77,7 +77,7 @@ execSession cfg eMode = do
     lift' = lift . lift
 
 exprSession :: ProgramSrc -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
-exprSession ctx@(stmts, ctxExpr) cfg eMode = do
+exprSession (stmts, ctxExpr) cfg eMode = do
   minput <- getInputLine $ printf "%s %s" ctxExpr promptPs
   case minput of
     Just "exit" -> return ()
@@ -105,13 +105,16 @@ exprSession ctx@(stmts, ctxExpr) cfg eMode = do
         "load":src:_ -> do
           cts <- liftIO $ TIO.readFile src
           (stmts', _) <- (lift . ExceptT . pure . liftErr . liftPErr . parseProgramCoc src) cts
-          exprSession (fmap show stmts' ++ stmts, ctxExpr) cfg eMode
+          exprSession (stmts', ctxExpr) cfg eMode
     _ -> pure ()
   where liftErr  = either (Left . CompError) Right
         liftPErr = either (Left . ParseFailure) Right
-        pProg    = parseProgramCoc streamStdinName (pack $ intercalate "\n" (show <$> stmts ++ [ctxExpr]))
+        pProg    = do
+          e' <- inlineCallDefsInExpr stmts <$> parseExprCoc streamStdinName (pack ctxExpr)
 
-root :: [RawExpr] -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
+          pure (stmts, Just e')
+
+root :: [Stmt HumanReadableExprCoc] -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
 root stmts cfg md = do
   minput <- getInputLine $ printf promptPs
   case minput of
@@ -122,10 +125,11 @@ root stmts cfg md = do
         "load":src:_ -> do
           cts <- liftIO $ TIO.readFile src
           (stmts', _) <- (lift . ExceptT . pure . liftErr . liftPErr . parseProgramCoc src) cts
-          root (fmap show stmts' ++ stmts) cfg md
+          root stmts' cfg md
+        "run"
         _ -> do
           outputStrLn "Entered expression session. Type \"help\" to see available commands."
-          exprSession ([], input) cfg md
+          exprSession (stmts, input) cfg md
           root stmts cfg md
     Nothing -> return ()
   where
