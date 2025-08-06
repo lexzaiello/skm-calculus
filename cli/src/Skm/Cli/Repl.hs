@@ -85,8 +85,8 @@ exprSession c@(stmts, ctxExpr) cfg eMode = do
       outputStrLn "exit | help | parse | exec | load <path> | compile"
       exprSession (stmts, ctxExpr) cfg eMode
     Just "compile" -> do
-      compiled <- (lift . ExceptT . pure . liftErr) (snd <$> liftPErr pProg)
-      outputStrLn $ maybe "" show compiled
+      compiled <- (lift . ExceptT . pure . liftErr) (liftPErr pProg >>= \(stmts, e) -> ccProgramCocToSk (stmts, Just e))
+      outputStrLn $ show compiled
       exprSession c cfg eMode
     Just "parse" -> do
       (lift . ExceptT . pure . liftErr . liftPErr)
@@ -98,8 +98,7 @@ exprSession c@(stmts, ctxExpr) cfg eMode = do
     Just "exec" -> do
       e <- (lift . ExceptT . pure . liftErr) (case eMode of
         Raw -> liftPErr $ parseSk streamStdinName $ pack ctxExpr
-        Lc -> liftPErr pProg >>= ccProgramCocToSk)
-      outputStrLn "Entered virtual machine session. Type \"help\" to see available commands."
+        Lc -> liftPErr pProg >>= \(stmts, e) -> ccProgramCocToSk (stmts, Just e))
       let e' = execSession cfg eMode
       lift $ ExceptT $ fmap fst (runStateT (runExceptT $ runInputT defaultSettings e') (mkState e))
       exprSession (stmts, ctxExpr) cfg eMode
@@ -116,7 +115,7 @@ exprSession c@(stmts, ctxExpr) cfg eMode = do
         pProg    = do
           e' <- inlineCallDefsInExpr stmts <$> parseExprCoc streamStdinName (pack ctxExpr)
 
-          pure (stmts, Just e')
+          pure (stmts, e')
 
 root :: [Stmt HumanReadableExprCoc] -> EvalConfig -> EvalMode -> InputT (ExceptT Error IO) ()
 root stmts cfg md = do
@@ -131,7 +130,6 @@ root stmts cfg md = do
           (stmts', _) <- (lift . ExceptT . pure . liftErr . liftPErr . parseProgramCoc src) cts
           root stmts' cfg md
         _ -> do
-          outputStrLn "Entered expression session. Type \"help\" to see available commands."
           exprSession (stmts, input) cfg md
           root stmts cfg md
     Nothing -> return ()
