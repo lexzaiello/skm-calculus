@@ -8,12 +8,9 @@ data ReductionMode = Lazy
   deriving (Eq)
 
 data EvalConfig = EvalConfig
-  { tIn    :: !SkExpr
-  , tOut   :: !SkExpr
-  , tK     :: !SkExpr
+  { tK     :: !SkExpr
   , tS     :: !SkExpr
   , tM     :: !SkExpr
-  , arrow  :: !SkExpr
   , mode   :: !ReductionMode
   }
 
@@ -23,8 +20,6 @@ step _ (Call (Call (Call S x) y) z)     = Just (Call (Call x z) (Call y z))
 step (EvalConfig { tK = t }) (Call M K) = Just t
 step (EvalConfig { tS = t }) (Call M S) = Just t
 step (EvalConfig { tM = t }) (Call M M) = Just t
-step (EvalConfig { tOut = t })
-  (Call M (Call lhs rhs))                = Just (Call (Call (Call M lhs) rhs) t)
 step _ _ = Nothing
 
 -- Attempts to reduce the next available outermost redex

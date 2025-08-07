@@ -1,26 +1,3 @@
--- M e : Prop
--- M K = ∀ x y, (M x) → (M (K x y))
--- K := λ x y (tₓ : x) => x
--- Evaluating (M (K x y)) requires evaluating (M x).
--- This can be interpreted as the logical proposition (M x) → (M (K x y))
--- Does this hold in the general case?
--- How can we encode the typing of S?
--– How do we "check" that something is similar to the type of K?
-–- Idea:
--- It's conceivable that all x in S x y z must take 2 arguments
--- This is like the type of K, except more constrained
--- Since K only requires X to be typed.
--- Y doesn't necessarily have to be well-typed, since it's discarded
--- What is a proof of M K?
--- K x y is a proof of M K
--- M (K x y) = M K
--- K x y : M K
--- 
--- M S = ∀ x y z, (M x) → (M y) → (M z) → (M x) = (M K)
-
--- (M a) → (M (K a b))
 def t_k   := λ a b => (M a)
-
--- (M x) → (M y) → (M z) → (M x = (M z) → 
 def t_s   := λ x y z => (M ((x z) (y z)))
 def t_m   := λ e => (M (M e))

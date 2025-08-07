@@ -5,7 +5,7 @@ import qualified Data.HashMap.Strict as HM
 import Control.Monad.Trans.Except
 import Control.Monad.State.Lazy
 import Skm.Ast (SkExpr(..))
-import Skm.Eval (ReductionMode(..), EvalConfig, EvalConfig(..), tK, tM, tS, tOut)
+import Skm.Eval (ReductionMode(..), EvalConfig, EvalConfig(..), tK, tM, tS)
 
 -- One-step evaluation valid reductions
 -- Not defined for left-side evaluation

@@ -73,20 +73,14 @@ lookupDef stmts vr = bodyOf <$> find isMatchingDef stmts
 getEvalConfig :: ReductionMode -> StreamName -> Stream -> CompilationResult EvalConfig
 getEvalConfig mode fname s = do
   (stmts, _)    <- parseResultToCompilationResult (flattenProgram <$> parseProgramCoc fname s)
-  arrowE        <- lookupAndCc stmts "arrow"
-  tin           <- lookupAndCc stmts "t_in"
-  tout          <- lookupAndCc stmts "t_out"
   tk            <- lookupAndCc stmts "t_k"
   ts            <- lookupAndCc stmts "t_s"
   tm            <- lookupAndCc stmts "t_m"
 
   pure $ EvalConfig
-    { tIn   = tin
-    , tOut  = tout
-    , tK    = tk
+    { tK    = tk
     , tS    = ts
     , tM    = tm
-    , arrow = arrowE
     , mode  = mode }
   where lookupAndCc stmts name =
           maybe (Left $ UnknownConst name) Right (lookupDef stmts name) >>= ccRawCocToSk
