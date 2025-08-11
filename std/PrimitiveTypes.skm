@@ -288,8 +288,8 @@ def True  := ∀ (a : Prop) (b : Prop) => a
     We need a Term and Type expr.
 -/
 
-def t_k   := ∀ (t : Type) (x : Term) (h : M x t) => t
-def t_s   := ∀ (t : Type) (x : Term) (y : Term) (z : Term) (h : M ((x z) (y z)) t) => t
+def t_k   := ∀ t x (h : M x t) => t
+def t_s   := ∀ t x y z (h : M ((x z) (y z)) t) => t
 
-def t_m   := ∀ (e : Term) => (M e) (M e)
+def t_m   := ∀ e => (M e) (M e)
 
