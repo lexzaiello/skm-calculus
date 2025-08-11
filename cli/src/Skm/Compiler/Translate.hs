@@ -1,8 +1,9 @@
 module Skm.Compiler.Translate where
 
+import Data.List((!?))
 import Skm.Ast (SkExpr (..))
 import qualified Skm.Ast as SkmAst
-import Skm.Compiler.Ast (DebruijnVar, Binderless(..), DebruijnExprCoc, ExprCoc(..), Ctx, CompilationError, CompilationError(..), CompilationResult)
+import Skm.Compiler.Ast (OptionalTy(..), DebruijnVar, Binderless(..), DebruijnExprCoc, ExprCoc(..), Ctx, CompilationError, CompilationError(..), CompilationResult)
 import qualified Skm.Compiler.Ast as CAst
 
 allSk :: TransExpr -> Bool
@@ -12,7 +13,7 @@ allSk HumanM = True
 allSk (TApp lhs rhs) = allSk lhs && allSk rhs
 allSk _ = False
 
-data TransExpr = TLam TransExpr
+data TransExpr = TLam TransExpr TransExpr
   | TVar DebruijnVar
   | TApp TransExpr TransExpr
   | HumanS
@@ -29,36 +30,43 @@ shiftDownFrom j (TVar i)
   | i > j     = TVar (i - 1)
   | otherwise = TVar i
 shiftDownFrom j (TApp a b) = TApp (shiftDownFrom j a) (shiftDownFrom j b)
-shiftDownFrom j (TLam e)   = TLam (shiftDownFrom (j + 1) e)
+shiftDownFrom j (TLam t e) = TLam (shiftDownFrom (j + 1) t) (shiftDownFrom (j + 1) e)
 shiftDownFrom _ x = x
 
 freeIn :: Int -> TransExpr -> Bool
-freeIn j (TVar i)    = i == j
-freeIn j (TApp f x)  = freeIn j f || freeIn j x
-freeIn j (TLam body) = freeIn (j + 1) body
-freeIn _ _           = False
+freeIn j (TVar i)      = i == j
+freeIn j (TApp f x)    = freeIn j f || freeIn j x
+freeIn j (TLam t body) = freeIn (j + 1) t || freeIn (j + 1) body
+freeIn _ _             = False
 
-abstract :: Int -> TransExpr -> TransExpr
-abstract j (TApp f (TVar i))
-  | i == j && not (freeIn j f) = shiftDownFrom j f
-abstract j (TVar i)
-  | i == j    = TApp (TApp TranslationS TranslationK) TranslationK
-  | otherwise = TApp TranslationK (TVar (if i > j then i - 1 else i))
-abstract j e@(TApp m n)
-  | allSk e = e
-  | otherwise = TApp (TApp TranslationS (abstract j m)) (abstract j n)
-abstract j e
+abstract :: Ctx TransExpr -> Int -> TransExpr -> CompilationResult TransExpr
+abstract _ j (TApp f (TVar i))
+  | i == j && not (freeIn j f) = pure $ shiftDownFrom j f
+abstract ctx j (TVar i)
+  | i == j    = do
+      t <- maybe (Left MissingType) Right $ ctx !? i
+      pure $ TApp (TApp (TApp TranslationS t) TranslationK) TranslationK
+  | otherwise = do
+      t <- maybe (Left MissingType) Right $ ctx !? i
+      pure $ TApp (TApp TranslationK t) (TVar (if i > j then i - 1 else i))
+abstract c@(t:_) j e@(TApp m n)
+  | allSk e = pure e
+  | otherwise = do
+      l <- abstract c j m
+      r <- abstract c j n
+      pure $ TApp (TApp (TApp TranslationS t) l) r
+abstract _ j e
   | allSk e = e
   | otherwise = TApp TranslationK (shiftDownFrom j e)
 
 -- TODO: Better error handling here
 toTransExpr :: DebruijnExprCoc -> TransExpr
-toTransExpr CAst.S         = HumanS
-toTransExpr CAst.K         = HumanK
-toTransExpr CAst.M         = HumanM
-toTransExpr (App lhs rhs)  = TApp (toTransExpr lhs) (toTransExpr rhs)
-toTransExpr (Lam _ _ body) = TLam (toTransExpr body)
-toTransExpr (Var v)        = TVar v
+toTransExpr CAst.S                = HumanS
+toTransExpr CAst.K                = HumanK
+toTransExpr CAst.M                = HumanM
+toTransExpr (App lhs rhs)         = TApp (toTransExpr lhs) (toTransExpr rhs)
+toTransExpr (Lam _ (OptionalTy (Just t)) body) = TLam (toTransExpr t) (toTransExpr body)
+toTransExpr (Var v)               = TVar v
 
 transExprToExprCoc :: TransExpr -> DebruijnExprCoc
 transExprToExprCoc HumanS        = CAst.S
@@ -73,7 +81,8 @@ lift :: DebruijnExprCoc -> CompilationResult DebruijnExprCoc
 lift e = transExprToExprCoc <$> go [toTransExpr e] 0 (toTransExpr e)
   where
     go :: Ctx TransExpr -> Int -> TransExpr -> Either CompilationError TransExpr
-    go ctx lvl e@(TLam body) = do
+    go ctx lvl e@(TLam t body) = do
+      t'    <- go (e:ctx) (lvl + 1) t
       body' <- go (e:ctx) (lvl + 1) body
 
       pure $ abstract 0 body'

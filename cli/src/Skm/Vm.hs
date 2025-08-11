@@ -5,7 +5,8 @@ import qualified Data.HashMap.Strict as HM
 import Control.Monad.Trans.Except
 import Control.Monad.State.Lazy
 import Skm.Ast (SkExpr(..))
-import Skm.Eval (ReductionMode(..), EvalConfig, EvalConfig(..), tK, tM, tS)
+import Skm.Compiler.Ast (OptionalTy(..))
+import Skm.Eval (ReductionMode(..), EvalConfig, EvalConfig(..))
 
 -- One-step evaluation valid reductions
 -- Not defined for left-side evaluation
@@ -67,6 +68,13 @@ data ExecError = ExecError
   }
   | EmptyStack
   | NoResult
+  | NoType
+    { offendingExpression :: SkExpr
+    }
+  | IncorrectType
+    { offendingE          :: SkExpr
+    , expectedType        :: SkExpr
+    }
   deriving (Show)
 
 memoize :: SkExpr -> SkExpr -> State ExecState ()
@@ -106,6 +114,25 @@ mkState :: SkExpr -> ExecState
 mkState e = snd $ runState (do
     pushMany [TryStep, Rfl e]
   ) $ ExecState { trace = [], stack = [], register = [], cache = HM.fromList [] }
+
+check :: EvalConfig -> SkExpr -> OptionalTy SkExpr -> ExceptT ExecError (State ExecState) ()
+check cfg e t = do
+  let s0 = mkState (Call M e)
+  let (err, s) = runState (runExceptT $ advanceToEnd cfg) s0
+
+  _ <- (ExceptT . pure) err
+
+  case outE s of
+    Left _ ->
+      (ExceptT . pure . Left) $ NoType { offendingExpression = e }
+    Right t0' ->
+      case t of
+        (OptionalTy (Just t)) ->
+          if t0' == t then
+            pure ()
+          else
+            (ExceptT . pure . Left) $ IncorrectType { offendingE = e, expectedType = t }
+        (OptionalTy Nothing) -> pure ()
 
 advance :: EvalConfig -> ExceptT ExecError (State ExecState) ()
 advance cfg = do
@@ -165,12 +192,6 @@ advance cfg = do
       rhs <- popE
 
       (lift . pushMany) [Lhs, TryStep, Rfl (Call M lhs), Rfl rhs]
-    EvalOnce Mk ->
-      (lift . push) $ Rfl (tK cfg)
-    EvalOnce Ms ->
-      (lift . push) $ Rfl (tS cfg)
-    EvalOnce Mm ->
-      (lift . push) $ Rfl (tM cfg)
     Dup -> do
       e <- popE
 
@@ -184,12 +205,45 @@ advance cfg = do
           (lift . push) $ Rfl e'
         Nothing -> do
           ops <- (case e of
-            (Call M (Call M M)) -> pure [Rfl e]
-            (Call (Call (Call K _t_x) x) _y) -> pure [EvalOnce KCall, Rfl x]
-            (Call (Call (Call (Call (Call (Call S _t_x) x) _t_y) y) _t_z) z) ->
+            (Call (Call (Call (Call K _t_x) x) _h) _y) -> pure [EvalOnce KCall, Rfl x]
+            (Call (Call (Call (Call (Call S _t) x) y) z) _h) ->
               pure [EvalOnce SCall, Rfl x, Rfl y, Rfl z]
-            (Call M K) -> pure [EvalOnce Mk]
-            (Call M S) -> pure [EvalOnce Ms]
+            (Call M K) -> pure [Rfl e]
+            (Call M S) -> pure [Rfl e]
+            (Call M M) -> pure [Rfl e]
+            (Call M (Call (Call (Call (Call K t) x) h) _y)) -> do
+              _ <- check cfg h (OptionalTy $ Just (Call (Call M x) t))
+
+              pure [Rfl t]
+            (Call M (Call (Call (Call (Call (Call S t) x) y) z) h)) -> do
+              _ <- check cfg h (OptionalTy $ (Call (Call M (Call (Call x z) (Call y z))) t))
+
+              pure [Rfl t]
+            (Call M t0@(Call M e)) -> do
+              let s0 = mkState t0
+              let (err, s) = runState (runExceptT $ advanceToEnd cfg) s0
+
+              _ <- (ExceptT . pure) err
+
+              case outE s of
+                Left _ ->
+                  (ExceptT . pure . Left) $ NoType { offendingExpression = e }
+                Right t0' ->
+                  pure [Rfl (Call t0 t0')]
+            (Call t0@(Call M e) t) -> do
+              let s0 = mkState t0
+              let (err, s) = runState (runExceptT $ advanceToEnd cfg) s0
+
+              _ <- (ExceptT . pure) err
+
+              case outE s of
+                Left _ ->
+                  (ExceptT . pure . Left) $ NoType { offendingExpression = e }
+                Right t0' ->
+                  if t0' == t then
+                    pure [Rfl e]
+                  else
+                    (ExceptT . pure . Left) $ IncorrectType { offendingE = e, expectedType = t }
             (Call M (Call lhs rhs)) -> pure [EvalOnce MCall, Rfl lhs, Rfl rhs]
             (Call lhs rhs) -> (do
               lhs' <- (lift . tryMemo) lhs

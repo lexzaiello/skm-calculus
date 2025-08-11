@@ -21,6 +21,7 @@ dependencies:
   - hspec
   - array == 0.5.8.0
   - haskeline
+  - relude
 
 library:
   source-dirs: src

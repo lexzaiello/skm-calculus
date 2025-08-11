@@ -1,12 +1,10 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Skm.Cli.Exec where
 
+import Skm.Cli.OptParse (RawPath)
 import Control.Monad
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.List (find, foldl')
-import Skm.Cli.OptParse (RawPath, EvalOptions, EvalOptions(redMode))
 import Skm.Parse (pExpr)
 import Skm.Eval (ReductionMode, EvalConfig(..))
 import Skm.Util.Parsing (Parser)
@@ -72,15 +70,7 @@ lookupDef stmts vr = bodyOf <$> find isMatchingDef stmts
 
 getEvalConfig :: ReductionMode -> StreamName -> Stream -> CompilationResult EvalConfig
 getEvalConfig mode fname s = do
-  (stmts, _)    <- parseResultToCompilationResult (flattenProgram <$> parseProgramCoc fname s)
-  tk            <- lookupAndCc stmts "t_k"
-  ts            <- lookupAndCc stmts "t_s"
-  tm            <- lookupAndCc stmts "t_m"
-
   pure $ EvalConfig
-    { tK    = tk
-    , tS    = ts
-    , tM    = tm
-    , mode  = mode }
+    { mode = mode }
   where lookupAndCc stmts name =
           maybe (Left $ UnknownConst name) Right (lookupDef stmts name) >>= ccRawCocToSk

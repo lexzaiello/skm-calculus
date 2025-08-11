@@ -261,7 +261,6 @@
     How can M e be a proposition and a type at the same time?
     (M e) = t => t : M e t
     Remember, M is polymorphic, so the typing of K doesn't necessarily have to be well-typed.
-    
 
     We can recognize these forms and display them to the user, but under the hood they should be computable.
 

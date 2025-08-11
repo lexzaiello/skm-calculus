@@ -19,9 +19,6 @@ data BetaEqStep = Eval !EvalStep
 step :: EvalConfig -> SkExpr -> Maybe (SkExpr, EvalStep)
 step _ (Call (Call K x) _y) = Just (x, KCall)
 step _ (Call (Call (Call S x) y) z) = Just (Call (Call x z) (Call y z), SCall)
-step cfg (Call M K) = Just (tK cfg, MKCall)
-step cfg (Call M S) = Just (tS cfg, MSCall)
-step cfg (Call M M) = Just (tM cfg, MMCall)
 step _ (Call M (Call lhs rhs)) = Just (Call (Call M lhs) rhs, MCall)
 step _ _ = Nothing
 
