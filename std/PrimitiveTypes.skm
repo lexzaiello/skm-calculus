@@ -275,8 +275,7 @@
     We need a Term and Type expr.
 -/
 
-def t_k   := ∀ t x (h : M x t) => t
-def t_s   := ∀ t x y z (h : M ((x z) (y z)) t) => t
+def t_k   := λ t x (h : M x t) => t
+def t_s   := λ t x y z (h : M ((x z) (y z)) t) => t
 
-def t_m   := ∀ e => (M e) (M e)
-
+def t_m   := λ e => (M e) (M e)
