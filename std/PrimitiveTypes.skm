@@ -1,16 +1,3 @@
--- K : True, but not just True
--- We want M to work like this:
--- (M K (M K)) = true
--- True selects the first value
--- So, we can short circuit
--- K depending on the value of M
--- Say M K (M S) = false
--- Then, we can do:
--- (K false true)
-
-def False := ∀ (a : Prop) (b : Prop) => b
-def True  := ∀ (a : Prop) (b : Prop) => a
-
 /- Type of False and True is Prop
     We need some way to distinguish ∀ and λ at the type level
     Theoretically, True := K
