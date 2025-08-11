@@ -1,3 +1,295 @@
-def t_k   := λ a b => (M a)
-def t_s   := λ x y z => (M ((x z) (y z)))
-def t_m   := λ e => (M (M e))
+-- K : True, but not just True
+-- We want M to work like this:
+-- (M K (M K)) = true
+-- True selects the first value
+-- So, we can short circuit
+-- K depending on the value of M
+-- Say M K (M S) = false
+-- Then, we can do:
+-- (K false true)
+
+def False := ∀ (a : Prop) (b : Prop) => b
+def True  := ∀ (a : Prop) (b : Prop) => a
+
+/- Type of False and True is Prop
+    We need some way to distinguish ∀ and λ at the type level
+    Theoretically, True := K
+    However, this implies K : Prop
+    Which is not true. What is of type Prop?
+    M e t is of type Prop.
+    M e t does not reduce to anything theoretically
+    We don't even need a boolean.
+    We need some way to make logical operators using M
+    and potentially S and K
+    However, K and S do computation
+    We need some way to match on a Prop
+    We need to extract a truth value
+    from M.
+    We could add branch arguments to M
+    but it's not clear what the types of these would be?
+    Let's start with a simple example
+    A -> (B : Prop). How do we model this using K and M?
+    K Prop B A
+    Pretty easy
+    Do we even need church-encoded booleans?
+    We can just use CoC-style logical operators
+    As we saw here, with A -> B. Note, however, that K is more like λ. It needs to be at the type level
+    for it to be A -> B.
+    A -> B is clearly a Prop,
+    But M is what we need to construct a Prop.
+    M (e : t) : t -> Prop
+    So, clearly, the type of M is also a Prop.
+    So, we just need to change our evaluation rules for M.
+    K or S at the type level behave like ∀.
+    We can demarcate ∀ K as M K.
+    This brings us back to the interpretation of M as both a typing judgment and the type of something.
+    M (e : t) = t
+    and
+    M (e : t) t₂ = (t = t₂)
+    We can do this with a clever typing rule for function calls.
+    So, for the ∀ pass-through thing:
+    K : some lambda abstraction thing.
+    M K = some lambda abstraction thing
+    M (M K) = Prop
+    M (M M) = Prop
+    M (M ?) = Prop in general, I think
+    Do we need M to do reflection at all?
+    Can we just treat M e t : Prop and ditch the reflection?
+    Reflection seems like it would do sus stuff.
+
+    Let's fix this as an invariant:
+    M e t : Prop
+    So what are true and false then?
+    We need to be able to extract a truth value from M.
+    Theoretically, though, we don't need to be able to compute M.
+    It just sits there.
+    We can do it at the type level.
+
+    M e t = ?
+    What if M e t just doesn't type-check to indicate failure?
+    Really, we just need some way to interface with M and form logical connectives.
+    (M e t) \and (M e₂ t₂).
+    M e t doesn't necessarily have to work at run-time.
+    M e t shouldn't type-check if the type of e =/= t.
+    So, M e t doesn't expand to anything. No evaluation rule.
+    We could do equality under the hood, but I don't like this.
+    We can just define M e (type of K), etc.
+
+    I really like the reflection interpretation, though.
+    M K is the type of K.
+    And if we plug in M K (type of K), then what do we get?
+    Type of K should behave like this: (M (K x y)) (M x) this type-checks.
+
+    Another thought on the type of M..
+    So, we need to balance evaluation rules for M and the type definitions of K such that:
+    (M (K x y) (M x)) type-checks.
+    We don't necessarily need the full reflection capabilities for this, but it would be nice.
+    Reflection isn't really fully necessary, but I really like the reflection interpretation.
+
+    Two strategies for M:
+    - M doesn't type-check at compile time
+    - M provides a truth-value at runtime
+
+    Compile time is easier, but runtime is cooler.
+    Compile time is probably what we actually need for shit to work though.
+
+    An idea: M cannot be constructed for things that are not typeable.
+    Literally undefined (does not type-check).
+
+    M has no evaluation rule. M e t is just left unexpanded.
+    The question is, what's t₀ where M (M e t) t₀?
+    Prop.
+    Then type.
+
+    I really like the reflection interpretation though:
+    M e = the type of e
+    M (e : t₂) t = (t = t₂)
+
+    We can rework the type of K such that it doesn't require computable truth values.
+    We can just have M a ta as a parameter.
+
+    Or if there's some way to form logical connectives, then we can do that.
+
+    The type of K is kind of elusive to the end user.
+    There are two ways to handle this:
+    	  - Compile time inference (CoC translation)
+	  - Making M do reflection as well
+    It's hard to square M e = t with M e t = (t = t)
+    Possible to have a different evaluation rule for (M K (M K)) vs (M (K ?))?
+    Having two different evaluation rules is kind of weird, since combinators are supposed to do one thing.
+
+    Unifying these is the golden tier.
+    We can theoretically change the type of K to fit this.
+    K :
+
+    So there is no evaluation rule for M K t.
+    Just M K.
+    K evaluation rule: K tₓ x t_y y = x.
+    There's really no space here for adding a proof.
+    Except if we just add more parameters, but that is morbidly ugly.
+    K tₓ x (h₁ : M x tₓ) t_y y (h₂ : M y t_y)
+
+    This is insanely long.
+
+    Also, if we're doing this all at runtime, then we need some way to extract a truth value from M, like I said before.
+    Also, what even has type M x tₓ?
+
+    M ((M K) K ? (M S) S ?) = (M K)
+    M ((M K) K ? (M S) S ?) (M K) = (M K)
+
+    We can make K = true
+    But, then we can just plug in K for the proof.
+    So, really K is the type of a true proposition?
+    (M (1 = 1)) : Prop
+    This is what we want.
+
+    Let's fix the Prop behavior.
+
+    The boolean idea is cool.
+    Let's run with it.
+
+    M e t : Prop
+    M e t is the proposition that e is well-typed with type t.
+
+    So, K := λ tx x (h : M x tx) y => x
+
+    So, how does M typecheck this?
+    K : ∀ tx, (M (λ x (h : M x tx) y => x))
+    K : ∀ tx x (h : M x tx) => (M x)
+
+    This is fine and dandy.
+
+    We can add two combinators: M x, and T x t.
+    I don't like this, though.
+
+    M (K x t h) = (M x)
+    (M (K x t h) (M x)) = ((M x) (M x))
+
+    Wait, this is exactly what we want.
+
+    So, how do we extract a truth value?
+    (M (K x t h) (M y)) = ((M x) (M y))
+    This is not true in some cases.
+    But, like I said, what is of type (M x tx)?
+    K (M x tx) tx ? ? => (M (M x tx))
+
+    This is the proof.
+
+    Let's do an example.
+    (M ((K (M K) S ? _)))
+
+    Maybe we need to involve h in our output somehow at the type level.
+
+    (h : M x t x) = K (M x tx) tx ? ?
+
+    Idea: M (K K K) (M S). We require that h has type M x tx,
+    but how is this represented?
+
+    def t_k   := ∀ tx x (h : M x tx) y => (M x)
+    This is the holy grail. We have seen that it works.
+
+    We need to encode a truth value in the evaluation rules for M.
+    The boolean idea was really nice.
+    M e t := (M e) = t
+    Or, M e t := (M e) t
+
+    What happens if we do M (M e t)?
+    Or, for a simpler example, M (M K)?
+    M K := ∀ tx x (h : M x tx) y => (M x)
+    M (M K) := Prop
+    So, if M gets "stuck", then it doesn't typecheck.
+
+    proof := M (M K (M K))
+    proof := M (∀ x (h : M x (M K)) y => (M x))
+    This gets stuck, but it is true.
+
+    proof := M (M K (M S))
+    proof := M (∀ x (h : M x (M S)) y => (M x))
+
+    This is also true.
+
+    def t_k   := ∀ tx x (h : M x tx) y => (M x)
+
+    This is the holy grail, but how do we assert M x tx?
+    What if we do (M K (M S))?
+    (M K (M S)) = ∀ (M S) x (h : M x (M S)) y => (M x)
+    This is also true. So, what gives?
+    (M K (M S)) should definitely not be true.
+    
+
+    If we're type-checking the program at compile-time, then what is the purpose of
+    What is K = if the M-check fails?
+    Clearly, there must be some type information at the evaluation level for this to work.
+
+    K := λ tx x h y => x
+    Not just x here, we need something to indicate this call not working.
+    K := λ tx x h y => h x
+
+    K (M K) K ? _ => ? x
+
+    What if we join the "typing level" and the evaluation level?
+    	 Don't even know what I meant by this.
+
+    Keep looping back on this: we need some notion of a truth value in M.
+
+    - Can do this with compile-time type-checking: M e t is just unexpanded and you cannot produce it unless it is true
+    - M e t is the proposition
+    - What is the proof of M e t?
+    - Nothing in our system produces something of type M e t
+    - WAIT: M e = t, but M e : M e t?
+    - I like this.
+
+    We need to make it impsosible to produce M e.
+    Or, M e has to typecheck. M (M e) (M e t)
+
+    This brings us back to the short-circuiting problem.
+
+    Recall that certain expressions get stuck. We can say that an expression is not well-typed if it makes no progress in M e.
+    For example, if we had no type definition for M, M M would get stuck, and M would not be well-typed.
+    This is pretty intuitive. This is like M e being undefined.
+
+    Note here that the h argument is kind of redundant!
+    What is the type of tx though?
+    M (M e t) = Prop
+
+    Somewhere we need to emit Prop.
+    M (M e t) = Prop
+    This is fine.
+    Then, M (M (M e t)) = Type 0
+    etc.
+
+    M is necessarily polymorphic.
+    We can skip this whole compilation process and just bake these evaluation rules into the VM.
+
+    But what is tx?
+    Clearly, tx : Type.
+
+    (M M) shows a contradiction.
+    (M M : M M M) SKULL EMOJI.
+    So, nothing is of type Type.
+    If (M e) : M e t
+    then M (M e t) : Prop
+    and M (M (M e t)) : Type
+
+    How can M e be a proposition and a type at the same time?
+    (M e) = t => t : M e t
+    Remember, M is polymorphic, so the typing of K doesn't necessarily have to be well-typed.
+    
+
+    We can recognize these forms and display them to the user, but under the hood they should be computable.
+
+    I think, ideally, we can keep the old evaluation rules for S and K.
+    Keep them polymorphic, just make them hidden to the end user.
+
+    "Unsafe" polymoprhic K or S is like sorry.
+
+    K := λ t x h => x
+
+    We need a Term and Type expr.
+-/
+
+def t_k   := ∀ (t : Type) (x : Term) (h : M x t) => t
+def t_s   := ∀ (t : Type) (x : Term) (y : Term) (z : Term) (h : M ((x z) (y z)) t) => t
+
+def t_m   := ∀ (e : Term) => (M e) (M e)
+
