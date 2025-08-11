@@ -164,7 +164,7 @@ advance cfg = do
       lhs <- popE
       rhs <- popE
 
-      (lift . pushMany) [TryStep, Rfl (Call (Call M lhs) rhs)]
+      (lift . pushMany) [Lhs, TryStep, Rfl (Call M lhs), Rfl rhs]
     EvalOnce Mk ->
       (lift . push) $ Rfl (tK cfg)
     EvalOnce Ms ->
@@ -185,17 +185,9 @@ advance cfg = do
         Nothing -> do
           ops <- (case e of
             (Call M (Call M M)) -> pure [Rfl e]
-            -- S' c f g x -> c (f x) (g x)
-            (Call (Call (Call S (Call (Call S (Call K c)) f)) g) x) -> pure [EvalOnce S'Call, Rfl c, Rfl f, Rfl g, Rfl x]
-            -- C f g x -> f x g
-            (Call (Call (Call S f) (Call K g)) x) -> pure [EvalOnce CCall, Rfl f, Rfl g, Rfl x]
-            -- B p i -> p
-            (Call (Call S (Call K f)) _g) -> pure [EvalOnce B0Call, Rfl f]
-             -- B f g x
-            (Call (Call (Call S (Call K f)) g) x) -> pure [EvalOnce BCall, Rfl f, Rfl g, Rfl x]
-            (Call (Call (Call S K) K) x) -> pure [EvalOnce ICall, Rfl x]
-            (Call (Call K x) y) -> pure [EvalOnce KCall, Rfl x]
-            (Call (Call (Call S x) y) z) -> pure [EvalOnce SCall, Rfl x, Rfl y, Rfl z]
+            (Call (Call (Call K _t_x) x) _y) -> pure [EvalOnce KCall, Rfl x]
+            (Call (Call (Call (Call (Call (Call S _t_x) x) _t_y) y) _t_z) z) ->
+              pure [EvalOnce SCall, Rfl x, Rfl y, Rfl z]
             (Call M K) -> pure [EvalOnce Mk]
             (Call M S) -> pure [EvalOnce Ms]
             (Call M (Call lhs rhs)) -> pure [EvalOnce MCall, Rfl lhs, Rfl rhs]
