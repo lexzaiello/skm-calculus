@@ -191,7 +191,13 @@ advance cfg = do
       lhs <- popE
       rhs <- popE
 
-      (lift . pushMany) [Lhs, TryStep, Rfl (Call M lhs), Rfl rhs]
+      (lift . pushMany) [TryStep, Rfl (Call (Call M lhs) rhs)]
+    EvalOnce Mk ->
+      (lift . push) $ Rfl (tK cfg)
+    EvalOnce Ms ->
+      (lift . push) $ Rfl (tS cfg)
+    EvalOnce Mm ->
+      (lift . push) $ Rfl (tM cfg)
     Dup -> do
       e <- popE
 
@@ -205,45 +211,20 @@ advance cfg = do
           (lift . push) $ Rfl e'
         Nothing -> do
           ops <- (case e of
-            (Call (Call (Call (Call K _t_x) x) _h) _y) -> pure [EvalOnce KCall, Rfl x]
-            (Call (Call (Call (Call (Call S _t) x) y) z) _h) ->
-              pure [EvalOnce SCall, Rfl x, Rfl y, Rfl z]
-            (Call M K) -> pure [Rfl e]
-            (Call M S) -> pure [Rfl e]
-            (Call M M) -> pure [Rfl e]
-            (Call M (Call (Call (Call (Call K t) x) h) _y)) -> do
-              _ <- check cfg h (OptionalTy $ Just (Call (Call M x) t))
-
-              pure [Rfl t]
-            (Call M (Call (Call (Call (Call (Call S t) x) y) z) h)) -> do
-              _ <- check cfg h (OptionalTy $ (Call (Call M (Call (Call x z) (Call y z))) t))
-
-              pure [Rfl t]
-            (Call M t0@(Call M e)) -> do
-              let s0 = mkState t0
-              let (err, s) = runState (runExceptT $ advanceToEnd cfg) s0
-
-              _ <- (ExceptT . pure) err
-
-              case outE s of
-                Left _ ->
-                  (ExceptT . pure . Left) $ NoType { offendingExpression = e }
-                Right t0' ->
-                  pure [Rfl (Call t0 t0')]
-            (Call t0@(Call M e) t) -> do
-              let s0 = mkState t0
-              let (err, s) = runState (runExceptT $ advanceToEnd cfg) s0
-
-              _ <- (ExceptT . pure) err
-
-              case outE s of
-                Left _ ->
-                  (ExceptT . pure . Left) $ NoType { offendingExpression = e }
-                Right t0' ->
-                  if t0' == t then
-                    pure [Rfl e]
-                  else
-                    (ExceptT . pure . Left) $ IncorrectType { offendingE = e, expectedType = t }
+            (Call M (Call M M)) -> pure [Rfl e]
+            -- S' c f g x -> c (f x) (g x)
+            (Call (Call (Call S (Call (Call S (Call K c)) f)) g) x) -> pure [EvalOnce S'Call, Rfl c, Rfl f, Rfl g, Rfl x]
+            -- C f g x -> f x g
+            (Call (Call (Call S f) (Call K g)) x) -> pure [EvalOnce CCall, Rfl f, Rfl g, Rfl x]
+            -- B p i -> p
+            (Call (Call S (Call K f)) _g) -> pure [EvalOnce B0Call, Rfl f]
+             -- B f g x
+            (Call (Call (Call S (Call K f)) g) x) -> pure [EvalOnce BCall, Rfl f, Rfl g, Rfl x]
+            (Call (Call (Call S K) K) x) -> pure [EvalOnce ICall, Rfl x]
+            (Call (Call K x) y) -> pure [EvalOnce KCall, Rfl x]
+            (Call (Call (Call S x) y) z) -> pure [EvalOnce SCall, Rfl x, Rfl y, Rfl z]
+            (Call M K) -> pure [EvalOnce Mk]
+            (Call M S) -> pure [EvalOnce Ms]
             (Call M (Call lhs rhs)) -> pure [EvalOnce MCall, Rfl lhs, Rfl rhs]
             (Call lhs rhs) -> (do
               lhs' <- (lift . tryMemo) lhs
