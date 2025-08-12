@@ -68,7 +68,6 @@
             - [SK Combinators](./SkRaw.lean.md)
 
             # Dependent Typing in SK
-            - [Overview](./SkmOverview.lean.md)
             - [AST & Judgment Rules](./Ast3.lean.md)
 
             # Strong Normalization Proof

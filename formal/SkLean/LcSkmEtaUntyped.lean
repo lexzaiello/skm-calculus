@@ -18,6 +18,10 @@ def toStringImpl (e : Expr) : String :=
     | .k          => "K"
     | .s          => "S"
     | .m          => "M"
+    | .m₀         => "M₀"
+    | .s₀         => "S₀"
+    | .k₀         => "K₀"
+    | .prp        => "Prop"
     | .call e₁ e₂ => s!"({toStringImpl e₁} {toStringImpl e₂})"
 
 end Expr
@@ -136,29 +140,27 @@ For testing purposes, we will write `partial` evaluation and typing functions:
 -/
 
 -- Type of K : λ α.→ (M α) (λ β.(→ (M β)) (M α))
-def t_k := (.lam (.call (.call (.raw arrow) (.call .m (.var 0))) (.lam (.call (.call (.raw arrow) (.call .m (.var 0))) (.call .m (.var 1))))))
+def Flse := (LExpr.raw (.call .s (.call (.call .s .k) .k)))
+def Tre  := (LExpr.raw .k)
+
+def And := (LExpr.lam (.lam (.call (.call (.var 1) (.var 0)) (.var 1))))
+
+-- Type of K : ∀ t x y h, (M h (M x t)) ∧ h t False
+def t_k := (.lam (.lam (.lam (.lam (.call (.call And (.call (.call (.raw .m) (.var 0)) (.var 3))) (.call (.call (.var 0) (.var 3)) Flse))))))
   |> lift
   |> to_sk_unsafe
 
--- Type of M: λ e. → (M e) (M (M e))
-def t_m := (.lam (.call (.call (.raw arrow) (.call .m (.var 0))) (.call .m (.call .m (.var 0)))))
+-- Type of S : ∀ t x y z (h : M ((x z) (y z)) t), h t False
+def t_s := (.lam (.lam (.lam (.lam (.lam (.call (.call (.var 0) (.var 4)) Flse))))))
   |> lift
   |> to_sk_unsafe
 
--- Type of S : λ α.→ (M α) (λ β.→ (M β) (λ γ.→ (M γ) (snd ((snd ((M α) γ)) (snd ((M β) γ))))))
-def t_s := (.lam
-  (.call
-    (.call (.raw arrow) (.call .m (.var 0)))
-    (.lam
-      (.call
-        (.call (.raw arrow) (.call .m (.var 0)))
-        (.lam
-          (.call
-            (.call (.raw arrow) (.call .m (.var 0)))
-            (.call (.raw t_out) (.call (.call (.raw t_out) (.call (.call .m (.var 2)) (.var 0))) (.call (.raw t_out) (.call (.call .m (.var 1)) (.var 0)))))))))))
-  |> lift
-  |> to_sk_unsafe
+-- Type of M : ∀ e, ((M e) (M e))
+def t_m := (LExpr.call (.call (.raw .s) (.raw .m)) (.raw .m))
 
+#eval t_k |> ToString.toString
+#eval t_s
+#eval t_m
 
 def eval_n (n : ℕ) (e : Expr) : Expr :=
   if n = 0 then
@@ -244,9 +246,4 @@ def n_1 :=  mk_church 1
 def succ := (.lam (.lam (.lam (.call (.var 1) (.call (.call (.var 2) (.var 2)) (.var 0))))))
   |> lift
   |> to_sk_unsafe
-
-#eval eval_n 100 SKM[(M n_0)]
-#eval eval_n 150 SKM[(M n_1)]
-
-#eval eval_n 150 SKM[(M n_1)] == eval_n 100 SKM[(M n_0)]
 
