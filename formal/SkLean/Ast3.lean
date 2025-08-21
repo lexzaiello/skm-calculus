@@ -65,8 +65,8 @@ def subtree_is_in (e in_e : Expr) : Prop :=
       | _ => false
 
 inductive is_out : Expr → Expr → Prop
-  | k    : is_out SKM[((K t) x)] t
-  | s    : is_out SKM[((((((S t_x) x) t_y) y) t_z) z)] SKM[((t_x z) (y z))]
+  | k    : is_out SKM[(K t)] t
+  | s    : is_out SKM[(((((S t_x) x) t_y) y) t_z)] SKM[((t_x z) (y z))]
   | call : is_out lhs t_out
     → is_out SKM[(lhs rhs)] t_out
 
@@ -186,39 +186,28 @@ lemma weakening : valid_judgment e t → valid_judgment_hard e t := by
     exact h_t_rhs'
     exact h_out
 
-lemma preservation (h_t_pre : valid_judgment e t) (h_step : is_eval_once e e') : valid_judgment_hard e t := by
-  induction h_t_pre
-  cases h_step
-  cases h_step
-  cases h_step
-  case call lhs rhs t_lhs t_rhs t_out h_in h_t_lhs h_t_rhs h_out ih₁ ih₂ =>
-    apply valid_judgment_hard.call
-    exact h_in
-    exact h_t_lhs.weakening
-    exact h_t_rhs.weakening
-    exact h_out
+lemma t_k_x (h : valid_judgment SKM[((((K t_x) x) _t_y) y)] t_x) : valid_judgment_hard x t_x := by
+  cases h
+  case call t_rhs t_lhs h_in h_t_lhs h_t_rhs h_out =>
+    cases h_t_lhs
+    case call t_rhs' t_lhs' h_in' h_t_lhs' h_t_rhs' h_out' =>
+      cases h_t_lhs'
+      case call t_rhs'' t_lhs'' h_in'' h_t_lhs'' h_t_rhs'' h_out'' =>
+        cases h_t_lhs''
+        case call t_rhs''' t_lhs''' h_in''' h_t_lhs''' h_t_rhs''' h_out''' =>
+          cases h_out''
+          cases h_in''
+          cases h_in'''
+          cases h_t_lhs'''
+          exact h_t_rhs''.weakening
+          case k.call h_in'''' h_out'''' =>
+            cases h_out''''
+            repeat cases h_in''''
+          case call h =>
+            cases h
+
+lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : valid_judgment_hard e' t := by
+  cases h_eval
+  
 
 end valid_judgment
-
-namespace valid_judgment_hard
-
-theorem preservation (h_t_pre : valid_judgment_hard e t) (h_step : is_eval_once e e') : valid_judgment_hard e t := by
-  induction h_t_pre
-  cases h_step
-  cases h_step
-  cases h_step
-  case call lhs rhs t_lhs t_rhs t_out h_in h_t_lhs h_t_rhs h_out ih₁ ih₂ =>
-    apply valid_judgment_hard.beq
-    apply valid_judgment_hard.call
-    exact h_in
-    exact h_t_lhs
-    exact h_t_rhs
-    exact h_out
-    exact beta_eq.rfl
-  case beq e t' t'' h_t h_beq ih =>
-    simp_all
-    apply valid_judgment_hard.beq
-    exact ih
-    exact h_beq
-
-end valid_judgment_hard
