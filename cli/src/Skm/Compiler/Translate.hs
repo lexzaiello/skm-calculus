@@ -3,7 +3,7 @@ module Skm.Compiler.Translate where
 import Data.List((!?))
 import Skm.Ast (SkExpr (..))
 import qualified Skm.Ast as SkmAst
-import Skm.Compiler.Ast (OptionalTy(..), DebruijnVar, Binderless(..), DebruijnExprCoc, ExprCoc(..), Ctx, CompilationError, CompilationError(..), CompilationResult)
+import Skm.Compiler.Ast (OptionalTy(..), DebruijnVar, DebruijnExprCoc, ExprCoc(..), Ctx, CompilationError, CompilationError(..), CompilationResult)
 import qualified Skm.Compiler.Ast as CAst
 
 allSk :: TransExpr -> Bool
@@ -56,8 +56,8 @@ abstract c@(t:_) j e@(TApp m n)
       r <- abstract c j n
       pure $ TApp (TApp (TApp TranslationS t) l) r
 abstract _ j e
-  | allSk e = e
-  | otherwise = TApp TranslationK (shiftDownFrom j e)
+  | allSk e = Right e
+  | otherwise = Right $ TApp TranslationK (shiftDownFrom j e)
 
 -- TODO: Better error handling here
 toTransExpr :: DebruijnExprCoc -> TransExpr

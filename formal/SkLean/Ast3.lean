@@ -1,64 +1,9 @@
-/-
-# Judgment Rules & Ast: SK(M) Calculus
-
-By adding just one combinator \\(M\\) to the SK calculus, dependent typing is achieved.
-
-## The \\(M\\) Combinator: Evaluation Rules
-
-\\(M\\) serves two purposes:
-
-- Type-checking a program
-- Type inference
-
-As an example, the type of \\(K\ S\ K\\) should obviously be the type of \\(S\\), as \\(K\ S\ K = S\\).
-Ideally, we can use \\(M\\) like such:
-
-$$
-M\ (e : t) = t \\\\
-M\ (e : t)\ t_{2} = (t = t_{2})
-$$
-
-To facilitate this feature, I interpret the \\(K\\) combinator as an explicitly dependently-typed function of the form:
-
-$$
-K : \forall\ \alpha\ x\ y\ (h : M\ x\ \alpha), h\ \alpha\ \text{False}
-$$
-
-I interpret expressions of the type \\(M\ x\ \alpha\\) as decidable Church booleans. Here, \\(M\ x\ \alpha\\) acts like a proposition, as described above.
-
-From here on, \\(K\\) refers to this explicitly-typed variant of \\(K\\).
-
-## Decidability / Extracting a Truth Value from \\(M\\)
-
-I aim for \\(M\\) to be total and terminating on all inputs. It is not clear how \\(M\\) can be interpreted to "type-check" a program, since it is total. By interpreting \\\(M\ e\ t\\) as a computable Church boolean, this can be easily achieved by indicating \\(\text{False}\\) or \\(\text{True}\\). Church booleans are implemented with polymphoric \\(K_{0}\\) and \\(S_{0}\\), which behave similarly to \\(\text{sorry}\\) in Lean.
-
-```lean
--- Pseudo-code
-def True  := K
-def False := K (S K K)
-```
-
-It is not immediately clear what the types of the polymorphic \\(K\\) and \\(S\\) are.
-I hard-code these types as \\(\text{Prop}\\):
-
-$$
-S_{0} : \text{Prop} \\\\
-K_{0} : \text{Prop}
-$$
-
-Thus, the types of \\(False\\) and \\(True\\) are also \\(\text{Prop}\\).
--/
-
 import Mathlib.Tactic
 
 inductive Expr where
   | k    : Expr
   | s    : Expr
   | m    : Expr
-  | k₀   : Expr
-  | s₀   : Expr
-  | m₀   : Expr
-  | prp  : Expr
   | call : Expr → Expr → Expr
 deriving BEq, Repr
 
@@ -66,10 +11,6 @@ declare_syntax_cat skmexpr
 syntax "K"                                                             : skmexpr
 syntax "S"                                                             : skmexpr
 syntax "M"                                                             : skmexpr
-syntax "Prop"                                                             : skmexpr
-syntax "K₀"                                                             : skmexpr
-syntax "S₀"                                                             : skmexpr
-syntax "M₀"                                                             : skmexpr
 syntax "(" skmexpr skmexpr ")" : skmexpr
 syntax ident                                                           : skmexpr
 syntax "#" term                                                        : skmexpr
@@ -85,23 +26,17 @@ macro_rules
   | `(⟪ K ⟫)                           => `(Expr.k)
   | `(⟪ S ⟫)                           => `(Expr.s)
   | `(⟪ M ⟫)                           => `(Expr.m)
-  | `(⟪ K₀ ⟫)                          => `(Expr.k₀)
-  | `(⟪ S₀ ⟫)                          => `(Expr.s₀)
-  | `(⟪ M₀ ⟫)                          => `(Expr.m₀)
-  | `(⟪ Prop ⟫)                        => `(Expr.prp)
   | `(⟪ $e:ident ⟫)                    => `($e)
   | `(⟪ # $e:term ⟫)                   => `($e)
   | `(⟪ ($e:skmexpr) ⟫)                => `(⟪$e⟫)
   | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)   => `(Expr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
 
-def Flse := SKM[(K₀ ((S₀ K₀) K₀))]
-def Tre :=  SKM[(K₀)]
-
 inductive is_eval_once : Expr → Expr → Prop
-  | k      : is_eval_once SKM[((((K _t_x) x) _y) _h)] x
-  | s      : is_eval_once SKM[(((((S _t) x) y) z) _h)] SKM[((x z) (y z))]
-  | m_k₀   : is_eval_once SKM[(M K₀)] SKM[Prop]
-  | m_s₀   : is_eval_once SKM[(M S₀)] SKM[Prop]
+  | k        : is_eval_once SKM[((((K _t_x) x) _t_y) _y)] x
+  | s        : is_eval_once SKM[((((((S _t_x) x) _t_y) y) _t_z) z)] SKM[((x z) (y z))]
+  | m_k      : is_eval_once SKM[((((((M K) t) _x) _t_y) _y))] t
+  | m_s      : is_eval_once SKM[((((((((M S) t_x) x) t_y) y) t_z) z))] SKM[((t_x z) (y z))]
+  | m_call   : is_eval_once SKM[(M (lhs rhs))] SKM[((M lhs) rhs)]
 
 inductive is_eval_step : Expr → Expr → Prop
   | left : is_eval_step lhs lhs'
@@ -121,25 +56,66 @@ inductive is_normal_n : ℕ → Expr → Expr → Prop
   | stuck : (¬(∃ e', is_eval_once e e'))                 → is_normal_n 0 e e
   | succ  : is_eval_once e e' → is_normal_n n e' e_final → is_normal_n n.succ e e_final
 
+def is_normal (e : Expr) :=¬(∃ e', is_eval_once e e')
+
 def subtree_is_in (e in_e : Expr) : Prop :=
   e == in_e ∨
     match in_e with
       | SKM[(lhs rhs)] => subtree_is_in e lhs ∨ subtree_is_in e rhs
       | _ => false
 
+inductive is_out : Expr → Expr → Prop
+  | k    : is_out SKM[((K t) x)] t
+  | s    : is_out SKM[((((((S t_x) x) t_y) y) t_z) z)] SKM[((t_x z) (y z))]
+  | call : is_out lhs t_out
+    → is_out SKM[(lhs rhs)] t_out
+
+inductive is_in : Expr → Expr → Prop
+  | k  : is_in SKM[K] any
+  | s  : is_in SKM[S] any
+  | m  : is_in SKM[M] any
+  | k₁ : is_in SKM[(K t)] t
+  | k₂ : is_in SKM[((K t) e)] any
+  | k₃ : is_in SKM[(((K t_x) x) t_y)] t_y
+  | s₁ : is_in SKM[(S t)] t
+  | s₂ : is_in x t_z
+    → is_in SKM[((S t_x) x)] any
+  | s₃ : is_in x t_z
+    → is_in y t_z
+    → is_in SKM[(((S t_x) x) t_y)] t_y
+  | s₄ : is_in x t_z
+    → is_in y t_z
+    → is_in SKM[((((S t_x) x) t_y) y)] any
+  | s₅ : is_in x t_z
+    → is_in y t_z
+    → is_in SKM[(((((S t_x) x) t_y) y) t_z)] t_z
+  | call : is_in lhs t_in
+    → is_out lhs t_out
+    → is_in t_out t
+    → is_in SKM[(lhs rhs)] t
+
+inductive valid_judgment : Expr → Expr → Prop
+  | k    : valid_judgment SKM[K] SKM[(M K)]
+  | s    : valid_judgment SKM[S] SKM[(M S)]
+  | m    : valid_judgment SKM[M] SKM[(M M)]
+  | call  : is_in lhs t_rhs
+    → valid_judgment lhs t_lhs
+    → valid_judgment rhs t_rhs
+    → is_out lhs t_out
+    → valid_judgment SKM[(lhs rhs)] t_out
+
 inductive valid_judgment_hard : Expr → Expr → Prop
-  | m : beta_eq SKM[(M e)] t
-    → ¬ subtree_is_in e t
-    → valid_judgment_hard e t
-
-namespace valid_judgment_hard
-
-lemma imp_m_eval : valid_judgment_hard e t → _root_.beta_eq SKM[(M e)] t :=
-  fun h_t =>
-    match h_t with
-      | .m h_beq _ => h_beq
-
-end valid_judgment_hard
+  | k    : valid_judgment_hard SKM[K] SKM[(M K)]
+  | s    : valid_judgment_hard SKM[S] SKM[(M S)]
+  | m    : valid_judgment_hard SKM[M] SKM[(M M)]
+  | call : is_in lhs t_rhs
+    → valid_judgment_hard lhs t_lhs
+    → valid_judgment_hard rhs t_rhs
+    → is_out lhs t_out
+    → valid_judgment_hard SKM[(lhs rhs)] t_out
+  | beq  : valid_judgment_hard e t
+    → beta_eq t t'
+    → valid_judgment_hard e t'
 
 lemma normal_beta_eq : is_normal_n n e e_final → beta_eq e e_final := by
   intro h
@@ -152,6 +128,7 @@ lemma normal_beta_eq : is_normal_n n e e_final → beta_eq e e_final := by
     apply beta_eq.symm
     exact beta_eq.eval h_eval
 
+@[simp]
 lemma m_stuck : is_normal_n 0 SKM[M] SKM[M] := by
   apply is_normal_n.stuck
   intro h
@@ -159,6 +136,7 @@ lemma m_stuck : is_normal_n 0 SKM[M] SKM[M] := by
   case a.intro h =>
     cases h
 
+@[simp]
 lemma k_stuck : is_normal_n 0 SKM[K] SKM[K] := by
   apply is_normal_n.stuck
   intro h
@@ -166,6 +144,7 @@ lemma k_stuck : is_normal_n 0 SKM[K] SKM[K] := by
   case a.intro h =>
     cases h
 
+@[simp]
 lemma s_stuck : is_normal_n 0 SKM[S] SKM[S] := by
   apply is_normal_n.stuck
   intro h
@@ -173,3 +152,73 @@ lemma s_stuck : is_normal_n 0 SKM[S] SKM[S] := by
   case a.intro h =>
     cases h
 
+namespace beta_eq
+
+@[simp]
+lemma m_distributes : beta_eq SKM[(M (lhs rhs))] SKM[((M lhs) rhs)] := by
+  apply beta_eq.trans
+  apply beta_eq.eval
+  apply is_eval_once.m_call
+  exact beta_eq.rfl
+
+@[simp]
+lemma go_left : beta_eq lhs lhs' → beta_eq SKM[(lhs rhs)] SKM[(lhs' rhs)] := by
+  apply beta_eq.left
+
+@[simp]
+lemma go_right : beta_eq rhs rhs' → beta_eq SKM[(lhs rhs)] SKM[(lhs rhs')] := by
+  apply beta_eq.right
+
+end beta_eq
+
+namespace valid_judgment
+
+lemma weakening : valid_judgment e t → valid_judgment_hard e t := by
+  intro h
+  induction h
+  apply valid_judgment_hard.k
+  apply valid_judgment_hard.s
+  apply valid_judgment_hard.m
+  case call lhs rhs t_lhs t_rhs t_out h_in h_t_lhs h_t_rhs h_out h_t_lhs' h_t_rhs' =>
+    apply valid_judgment_hard.call
+    exact h_in
+    exact h_t_lhs'
+    exact h_t_rhs'
+    exact h_out
+
+lemma preservation (h_t_pre : valid_judgment e t) (h_step : is_eval_once e e') : valid_judgment_hard e t := by
+  induction h_t_pre
+  cases h_step
+  cases h_step
+  cases h_step
+  case call lhs rhs t_lhs t_rhs t_out h_in h_t_lhs h_t_rhs h_out ih₁ ih₂ =>
+    apply valid_judgment_hard.call
+    exact h_in
+    exact h_t_lhs.weakening
+    exact h_t_rhs.weakening
+    exact h_out
+
+end valid_judgment
+
+namespace valid_judgment_hard
+
+theorem preservation (h_t_pre : valid_judgment_hard e t) (h_step : is_eval_once e e') : valid_judgment_hard e t := by
+  induction h_t_pre
+  cases h_step
+  cases h_step
+  cases h_step
+  case call lhs rhs t_lhs t_rhs t_out h_in h_t_lhs h_t_rhs h_out ih₁ ih₂ =>
+    apply valid_judgment_hard.beq
+    apply valid_judgment_hard.call
+    exact h_in
+    exact h_t_lhs
+    exact h_t_rhs
+    exact h_out
+    exact beta_eq.rfl
+  case beq e t' t'' h_t h_beq ih =>
+    simp_all
+    apply valid_judgment_hard.beq
+    exact ih
+    exact h_beq
+
+end valid_judgment_hard

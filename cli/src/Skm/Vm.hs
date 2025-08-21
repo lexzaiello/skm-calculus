@@ -13,11 +13,6 @@ import Skm.Eval (ReductionMode(..), EvalConfig, EvalConfig(..))
 data Step = KCall
   | SCall
   | MCall
-  | ICall
-  | BCall
-  | B0Call
-  | CCall
-  | S'Call
   | Ms
   | Mk
   | Mm
