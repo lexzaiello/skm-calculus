@@ -53,6 +53,12 @@ inductive is_eval_step : Expr → Expr → Prop
   | step : is_eval_once e e'
     → is_eval_step e e'
 
+inductive is_eval_step_once : Expr → Expr → Prop
+  | left : is_eval_once lhs lhs'
+    → is_eval_step_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
+  | step : is_eval_once e e'
+    → is_eval_step_once e e'
+
 inductive beta_eq : Expr → Expr → Prop
   | eval  : is_eval_once e₁ e₂ → beta_eq e₁ e₂
   | left  : beta_eq lhs lhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs' rhs)]
@@ -61,8 +67,8 @@ inductive beta_eq : Expr → Expr → Prop
   | symm  : beta_eq e₁ e₂      → beta_eq e₂ e₁
 
 inductive is_normal_n : ℕ → Expr → Expr → Prop
-  | stuck : (¬(∃ e', is_eval_once e e'))                 → is_normal_n 0 e e
-  | succ  : is_eval_once e e' → is_normal_n n e' e_final → is_normal_n n.succ e e_final
+  | stuck : (¬(∃ e', is_eval_once e e')) → is_normal_n 0 e e
+  | succ  : is_eval_step_once e e'       → is_normal_n n e' e_final → is_normal_n n.succ e e_final
 
 def is_normal (e : Expr) :=¬(∃ e', is_eval_once e e')
 
@@ -185,6 +191,56 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
     match h_t with
       | (.call h _) =>
         cases h
+
+syntax (name := do_stuck) "do_stuck " : tactic
+
+macro_rules
+  | `(tactic| do_stuck) => `(tactic|
+    apply is_normal_n.stuck; intro ⟨e', h⟩; cases h)
+
+lemma progress (h : valid_judgment e t) : is_normal_n 0 e e ∨ ∃ e', is_eval_step e e' := by
+  induction h
+  left
+  simp
+  left
+  simp
+  left
+  simp
+  left
+  do_stuck
+  left
+  do_stuck
+  left
+  do_stuck
+  case call lhs t_in t_out rhs h_t_lhs h_t_rhs ih₁ ih₂ =>
+    cases h_t_lhs
+    right
+    case arr_call.h t_α β h_t_α =>
+      use t_α
+      apply is_eval_step.step
+      apply is_eval_once.arr
+    case k_call β =>
+      left
+      do_stuck
+    case s_call α β γ =>
+      left
+      do_stuck
+    case call lhs t_in rhs' ht_rhs ih₂' =>
+      cases lhs
+      left
+      do_stuck
+      left
+      do_stuck
+      left
+      do_stuck
+      left
+      do_stuck
+      left
+      do_stuck
+      case call t_in' t a =>
+        
+        sorry
+  sorry
 
 end valid_judgment
 
