@@ -53,12 +53,6 @@ inductive is_eval_step : Expr → Expr → Prop
   | step : is_eval_once e e'
     → is_eval_step e e'
 
-inductive is_eval_step_once : Expr → Expr → Prop
-  | left : is_eval_once lhs lhs'
-    → is_eval_step_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
-  | step : is_eval_once e e'
-    → is_eval_step_once e e'
-
 inductive beta_eq : Expr → Expr → Prop
   | eval  : is_eval_once e₁ e₂ → beta_eq e₁ e₂
   | left  : beta_eq lhs lhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs' rhs)]
@@ -83,8 +77,8 @@ inductive is_value : Expr → Prop
   | s₅   : is_value SKM[(((((S α) β) γ) x) y)]
 
 inductive is_value_n : ℕ → Expr → Expr → Prop
-  | value : is_value e             → is_value_n 0 e e
-  | succ  : is_eval_step_once e e' → is_value_n n e' e_final → is_value_n n.succ e e_final
+  | value : is_value e        → is_value_n 0 e e
+  | succ  : is_eval_step e e' → is_value_n n e' e_final → is_value_n n.succ e e_final
 
 def is_normal (e : Expr) :=¬(∃ e', is_eval_once e e')
 
@@ -115,7 +109,7 @@ inductive valid_judgment : Expr → Expr → Prop
 inductive valid_judgment_hard : Expr → Expr → Prop
   | valid : valid_judgment e t
     → valid_judgment_hard e t
-  | step  : is_eval_step t t'
+  | step  : beta_eq t t'
     → valid_judgment_hard e t
     → valid_judgment_hard e t'
 
@@ -157,6 +151,7 @@ end beta_eq
 
 namespace is_value
 
+@[simp]
 lemma no_step (h : is_value e) : ¬ ∃ e', is_eval_step e e' := by
   cases h
   repeat (intro ⟨e', h⟩; match h with | .step h => cases h)
@@ -254,32 +249,6 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
       | (.call h _) =>
         cases h
 
-lemma preservation' (h_t : valid_judgment e t) (h_eval : is_eval_step e e') : valid_judgment_hard e' t := by
-  induction h_t
-  cases h_eval
-  case k.step h =>
-    cases h
-  cases h_eval
-  case s.step h =>
-    cases h
-  cases h_eval
-  case m.step h =>
-    cases h
-  cases h_eval
-  case arr₀.step h =>
-    cases h
-  cases h_eval
-  case arr₁.step h =>
-    cases h
-  case arr₁.left α lhs' h =>
-    cases h
-    case step h =>
-      cases h
-  case arr_call α t_α β t_β h_t_α h_t_β ih₁ ih₂ =>
-    
-    sorry
-  sorry
-
 lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h
   left
@@ -366,27 +335,12 @@ theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e 
     exact h_step₁
     exact ih
 
-theorem preservation' (h_t : valid_judgment_hard e t) (h_step : is_eval_step e e') : valid_judgment_hard e' t := by
-  induction h_t
-  case valid e'' t' =>
-    induction h_step
-    case left e''' lhs lhs' rhs h_step ih₁ =>
-      apply valid_judgment.preservation
-      exact t'
-      
-      sorry
-
 theorem progress (h_t : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h_t
   case valid e' t' h =>
     exact h.progress
   case step t' t'' e' h_step h_t ih =>
     exact ih
-
-theorem progress_hard (h_t : valid_judgment_hard e t) : ∃ n e_final, is_value_n n e e_final := by
-  induction h_t
-  case valid e' t'
-  sorry
 
 end valid_judgment_hard
 
