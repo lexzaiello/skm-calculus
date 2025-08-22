@@ -53,6 +53,12 @@ inductive is_eval_step : Expr → Expr → Prop
   | step : is_eval_once e e'
     → is_eval_step e e'
 
+inductive is_eval_step_once : Expr → Expr → Prop
+  | left : is_eval_once lhs lhs'
+    → is_eval_step_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
+  | step : is_eval_once e e'
+    → is_eval_step_once e e'
+
 inductive beta_eq : Expr → Expr → Prop
   | eval  : is_eval_once e₁ e₂ → beta_eq e₁ e₂
   | left  : beta_eq lhs lhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs' rhs)]
@@ -342,24 +348,31 @@ theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e 
     exact h_step₁
     exact ih
 
-theorem preservation' (h_pre : valid_judgment_hard e t) (h_step : is_eval_step e e') : valid_judgment_hard e' t := by
-  induction h_pre
-  case valid e'' t' h_t =>
-    induction h_step generalizing t'
-    case left lhs lhs' rhs h_step ih =>
-      have ⟨t_lhs, h_t_lhs⟩ := h_t.valid_lhs
-      have h := ih h_t_lhs
-      apply valid_judgment_hard.step
-      
-      sorry
-    sorry
-
 theorem progress (h_t : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h_t
   case valid e' t' h =>
     exact h.progress
   case step t' t'' e' h_step h_t ih =>
     exact ih
+
+theorem progress_hard (h_t : valid_judgment_hard e t) : ∃ n e_final, is_value_n n e e_final := by
+  induction h_t
+  case valid e' t' h_t =>
+    have h := h_t.progress
+    match h with
+      | .inl h =>
+        use 0
+        use e'
+        apply is_value_n.value
+        exact h
+      | .inr ⟨e'₁, h⟩ =>
+        induction h generalizing t'
+        case left lhs lhs' rhs h_step_lhs ih =>
+          have ⟨t_lhs, h_t_lhs⟩ := h_t.valid_lhs
+          have ⟨lhs_final, h_final_lhs⟩ := ih h_t_lhs h_t_lhs.progress
+          
+          sorry
+        sorry
 
 end valid_judgment_hard
 
