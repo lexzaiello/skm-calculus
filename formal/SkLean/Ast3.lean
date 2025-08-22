@@ -324,6 +324,13 @@ end valid_judgment
 
 namespace valid_judgment_hard
 
+lemma imp_exists_valid_judgment (h : valid_judgment_hard e t) : ∃ t₀, valid_judgment e t₀ := by
+  induction h
+  case valid e' t' h =>
+    use t'
+  case step t' t'' e' h_beq ih₁ ih₂ =>
+    exact ih₂
+
 theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e e') : valid_judgment_hard e' t := by
   induction h_pre
   case valid e' t' h_t =>
@@ -334,6 +341,18 @@ theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e 
     apply valid_judgment_hard.step
     exact h_step₁
     exact ih
+
+theorem preservation' (h_pre : valid_judgment_hard e t) (h_step : is_eval_step e e') : valid_judgment_hard e' t := by
+  induction h_pre
+  case valid e'' t' h_t =>
+    induction h_step generalizing t'
+    case left lhs lhs' rhs h_step ih =>
+      have ⟨t_lhs, h_t_lhs⟩ := h_t.valid_lhs
+      have h := ih h_t_lhs
+      apply valid_judgment_hard.step
+      
+      sorry
+    sorry
 
 theorem progress (h_t : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h_t
