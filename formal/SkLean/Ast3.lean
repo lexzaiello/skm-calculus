@@ -252,6 +252,10 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e 
   left
   exact is_value.m
   left
+  apply is_value.arr₀
+  left
+  apply is_value.arr₁
+  left
   apply is_value.arr
   left
   apply is_value.k₂
