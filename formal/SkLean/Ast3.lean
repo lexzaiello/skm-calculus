@@ -134,35 +134,7 @@ end beta_eq
 namespace valid_judgment
 
 lemma weakening (h : valid_judgment e t) : valid_judgment_hard e t := by
-  induction h
-  apply valid_judgment_hard.valid
-  apply valid_judgment.k
-  apply valid_judgment_hard.valid
-  apply valid_judgment.s
-  apply valid_judgment_hard.valid
-  apply valid_judgment.m
-  case k_call α β =>
-    apply valid_judgment_hard.valid
-    apply valid_judgment.k_call
-  case s_call α β γ =>
-    apply valid_judgment_hard.valid
-    apply valid_judgment.s_call
-  case call lhs t_in t_out rhs h_t_lhs h_t_rhs ih₁ ih₂ =>
-    apply valid_judgment_hard.valid
-    apply valid_judgment.call
-    exact h_t_lhs
-    exact h_t_rhs
-  case arr_call α t_α β t_β h_t_α h_t_β ih₁ ih₂ =>
-    apply valid_judgment_hard.valid
-    apply valid_judgment.arr_call
-    exact h_t_α
-    exact h_t_β
-  apply valid_judgment_hard.valid
-  apply valid_judgment.k₁
-  apply valid_judgment_hard.valid
-  apply valid_judgment.s₁
-  apply valid_judgment_hard.valid
-  apply valid_judgment.s₂
+  exact valid_judgment_hard.valid h
 
 lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : valid_judgment_hard e' t := by
   induction h_eval
