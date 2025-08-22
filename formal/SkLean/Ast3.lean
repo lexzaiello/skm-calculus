@@ -123,14 +123,23 @@ inductive valid_judgment_hard : Expr → Expr → Prop
   | s        : valid_judgment_hard SKM[S]             SKM[(M S)]
   | m        : valid_judgment_hard SKM[M]             SKM[(M M)]
   | arr₀     : valid_judgment_hard SKM[#~>]           SKM[(Ty ~> (Ty ~> Ty))]
-  | k_call   : valid_judgment_hard SKM[((K α) β)]     SKM[(α ~> (β ~> α))]
-  | s_call   : valid_judgment_hard SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
+  | k_call   : valid_judgment_hard α t_α
+    → valid_judgment_hard β t_β
+    → valid_judgment_hard SKM[((K α) β)] SKM[(α ~> (β ~> α))]
+  | s_call   : valid_judgment_hard α t_α
+    → valid_judgment_hard β t_β
+    → valid_judgment_hard γ t_γ
+    → valid_judgment_hard SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
   | call     : valid_judgment_hard lhs SKM[(t_in ~> t_out)]
     → valid_judgment_hard rhs t_in
     → valid_judgment_hard SKM[(lhs rhs)] t_out
-  | k₁       : valid_judgment_hard SKM[(K α)]         SKM[((M K) α)]
-  | s₁       : valid_judgment_hard SKM[(S α)]         SKM[((M S) α)]
-  | s₂       : valid_judgment_hard SKM[((S α) β)]     SKM[(((M S) α) β)]
+  | k₁       : valid_judgment_hard α t_α
+    → valid_judgment_hard SKM[(K α)] SKM[((M K) α)]
+  | s₁       : valid_judgment_hard α t_α
+    → valid_judgment_hard SKM[(S α)] SKM[((M S) α)]
+  | s₂       : valid_judgment_hard α t_α
+    → valid_judgment_hard β t_β
+    → valid_judgment_hard SKM[((S α) β)]     SKM[(((M S) α) β)]
   | step  : beta_eq t t'
     → valid_judgment_hard e t
     → valid_judgment_hard e t'
@@ -217,14 +226,23 @@ lemma weakening (h : valid_judgment e t) : valid_judgment_hard e t := by
   apply valid_judgment_hard.m
   apply valid_judgment_hard.arr₀
   apply valid_judgment_hard.k_call
+  assumption
+  assumption
   apply valid_judgment_hard.s_call
   case call lhs t_in t_out rhs h_T_lhs h_t_rhs ih₁ ih₂ =>
     apply valid_judgment_hard.call
     exact ih₁
     exact ih₂
+  assumption
+  assumption
+  assumption
   apply valid_judgment_hard.k₁
+  assumption
   apply valid_judgment_hard.s₁
+  assumption
   apply valid_judgment_hard.s₂
+  assumption
+  assumption
 
 lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : valid_judgment_hard e' t := by
   induction h_eval
