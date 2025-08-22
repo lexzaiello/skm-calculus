@@ -98,6 +98,8 @@ inductive valid_judgment : Expr → Expr → Prop
   | k        : valid_judgment SKM[K]             SKM[(M K)]
   | s        : valid_judgment SKM[S]             SKM[(M S)]
   | m        : valid_judgment SKM[M]             SKM[(M M)]
+  | arr₀     : valid_judgment SKM[#~>]           SKM[(M #~>)]
+  | arr₁     : valid_judgment SKM[(#~> α)]       SKM[((M #~>) α)]
   | arr_call : valid_judgment α t_α
     → valid_judgment β t_β
     → valid_judgment SKM[(α ~> β)] SKM[(α ~> t_β)]
@@ -155,6 +157,29 @@ end beta_eq
 
 namespace valid_judgment
 
+lemma valid_lhs (h : valid_judgment SKM[(lhs rhs)] t) : ∃ t_lhs, valid_judgment lhs t_lhs := by
+  cases h
+  case arr_call α t_α t_β h_t_α h_t_β =>
+    use SKM[((M #~>) α)]
+    apply valid_judgment.arr₁
+  use SKM[(M #~>)]
+  apply valid_judgment.arr₀
+  case k_call α =>
+    use SKM[((M K) α)]
+    apply valid_judgment.k₁
+  case s_call α β =>
+    use SKM[(((M S) α) β)]
+    apply valid_judgment.s₂
+  case call t_in h_t_rhs h_t_lhs =>
+    use SKM[(t_in ~> t)]
+  use SKM[(M K)]
+  apply valid_judgment.k
+  use SKM[(M S)]
+  apply valid_judgment.s
+  case s₂ α =>
+    use SKM[((M S) α)]
+    apply valid_judgment.s₁
+
 lemma weakening (h : valid_judgment e t) : valid_judgment_hard e t := by
   exact valid_judgment_hard.valid h
 
@@ -207,6 +232,16 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
     match h_t with
       | (.call h _) =>
         cases h
+
+lemma preservation' (h : valid_judgment e t) (h_step : is_eval_step e e') : valid_judgment_hard e' t := by
+  induction h_step
+  case left lhs lhs' rhs h_step ih =>
+    
+    sorry
+  case step e'' e''' h_step =>
+    apply valid_judgment.preservation
+    exact h
+    exact h_step
 
 lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h
@@ -290,6 +325,16 @@ theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e 
     exact h_step₁
     exact ih
 
+theorem preservation' (h_t : valid_judgment_hard e t) (h_step : is_eval_step e e') : valid_judgment_hard e' t := by
+  induction h_t
+  case valid e'' t' =>
+    induction h_step
+    case left e''' lhs lhs' rhs h_step ih₁ =>
+      apply valid_judgment.preservation
+      exact t'
+      
+      sorry
+
 theorem progress (h_t : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h_t
   case valid e' t' h =>
@@ -299,7 +344,7 @@ theorem progress (h_t : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eva
 
 theorem progress_hard (h_t : valid_judgment_hard e t) : ∃ n e_final, is_value_n n e e_final := by
   induction h_t
-  
+  case valid e' t'
   sorry
 
 end valid_judgment_hard
