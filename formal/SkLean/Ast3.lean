@@ -155,6 +155,27 @@ lemma go_right : beta_eq rhs rhs' → beta_eq SKM[(lhs rhs)] SKM[(lhs rhs')] := 
 
 end beta_eq
 
+namespace is_value
+
+lemma no_step (h : is_value e) : ¬ ∃ e', is_eval_step e e' := by
+  cases h
+  repeat (intro ⟨e', h⟩; match h with | .step h => cases h)
+
+lemma value_lhs (h : is_value SKM[(lhs rhs)]) : is_value lhs := by
+  cases h
+  apply is_value.arr₁
+  apply is_value.arr₀
+  apply is_value.k
+  apply is_value.k₁
+  apply is_value.k₂
+  apply is_value.s
+  apply is_value.s₁
+  apply is_value.s₂
+  apply is_value.s₃
+  apply is_value.s₄
+
+end is_value
+
 namespace valid_judgment
 
 lemma valid_lhs (h : valid_judgment SKM[(lhs rhs)] t) : ∃ t_lhs, valid_judgment lhs t_lhs := by
@@ -233,15 +254,31 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
       | (.call h _) =>
         cases h
 
-lemma preservation' (h : valid_judgment e t) (h_step : is_eval_step e e') : valid_judgment_hard e' t := by
-  induction h_step
-  case left lhs lhs' rhs h_step ih =>
+lemma preservation' (h_t : valid_judgment e t) (h_eval : is_eval_step e e') : valid_judgment_hard e' t := by
+  induction h_t
+  cases h_eval
+  case k.step h =>
+    cases h
+  cases h_eval
+  case s.step h =>
+    cases h
+  cases h_eval
+  case m.step h =>
+    cases h
+  cases h_eval
+  case arr₀.step h =>
+    cases h
+  cases h_eval
+  case arr₁.step h =>
+    cases h
+  case arr₁.left α lhs' h =>
+    cases h
+    case step h =>
+      cases h
+  case arr_call α t_α β t_β h_t_α h_t_β ih₁ ih₂ =>
     
     sorry
-  case step e'' e''' h_step =>
-    apply valid_judgment.preservation
-    exact h
-    exact h_step
+  sorry
 
 lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h
@@ -353,19 +390,3 @@ theorem progress_hard (h_t : valid_judgment_hard e t) : ∃ n e_final, is_value_
 
 end valid_judgment_hard
 
-namespace is_value
-
-lemma value_lhs (h : is_value SKM[(lhs rhs)]) : is_value lhs := by
-  cases h
-  apply is_value.arr₁
-  apply is_value.arr₀
-  apply is_value.k
-  apply is_value.k₁
-  apply is_value.k₂
-  apply is_value.s
-  apply is_value.s₁
-  apply is_value.s₂
-  apply is_value.s₃
-  apply is_value.s₄
-
-end is_value
