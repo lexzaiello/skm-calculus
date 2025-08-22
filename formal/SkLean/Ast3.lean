@@ -99,29 +99,30 @@ inductive valid_judgment : Expr → Expr → Prop
   | k        : valid_judgment SKM[K]             SKM[(M K)]
   | s        : valid_judgment SKM[S]             SKM[(M S)]
   | m        : valid_judgment SKM[M]             SKM[(M M)]
-  | arr₀     : valid_judgment SKM[#~>]           SKM[(M #~>)]
-  | arr₁     : valid_judgment SKM[(#~> α)]       SKM[((M #~>) α)]
-  | arr_call : valid_judgment α t_α
+  | arr₀     : valid_judgment SKM[#~>]           SKM[(Ty ~> (Ty ~> Ty))]
+  | k_call   : valid_judgment α t_α
     → valid_judgment β t_β
-    → valid_judgment SKM[(α ~> β)] SKM[(α ~> t_β)]
-  | k_call   : valid_judgment SKM[((K α) β)]     SKM[(α ~> (β ~> α))]
-  | s_call   : valid_judgment SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
+    → valid_judgment SKM[((K α) β)]     SKM[(α ~> (β ~> α))]
+  | s_call   : valid_judgment α t_α
+    → valid_judgment β t_β
+    → valid_judgment γ t_γ
+    → valid_judgment SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
   | call     : valid_judgment lhs SKM[(t_in ~> t_out)]
     → valid_judgment rhs t_in
     → valid_judgment SKM[(lhs rhs)] t_out
-  | k₁       : valid_judgment SKM[(K α)]         SKM[((M K) α)]
-  | s₁       : valid_judgment SKM[(S α)]         SKM[((M S) α)]
-  | s₂       : valid_judgment SKM[((S α) β)]     SKM[(((M S) α) β)]
+  | k₁       : valid_judgment α t_α
+    → valid_judgment SKM[(K α)]         SKM[((M K) α)]
+  | s₁       : valid_judgment α t_α
+    → valid_judgment SKM[(S α)]         SKM[((M S) α)]
+  | s₂       : valid_judgment α t_α
+    → valid_judgment β t_β
+    → valid_judgment SKM[((S α) β)]     SKM[(((M S) α) β)]
 
 inductive valid_judgment_hard : Expr → Expr → Prop
   | k        : valid_judgment_hard SKM[K]             SKM[(M K)]
   | s        : valid_judgment_hard SKM[S]             SKM[(M S)]
   | m        : valid_judgment_hard SKM[M]             SKM[(M M)]
-  | arr₀     : valid_judgment_hard SKM[#~>]           SKM[(M #~>)]
-  | arr₁     : valid_judgment_hard SKM[(#~> α)]       SKM[((M #~>) α)]
-  | arr_call : valid_judgment_hard α t_α
-    → valid_judgment_hard β t_β
-    → valid_judgment_hard SKM[(α ~> β)] SKM[(α ~> t_β)]
+  | arr₀     : valid_judgment_hard SKM[#~>]           SKM[(Ty ~> (Ty ~> Ty))]
   | k_call   : valid_judgment_hard SKM[((K α) β)]     SKM[(α ~> (β ~> α))]
   | s_call   : valid_judgment_hard SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
   | call     : valid_judgment_hard lhs SKM[(t_in ~> t_out)]
@@ -209,41 +210,12 @@ end is_value
 
 namespace valid_judgment
 
-lemma valid_lhs (h : valid_judgment SKM[(lhs rhs)] t) : ∃ t_lhs, valid_judgment lhs t_lhs := by
-  cases h
-  case arr_call α t_α t_β h_t_α h_t_β =>
-    use SKM[((M #~>) α)]
-    apply valid_judgment.arr₁
-  use SKM[(M #~>)]
-  apply valid_judgment.arr₀
-  case k_call α =>
-    use SKM[((M K) α)]
-    apply valid_judgment.k₁
-  case s_call α β =>
-    use SKM[(((M S) α) β)]
-    apply valid_judgment.s₂
-  case call t_in h_t_rhs h_t_lhs =>
-    use SKM[(t_in ~> t)]
-  use SKM[(M K)]
-  apply valid_judgment.k
-  use SKM[(M S)]
-  apply valid_judgment.s
-  case s₂ α =>
-    use SKM[((M S) α)]
-    apply valid_judgment.s₁
-
 lemma weakening (h : valid_judgment e t) : valid_judgment_hard e t := by
   induction h
   apply valid_judgment_hard.k
   apply valid_judgment_hard.s
   apply valid_judgment_hard.m
   apply valid_judgment_hard.arr₀
-  apply valid_judgment_hard.arr₁
-  apply valid_judgment_hard.arr_call
-  case arr_call.a α t_α β t_β h_t_α h_t_β ih₁ ih₂ =>
-    exact ih₁
-  case arr_call.a α t_α β t_β h_t_α h_t_β ih₁ ih₂ =>
-    exact ih₂
   apply valid_judgment_hard.k_call
   apply valid_judgment_hard.s_call
   case call lhs t_in t_out rhs h_T_lhs h_t_rhs ih₁ ih₂ =>
@@ -258,7 +230,7 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
   induction h_eval
   case k t_x t_y x y =>
     match h_t with
-    | (.call (.call (.k_call) h) _) =>
+    | (.call (.call (.k_call h_t_α h_t_β) h) _) =>
       exact h.weakening
   case s t_x t_y t_z x y z =>
     match h_t with
@@ -269,10 +241,12 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
         case s_call.a.a h_t_y h_t_z ih =>
           exact ih.weakening
         case s_call.a.a h _ =>
-          exact h.weakening
+          apply valid_judgment.weakening
+          assumption
         apply valid_judgment_hard.call
         case s_call.a h_t_y h_t_z h_t_x =>
-          exact h_t_y.weakening
+          apply valid_judgment.weakening
+          assumption
         case call h =>
           cases h
           case call h =>
@@ -280,13 +254,12 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
             case call h =>
               cases h
         case s_call.a.a h _ =>
-          exact h.weakening
+          apply valid_judgment.weakening
+          assumption
   case arr α β x =>
     cases h_t
     case call t_x h_t_x h =>
       cases h
-      case arr_call t_β h_t_β h_t_α =>
-        exact h_t_α.weakening
       case call h =>
         cases h
         case call h =>
@@ -314,10 +287,6 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e 
   exact is_value.m
   left
   apply is_value.arr₀
-  left
-  apply is_value.arr₁
-  left
-  apply is_value.arr
   left
   apply is_value.k₂
   left
@@ -378,7 +347,6 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e 
 lemma preservation' (h_t : valid_judgment e t) (h_step : is_eval_step_once e e') : valid_judgment_hard e' t := by
   induction h_step generalizing t
   case left lhs lhs' rhs' ih =>
-    repeat contradiction
     cases ih
     cases h_t
     case k.call h =>
@@ -391,7 +359,8 @@ lemma preservation' (h_t : valid_judgment e t) (h_step : is_eval_step_once e e')
           case k_call.a h =>
             exact h.weakening
           case k_call.a h _ _ =>
-            exact h.weakening
+            apply weakening
+            assumption
           contradiction
     cases h_t
     case s.call h =>
@@ -407,12 +376,16 @@ lemma preservation' (h_t : valid_judgment e t) (h_step : is_eval_step_once e e')
               apply valid_judgment_hard.call
               apply valid_judgment_hard.call
               exact h_t_z.weakening
-              exact h_t_y.weakening
+              apply weakening
+              assumption
               apply valid_judgment_hard.call
-              exact h.weakening
-              exact h_t_y.weakening
+              apply weakening
+              assumption
+              apply weakening
+              assumption
             case s_call.a h _ _ _ =>
-              exact h.weakening
+              apply weakening
+              assumption
             contradiction
     cases h_t
     case arr.call h =>
@@ -420,11 +393,10 @@ lemma preservation' (h_t : valid_judgment e t) (h_step : is_eval_step_once e e')
       case call h =>
         cases h
         apply valid_judgment_hard.call
-        case arr_call.a h =>
-          exact h.weakening
-        case arr_call.a h _ _ _ _ =>
-          exact h.weakening
         contradiction
+        case call.a α x t_in h_t_rhs t_in h_t_x t' h_t_lhs' =>
+          apply weakening
+          assumption
     repeat contradiction
   case step e' e'' h_eval =>
     apply valid_judgment.preservation
@@ -435,16 +407,49 @@ end valid_judgment
 
 namespace valid_judgment_hard
 
+lemma valid_lhs (h : valid_judgment_hard SKM[(lhs rhs)] t) : ∃ t_in t_out, valid_judgment_hard lhs SKM[(t_in ~> t_out)] := by
+  cases h
+  case call t_in' h_t_ih h_t_lhs =>
+    use t_in'
+    use t
+  
+
 theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e e') : valid_judgment_hard e' t := by
-  induction h_pre
-  case valid e' t' h_t =>
-    apply h_t.preservation
-    exact h_step
-  case step t' t'' e' h_step₁ h_t ih =>
-    simp_all
+  induction h_pre generalizing e'
+  contradiction
+  contradiction
+  contradiction
+  contradiction
+  contradiction
+  contradiction
+  contradiction
+  contradiction
+  case call lhs t_in t_out rhs h_t_lhs h_t_in ih₁ ih₂ =>
+    have h_t_e' : valid_judgment_hard SKM[(lhs rhs)] SKM[((t_in ~>t_out) rhs)] := by
+      apply valid_judgment_hard.step
+      apply beta_eq.eval
+      apply is_eval_once.arr
+      use t_in
+      use rhs
+      apply valid_judgment_hard.step
+      apply beta_eq.symm
+      apply beta_eq.eval
+      apply is_eval_once.arr
+      apply valid_judgment_hard.step
+      apply beta_eq.symm
+      apply beta_eq.eval
+      apply is_eval_once.arr
+      apply valid_judgment_hard.call
+      exact h_t_lhs
+      exact h_t_in
     apply valid_judgment_hard.step
-    exact h_step₁
-    exact ih
+    apply beta_eq.eval
+    apply is_eval_once.arr
+    use t_in
+    use rhs
+    cases h_step
+    
+    sorry
 
 theorem progress (h_t : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h_t
