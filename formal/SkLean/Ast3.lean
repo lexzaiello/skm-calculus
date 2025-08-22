@@ -185,32 +185,26 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
     | (.call (.call (.k_call) h) _) =>
       exact h.weakening
   case s t_x t_y t_z x y z =>
-    cases h_t
-    case call h =>
-      cases h
-      case call h =>
+    match h_t with
+      | .call (.call (.call h _) _) _ =>
         cases h
+        apply valid_judgment_hard.beq
+        apply valid_judgment_hard.call
+        apply valid_judgment_hard.call
+        case s_call.a.a.a h =>
+          exact h.weakening
+        case s_call.a.a.a h _ =>
+          exact h.weakening
+        apply valid_judgment_hard.call
+        case s_call.a.a.a h _ _ =>
+          exact h.weakening
+        case s_call.a.a.a h _ =>
+          exact h.weakening
+        exact beta_eq.rfl
         case call h =>
-          cases h
-          apply valid_judgment_hard.beq
-          apply valid_judgment_hard.call
-          apply valid_judgment_hard.call
-          case s_call.a.a.a h =>
-            exact h.weakening
-          case s_call.a.a.a h _ =>
-            exact h.weakening
-          apply valid_judgment_hard.call
-          case s_call.a.a.a h _ _ =>
-            exact h.weakening
-          case s_call.a.a.a h _ =>
-            exact h.weakening
-          exact beta_eq.rfl
-          case call h =>
-            cases h
-            case call h =>
+          match h with
+            | (.call (.call h _) _) =>
               cases h
-              case call h =>
-                cases h
   case arr α β x =>
     cases h_t
     case call t_x h_t_x h =>
@@ -222,26 +216,16 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
         case call h =>
           cases h
   case k_call α β =>
-    cases h_t
-    case call h =>
+    match h_t with
+      | (.call (.call (.call h _) _) _) =>
       cases h
-      case call h =>
-        cases h
-        case call h =>
-          cases h
   case s_call α β =>
-    cases h_t
-    case call h =>
+    match h_t with
+      | (.call (.call (.call (.call h _) _) _) _) =>
       cases h
-      case call h =>
-        cases h
-        case call h =>
-          cases h
-          case call h =>
-            cases h
   case m_call lhs rhs =>
-    cases h_t
-    case call h =>
-      cases h
+    match h_t with
+      | (.call h _) =>
+        cases h
 
 end valid_judgment
