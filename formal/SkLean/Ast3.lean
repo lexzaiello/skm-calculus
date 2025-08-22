@@ -54,7 +54,6 @@ inductive is_eval_step : Expr → Expr → Prop
     → is_eval_step e e'
 
 inductive beta_eq : Expr → Expr → Prop
-  | rfl   : beta_eq e e
   | eval  : is_eval_once e₁ e₂ → beta_eq e₁ e₂
   | left  : beta_eq lhs lhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs' rhs)]
   | right : beta_eq rhs rhs'   → beta_eq SKM[(lhs rhs)] SKM[(lhs rhs')]
@@ -90,34 +89,11 @@ inductive valid_judgment : Expr → Expr → Prop
   | s₂       : valid_judgment SKM[((S α) β)]     SKM[(((M S) α) β)]
 
 inductive valid_judgment_hard : Expr → Expr → Prop
-  | k      : valid_judgment_hard SKM[K]             SKM[(M K)]
-  | s      : valid_judgment_hard SKM[S]             SKM[(M S)]
-  | m      : valid_judgment_hard SKM[M]             SKM[(M M)]
-  | k_call : valid_judgment_hard SKM[((K α) β)]     SKM[(α ~> (β ~> α))]
-  | s_call : valid_judgment_hard SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
-  | call   : valid_judgment_hard lhs SKM[(t_in ~> t_out)]
-    → valid_judgment_hard rhs t_in
-    → valid_judgment_hard SKM[(lhs rhs)] t_out
-  | arr_call : valid_judgment_hard α t_α
-    → valid_judgment_hard β t_β
-    → valid_judgment_hard SKM[(α ~> β)] SKM[(α ~> t_β)]
-  | k₁     : valid_judgment_hard SKM[(K α)]         SKM[((M K) α)]
-  | s₁     : valid_judgment_hard SKM[(S α)]         SKM[((M S) α)]
-  | s₂     : valid_judgment_hard SKM[((S α) β)]     SKM[(((M S) α) β)]
-  | beq    : valid_judgment_hard e t
-    → beta_eq t t'
+  | valid : valid_judgment e t
+    → valid_judgment_hard e t
+  | step  : is_eval_step t t'
+    → valid_judgment_hard e t
     → valid_judgment_hard e t'
-
-lemma normal_beta_eq : is_normal_n n e e_final → beta_eq e e_final := by
-  intro h
-  induction h
-  apply beta_eq.rfl
-  case succ e e' n e_final h_eval h_norm h_eq =>
-    apply beta_eq.symm
-    apply beta_eq.trans
-    exact beta_eq.symm h_eq
-    apply beta_eq.symm
-    exact beta_eq.eval h_eval
 
 @[simp]
 lemma m_stuck : is_normal_n 0 SKM[M] SKM[M] := by
@@ -159,24 +135,34 @@ namespace valid_judgment
 
 lemma weakening (h : valid_judgment e t) : valid_judgment_hard e t := by
   induction h
-  apply valid_judgment_hard.k
-  apply valid_judgment_hard.s
-  apply valid_judgment_hard.m
+  apply valid_judgment_hard.valid
+  apply valid_judgment.k
+  apply valid_judgment_hard.valid
+  apply valid_judgment.s
+  apply valid_judgment_hard.valid
+  apply valid_judgment.m
   case k_call α β =>
-    apply valid_judgment_hard.k_call
+    apply valid_judgment_hard.valid
+    apply valid_judgment.k_call
   case s_call α β γ =>
-    apply valid_judgment_hard.s_call
+    apply valid_judgment_hard.valid
+    apply valid_judgment.s_call
   case call lhs t_in t_out rhs h_t_lhs h_t_rhs ih₁ ih₂ =>
-    apply valid_judgment_hard.call
-    exact ih₁
-    exact ih₂
+    apply valid_judgment_hard.valid
+    apply valid_judgment.call
+    exact h_t_lhs
+    exact h_t_rhs
   case arr_call α t_α β t_β h_t_α h_t_β ih₁ ih₂ =>
-    apply valid_judgment_hard.arr_call
-    exact ih₁
-    exact ih₂
-  apply valid_judgment_hard.k₁
-  apply valid_judgment_hard.s₁
-  apply valid_judgment_hard.s₂
+    apply valid_judgment_hard.valid
+    apply valid_judgment.arr_call
+    exact h_t_α
+    exact h_t_β
+  apply valid_judgment_hard.valid
+  apply valid_judgment.k₁
+  apply valid_judgment_hard.valid
+  apply valid_judgment.s₁
+  apply valid_judgment_hard.valid
+  apply valid_judgment.s₂
 
 lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : valid_judgment_hard e' t := by
   induction h_eval
@@ -188,22 +174,22 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
     match h_t with
       | .call (.call (.call h _) _) _ =>
         cases h
-        apply valid_judgment_hard.beq
-        apply valid_judgment_hard.call
-        apply valid_judgment_hard.call
-        case s_call.a.a.a h =>
-          exact h.weakening
-        case s_call.a.a.a h _ =>
-          exact h.weakening
-        apply valid_judgment_hard.call
-        case s_call.a.a.a h _ _ =>
-          exact h.weakening
-        case s_call.a.a.a h _ =>
-          exact h.weakening
-        exact beta_eq.rfl
+        apply valid_judgment_hard.valid
+        apply valid_judgment.call
+        apply valid_judgment.call
+        case s_call.a.a h_t_y h_t_z ih =>
+          apply valid_judgment.call
+          exact h_t_y
+          exact h_t_z
+        case s_call.a.a h =>
+          exact h
+        case s_call.a.a.a h_t_y h_t_z h_t_x =>
+          exact h_t_z
         case call h =>
-          match h with
-            | (.call (.call h _) _) =>
+          cases h
+          case call h =>
+            cases h
+            case call h =>
               cases h
   case arr α β x =>
     cases h_t
@@ -229,3 +215,11 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
         cases h
 
 end valid_judgment
+
+namespace valid_judgment_hard
+
+theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e e') : valid_judgment_hard e' t := by
+  induction h_step
+  
+
+end valid_judgment_hard
