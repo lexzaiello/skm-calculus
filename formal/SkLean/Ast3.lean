@@ -279,6 +279,8 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
             cases h
             case call h =>
               cases h
+        case s_call.a.a h _ =>
+          exact h.weakening
   case arr α β x =>
     cases h_t
     case call t_x h_t_x h =>
@@ -373,24 +375,61 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e 
   left
   apply is_value.s₂
 
-lemma imp_exists_valid_judgment (h : valid_judgment_hard e t) : ∃ t₀, valid_judgment e t₀ := by
-  induction h
-  case valid e' t' h =>
-    use t'
-  case step t' t'' e' h_beq ih₁ ih₂ =>
-    exact ih₂
-
-lemma preservation' (h_t : valid_judgment e t) (h_step : is_eval_step e e') : valid_judgment_hard e' t := by
+lemma preservation' (h_t : valid_judgment e t) (h_step : is_eval_step_once e e') : valid_judgment_hard e' t := by
   induction h_step generalizing t
-  case left lhs lhs' rhs' h_step ih =>
+  case left lhs lhs' rhs' ih =>
     repeat contradiction
-    have ⟨t_lhs, h_t_lhs⟩ := h_t.valid_lhs
-    cases h_t_lhs
+    cases ih
+    cases h_t
+    case k.call h =>
+      cases h
+      case call h =>
+        cases h
+        case call h =>
+          cases h
+          apply valid_judgment_hard.call
+          case k_call.a h =>
+            exact h.weakening
+          case k_call.a h _ _ =>
+            exact h.weakening
+          contradiction
+    cases h_t
+    case s.call h =>
+      cases h
+      case call h =>
+        cases h
+        case call h =>
+          cases h
+          case call h =>
+            cases h
+            apply valid_judgment_hard.call
+            case s_call.a h h_t_y h_t_z =>
+              apply valid_judgment_hard.call
+              apply valid_judgment_hard.call
+              exact h_t_z.weakening
+              exact h_t_y.weakening
+              apply valid_judgment_hard.call
+              exact h.weakening
+              exact h_t_y.weakening
+            case s_call.a h _ _ _ =>
+              exact h.weakening
+            contradiction
+    cases h_t
+    case arr.call h =>
+      cases h
+      case call h =>
+        cases h
+        apply valid_judgment_hard.call
+        case arr_call.a h =>
+          exact h.weakening
+        case arr_call.a h _ _ _ _ =>
+          exact h.weakening
+        contradiction
     repeat contradiction
-    case call lhs t_in rhs h_t_rhs h =>
-      
-      sorry
-    sorry
+  case step e' e'' h_eval =>
+    apply valid_judgment.preservation
+    exact h_t
+    exact h_eval
 
 end valid_judgment
 
