@@ -264,17 +264,15 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
     match h_t with
       | .call (.call (.call h _) _) _ =>
         cases h
-        apply valid_judgment_hard.valid
-        apply valid_judgment.call
-        apply valid_judgment.call
+        apply valid_judgment_hard.call
+        apply valid_judgment_hard.call
         case s_call.a.a h_t_y h_t_z ih =>
-          apply valid_judgment.call
-          exact h_t_y
-          exact h_t_z
-        case s_call.a.a h =>
-          exact h
-        case s_call.a.a.a h_t_y h_t_z h_t_x =>
-          exact h_t_z
+          exact ih.weakening
+        case s_call.a.a h _ =>
+          exact h.weakening
+        apply valid_judgment_hard.call
+        case s_call.a h_t_y h_t_z h_t_x =>
+          exact h_t_y.weakening
         case call h =>
           cases h
           case call h =>
