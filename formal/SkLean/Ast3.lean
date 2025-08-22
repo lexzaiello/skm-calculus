@@ -66,9 +66,25 @@ inductive beta_eq : Expr → Expr → Prop
   | trans : beta_eq e₁ e₂      → beta_eq e₂ e₃ → beta_eq e₁ e₃
   | symm  : beta_eq e₁ e₂      → beta_eq e₂ e₁
 
-inductive is_normal_n : ℕ → Expr → Expr → Prop
-  | stuck : (¬(∃ e', is_eval_once e e')) → is_normal_n 0 e e
-  | succ  : is_eval_step_once e e'       → is_normal_n n e' e_final → is_normal_n n.succ e e_final
+inductive is_value : Expr → Prop
+  | k    : is_value SKM[K]
+  | s    : is_value SKM[S]
+  | m    : is_value SKM[M]
+  | arr  : is_value SKM[(α ~> β)]
+  | arr₁ : is_value SKM[(#~> α)]
+  | arr₀ : is_value SKM[(#~>)]
+  | k₁   : is_value SKM[(K α)]
+  | k₂   : is_value SKM[((K α) β)]
+  | k₃   : is_value SKM[(((K α) β) x)]
+  | s₁   : is_value SKM[(S α)]
+  | s₂   : is_value SKM[((S α) β)]
+  | s₃   : is_value SKM[(((S α) β) γ)]
+  | s₄   : is_value SKM[((((S α) β) γ) x)]
+  | s₅   : is_value SKM[(((((S α) β) γ) x) y)]
+
+inductive is_value_n : ℕ → Expr → Expr → Prop
+  | value : is_value e             → is_value_n 0 e e
+  | succ  : is_eval_step_once e e' → is_value_n n e' e_final → is_value_n n.succ e e_final
 
 def is_normal (e : Expr) :=¬(∃ e', is_eval_once e e')
 
@@ -94,20 +110,6 @@ inductive valid_judgment : Expr → Expr → Prop
   | s₁       : valid_judgment SKM[(S α)]         SKM[((M S) α)]
   | s₂       : valid_judgment SKM[((S α) β)]     SKM[(((M S) α) β)]
 
-inductive is_value : Expr → Prop
-  | k   : is_value SKM[K]
-  | s   : is_value SKM[S]
-  | m   : is_value SKM[M]
-  | arr : is_value SKM[(α ~> β)]
-  | k₁  : is_value SKM[(K α)]
-  | k₂  : is_value SKM[((K α) β)]
-  | k₃  : is_value SKM[(((K α) β) x)]
-  | s₁  : is_value SKM[(S α)]
-  | s₂  : is_value SKM[((S α) β)]
-  | s₃  : is_value SKM[(((S α) β) γ)]
-  | s₄  : is_value SKM[((((S α) β) γ) x)]
-  | s₅  : is_value SKM[(((((S α) β) γ) x) y)]
-
 inductive valid_judgment_hard : Expr → Expr → Prop
   | valid : valid_judgment e t
     → valid_judgment_hard e t
@@ -116,28 +118,28 @@ inductive valid_judgment_hard : Expr → Expr → Prop
     → valid_judgment_hard e t'
 
 @[simp]
-lemma m_stuck : is_normal_n 0 SKM[M] SKM[M] := by
-  apply is_normal_n.stuck
-  intro h
-  cases h
-  case a.intro h =>
-    cases h
+lemma m_stuck : is_value_n 0 SKM[M] SKM[M] := by
+  apply is_value_n.value
+  exact is_value.m
 
 @[simp]
-lemma k_stuck : is_normal_n 0 SKM[K] SKM[K] := by
-  apply is_normal_n.stuck
-  intro h
-  cases h
-  case a.intro h =>
-    cases h
+lemma k_stuck : is_value_n 0 SKM[K] SKM[K] := by
+  apply is_value_n.value
+  exact is_value.k
 
 @[simp]
-lemma s_stuck : is_normal_n 0 SKM[S] SKM[S] := by
-  apply is_normal_n.stuck
-  intro h
-  cases h
-  case a.intro h =>
-    cases h
+lemma s_stuck : is_value_n 0 SKM[S] SKM[S] := by
+  apply is_value_n.value
+  exact is_value.s
+
+namespace is_eval_once
+
+lemma same_eval_eq : is_eval_once e e₁ → is_eval_once e e₂ → e₁ = e₂ := by
+  intro h_step₁ h_step₂
+  induction h_step₁
+  repeat (cases h_step₂; rfl)
+
+end is_eval_once
 
 namespace beta_eq
 
@@ -235,6 +237,10 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e 
         apply is_eval_step.step
         apply is_eval_once.arr
       left
+      exact is_value.arr
+      left
+      exact is_value.arr₁
+      left
       exact is_value.k₂
       left
       exact is_value.k₃
@@ -291,4 +297,26 @@ theorem progress (h_t : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eva
   case step t' t'' e' h_step h_t ih =>
     exact ih
 
+theorem progress_hard (h_t : valid_judgment_hard e t) : ∃ n e_final, is_value_n n e e_final := by
+  induction h_t
+  
+  sorry
+
 end valid_judgment_hard
+
+namespace is_value
+
+lemma value_lhs (h : is_value SKM[(lhs rhs)]) : is_value lhs := by
+  cases h
+  apply is_value.arr₁
+  apply is_value.arr₀
+  apply is_value.k
+  apply is_value.k₁
+  apply is_value.k₂
+  apply is_value.s
+  apply is_value.s₁
+  apply is_value.s₂
+  apply is_value.s₃
+  apply is_value.s₄
+
+end is_value
