@@ -219,7 +219,14 @@ end valid_judgment
 namespace valid_judgment_hard
 
 theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e e') : valid_judgment_hard e' t := by
-  induction h_step
-  
+  induction h_pre
+  case valid e' t' h_t =>
+    apply h_t.preservation
+    exact h_step
+  case step t' t'' e' h_step₁ h_t ih =>
+    simp_all
+    apply valid_judgment_hard.step
+    exact h_step₁
+    exact ih
 
 end valid_judgment_hard
