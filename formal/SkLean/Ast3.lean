@@ -284,4 +284,11 @@ theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e 
     exact h_step₁
     exact ih
 
+theorem progress (h_t : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
+  induction h_t
+  case valid e' t' h =>
+    exact h.progress
+  case step t' t'' e' h_step h_t ih =>
+    exact ih
+
 end valid_judgment_hard
