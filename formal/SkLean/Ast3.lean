@@ -94,6 +94,20 @@ inductive valid_judgment : Expr → Expr → Prop
   | s₁       : valid_judgment SKM[(S α)]         SKM[((M S) α)]
   | s₂       : valid_judgment SKM[((S α) β)]     SKM[(((M S) α) β)]
 
+inductive is_value : Expr → Prop
+  | k   : is_value SKM[K]
+  | s   : is_value SKM[S]
+  | m   : is_value SKM[M]
+  | arr : is_value SKM[(α ~> β)]
+  | k₁  : is_value SKM[(K α)]
+  | k₂  : is_value SKM[((K α) β)]
+  | k₃  : is_value SKM[(((K α) β) x)]
+  | s₁  : is_value SKM[(S α)]
+  | s₂  : is_value SKM[((S α) β)]
+  | s₃  : is_value SKM[(((S α) β) γ)]
+  | s₄  : is_value SKM[((((S α) β) γ) x)]
+  | s₅  : is_value SKM[(((((S α) β) γ) x) y)]
+
 inductive valid_judgment_hard : Expr → Expr → Prop
   | valid : valid_judgment e t
     → valid_judgment_hard e t
@@ -192,55 +206,68 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
       | (.call h _) =>
         cases h
 
-syntax (name := do_stuck) "do_stuck " : tactic
-
-macro_rules
-  | `(tactic| do_stuck) => `(tactic|
-    apply is_normal_n.stuck; intro ⟨e', h⟩; cases h)
-
-lemma progress (h : valid_judgment e t) : is_normal_n 0 e e ∨ ∃ e', is_eval_step e e' := by
+lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h
   left
-  simp
+  exact is_value.k
   left
-  simp
+  exact is_value.s
   left
-  simp
+  exact is_value.m
   left
-  do_stuck
+  apply is_value.arr
   left
-  do_stuck
+  apply is_value.k₂
   left
-  do_stuck
+  apply is_value.s₃
   case call lhs t_in t_out rhs h_t_lhs h_t_rhs ih₁ ih₂ =>
-    cases h_t_lhs
-    right
-    case arr_call.h t_α β h_t_α =>
-      use t_α
-      apply is_eval_step.step
-      apply is_eval_once.arr
-    case k_call β =>
+    cases ih₁
+    case inl h =>
+      cases h
       left
-      do_stuck
-    case s_call α β γ =>
+      exact is_value.k₁
       left
-      do_stuck
-    case call lhs t_in rhs' ht_rhs ih₂' =>
-      cases lhs
+      exact is_value.s₁
+      cases h_t_lhs
+      right
+      case arr.h α β =>
+        use β
+        apply is_eval_step.step
+        apply is_eval_once.arr
       left
-      do_stuck
+      exact is_value.k₂
       left
-      do_stuck
+      exact is_value.k₃
+      right
+      case k₃.h α β x =>
+        use x
+        apply is_eval_step.step
+        exact is_eval_once.k
       left
-      do_stuck
+      exact is_value.s₂
       left
-      do_stuck
+      exact is_value.s₃
       left
-      do_stuck
-      case call t_in' t a =>
-        
-        sorry
-  sorry
+      exact is_value.s₄
+      left
+      exact is_value.s₅
+      case s₅ α β γ x y =>
+        right
+        use SKM[((x rhs) (y rhs))]
+        apply is_eval_step.step
+        exact is_eval_once.s
+    case inr h =>
+      obtain ⟨e', h⟩ := h
+      right
+      use SKM[(e' rhs)]
+      apply is_eval_step.left
+      exact h
+  left
+  apply is_value.k₁
+  left
+  apply is_value.s₁
+  left
+  apply is_value.s₂
 
 end valid_judgment
 
