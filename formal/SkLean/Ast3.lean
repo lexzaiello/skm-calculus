@@ -4,7 +4,6 @@ inductive Expr where
   | k    : Expr
   | s    : Expr
   | m    : Expr
-  | ty   : Expr
   | arr  : Expr
   | call : Expr → Expr → Expr
 deriving BEq, Repr
@@ -15,7 +14,6 @@ syntax "S"                     : skmexpr
 syntax "M"                     : skmexpr
 syntax "#~>"                   : skmexpr
 syntax skmexpr "~>" skmexpr    : skmexpr
-syntax "Ty"                    : skmexpr
 syntax "(" skmexpr skmexpr ")" : skmexpr
 syntax ident                   : skmexpr
 syntax "#" term                : skmexpr
@@ -31,7 +29,6 @@ macro_rules
   | `(⟪ K ⟫)                           => `(Expr.k)
   | `(⟪ S ⟫)                           => `(Expr.s)
   | `(⟪ M ⟫)                           => `(Expr.m)
-  | `(⟪ Ty ⟫)                          => `(Expr.ty)
   | `(⟪ #~> ⟫)                         => `(Expr.arr)
   | `(⟪ $e₁:skmexpr ~> $e₂:skmexpr ⟫)  => `(Expr.call (Expr.call Expr.arr ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
   | `(⟪ $e:ident ⟫)                    => `($e)
@@ -45,11 +42,14 @@ inductive is_eval_once : Expr → Expr → Prop
   | k_call   : is_eval_once SKM[(((M K) α) β)] SKM[(α ~> (β ~> α))]
   | s_call   : is_eval_once SKM[((((M S) α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
   | m_call   : is_eval_once SKM[(M (lhs rhs))] SKM[((M lhs) rhs)]
+  | arr      : is_eval_once SKM[((t_in ~> t_out) arg)] SKM[t_out]
 
 inductive is_reflective : Expr → Prop
   | k_call : is_reflective SKM[(((M K) α) β)]
   | s_call : is_reflective SKM[((((M S) α) β) γ)]
   | m_call : is_reflective SKM[(M (lhs rhs))]
+  | call   : is_reflective lhs
+    → is_reflective SKM[(lhs rhs)]
 
 inductive is_eval_step : Expr → Expr → Prop
   | left : is_eval_step lhs lhs'
@@ -72,34 +72,36 @@ inductive beta_eq : Expr → Expr → Prop
   | rfl   : beta_eq e e
 
 inductive is_value : Expr → Prop
-  | k    : is_value SKM[K]
-  | s    : is_value SKM[S]
-  | m    : is_value SKM[M]
-  | arr  : is_value SKM[(α ~> β)]
-  | arr₁ : is_value SKM[(#~> α)]
-  | arr₀ : is_value SKM[(#~>)]
-  | k₁   : is_value SKM[(K α)]
-  | k₂   : is_value SKM[((K α) β)]
-  | k₃   : is_value SKM[(((K α) β) x)]
-  | s₁   : is_value SKM[(S α)]
-  | s₂   : is_value SKM[((S α) β)]
-  | s₃   : is_value SKM[(((S α) β) γ)]
-  | s₄   : is_value SKM[((((S α) β) γ) x)]
-  | s₅   : is_value SKM[(((((S α) β) γ) x) y)]
+  | k     : is_value SKM[K]
+  | s     : is_value SKM[S]
+  | m     : is_value SKM[M]
+  | m_k   : is_value SKM[(M K)]
+  | m_s   : is_value SKM[(M S)]
+  | m_m   : is_value SKM[(M M)]
+  | arr   : is_value SKM[(α ~> β)]
+  | arr₁  : is_value SKM[(#~> α)]
+  | arr₀  : is_value SKM[(#~>)]
+  | m_arr : is_value SKM[(M #~>)]
+  | k₁    : is_value SKM[(K α)]
+  | k₂    : is_value SKM[((K α) β)]
+  | k₃    : is_value SKM[(((K α) β) x)]
+  | s₁    : is_value SKM[(S α)]
+  | s₂    : is_value SKM[((S α) β)]
+  | s₃    : is_value SKM[(((S α) β) γ)]
+  | s₄    : is_value SKM[((((S α) β) γ) x)]
+  | s₅    : is_value SKM[(((((S α) β) γ) x) y)]
+  | m_k₁  : is_value SKM[((M K) α)]
+  | m_s₁  : is_value SKM[((M S) α)]
+  | m_s₂  : is_value SKM[(((M S) α) β)]
 
 inductive is_value_n : ℕ → Expr → Expr → Prop
   | value : is_value e        → is_value_n 0 e e
   | succ  : is_eval_step e e' → is_value_n n e' e_final → is_value_n n.succ e e_final
 
-def is_normal (e : Expr) :=¬ (∃ e', is_eval_once e e')
-
-def subtree_is_in (e in_e : Expr) : Prop :=
-  e == in_e ∨
-    match in_e with
-      | SKM[(lhs rhs)] => subtree_is_in e lhs ∨ subtree_is_in e rhs
-      | _ => false
-
 inductive valid_judgment : Expr → Expr → Prop
+  | k₀   : valid_judgment SKM[K] SKM[(M K)]
+  | s₀   : valid_judgment SKM[S] SKM[(M S)]
+  | m₀   : valid_judgment SKM[M] SKM[(M M)]
   | k    : valid_judgment α t_α
     → valid_judgment β t_β
     → valid_judgment SKM[((K α) β)] SKM[(α ~> (β ~> α))]
@@ -107,9 +109,8 @@ inductive valid_judgment : Expr → Expr → Prop
     → valid_judgment β t_β
     → valid_judgment γ t_γ
     → valid_judgment SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
-  | m    : valid_judgment α t_α
-    → valid_judgment x α
-    → valid_judgment SKM[(M x)] t_α
+  | m    : valid_judgment x α
+    → valid_judgment SKM[(M x)] SKM[((M M) x)]
   | arr₀ : valid_judgment α t_α
     → valid_judgment β t_β
     → valid_judgment SKM[(α ~> β)] SKM[(α ~> t_β)]
@@ -118,6 +119,9 @@ inductive valid_judgment : Expr → Expr → Prop
     → valid_judgment SKM[(lhs rhs)] SKM[t_out]
 
 inductive valid_judgment_hard : Expr → Expr → Prop
+  | k₀   : valid_judgment_hard SKM[K] SKM[(M K)]
+  | s₀   : valid_judgment_hard SKM[S] SKM[(M S)]
+  | m₀   : valid_judgment_hard SKM[M] SKM[(M M)]
   | k    : valid_judgment_hard α t_α
     → valid_judgment_hard β t_β
     → valid_judgment_hard SKM[((K α) β)] SKM[(α ~> (β ~> α))]
@@ -125,9 +129,8 @@ inductive valid_judgment_hard : Expr → Expr → Prop
     → valid_judgment_hard β t_β
     → valid_judgment_hard γ t_γ
     → valid_judgment_hard SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
-  | m    : valid_judgment_hard α t_α
-    → valid_judgment_hard x α
-    → valid_judgment_hard SKM[(M x)] t_α
+  | m    : valid_judgment_hard x α
+    → valid_judgment_hard SKM[(M x)] SKM[((M M) x)]
   | arr₀ : valid_judgment_hard α t_α
     → valid_judgment_hard β t_β
     → valid_judgment_hard SKM[(α ~> β)] SKM[(α ~> t_β)]
@@ -154,6 +157,9 @@ lemma s_stuck : is_value_n 0 SKM[S] SKM[S] := by
   exact is_value.s
 
 namespace is_eval_step
+
+@[simp]
+lemma do_step (h : is_eval_once e e') : is_eval_step e e' := is_eval_step.step h
 
 lemma imp_beta_eq : is_eval_step e e' → beta_eq e e' := by
   intro h_step
@@ -198,16 +204,23 @@ lemma no_step (h : is_value e) : ¬ ∃ e', is_eval_step e e' := by
 
 lemma value_lhs (h : is_value SKM[(lhs rhs)]) : is_value lhs := by
   cases h
-  apply is_value.arr₁
-  apply is_value.arr₀
-  apply is_value.k
-  apply is_value.k₁
-  apply is_value.k₂
-  apply is_value.s
-  apply is_value.s₁
-  apply is_value.s₂
-  apply is_value.s₃
-  apply is_value.s₄
+  exact is_value.m
+  exact is_value.m
+  exact is_value.m
+  exact is_value.arr₁
+  exact is_value.arr₀
+  exact is_value.m
+  exact is_value.k
+  exact is_value.k₁
+  exact is_value.k₂
+  exact is_value.s
+  exact is_value.s₁
+  exact is_value.s₂
+  exact is_value.s₃
+  exact is_value.s₄
+  exact is_value.m_k
+  exact is_value.m_s
+  exact is_value.m_s₁
 
 end is_value
 
@@ -215,6 +228,9 @@ namespace valid_judgment
 
 lemma weakening (h : valid_judgment e t) : valid_judgment_hard e t := by
   induction h
+  apply valid_judgment_hard.k₀
+  apply valid_judgment_hard.s₀
+  apply valid_judgment_hard.m₀
   apply valid_judgment_hard.k
   assumption
   assumption
@@ -223,7 +239,6 @@ lemma weakening (h : valid_judgment e t) : valid_judgment_hard e t := by
   assumption
   assumption
   apply valid_judgment_hard.m
-  assumption
   assumption
   apply valid_judgment_hard.arr₀
   case call lhs t_in t_out rhs h_T_lhs h_t_rhs ih₁ ih₂ =>
@@ -264,22 +279,56 @@ lemma preservation'' (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : v
   cases h_t
   case m_call.call lhs rhs t_in h_t_in h =>
     cases h
-  case m_call.m lhs rhs α h_t_lhs h_t_rhs =>
+  case m_call.m lhs rhs α h_t_rhs =>
     right
     exact is_reflective.m_call
+  case arr t_in t_out arg =>
+    left
+    cases h_t
+    case h.call h =>
+      cases h
+      apply weakening
+      assumption
+      case call h =>
+        cases h
+        case call h =>
+          cases h
 
 lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h
-  left
-  exact is_value.k
-  left
-  exact is_value.s
-  left
-  exact is_value.m
-  left
-  apply is_value.arr₀
-  left
-  sorry
+  exact Or.inl is_value.k
+  exact Or.inl is_value.s
+  exact Or.inl is_value.m
+  exact Or.inl is_value.k₂
+  exact Or.inl is_value.s₃
+  case m x α h_t_α ih =>
+    cases x
+    exact Or.inl is_value.m_k
+    exact Or.inl is_value.m_s
+    exact Or.inl is_value.m_m
+    exact Or.inl is_value.m_arr
+    case call lhs rhs =>
+      exact Or.inr ⟨SKM[((M lhs) rhs)], is_eval_step.step is_eval_once.m_call⟩
+  exact Or.inl is_value.arr
+  case call lhs t_in t_out rhs h_t_lhs h_t_rhs ih₁ ih₂ =>
+    match ih₁ with
+      | .inl h_val_lhs =>
+        cases h_val_lhs
+        repeat contradiction
+        case arr α β =>
+          exact Or.inr ⟨β, is_eval_step.step is_eval_once.arr⟩
+        repeat contradiction
+        exact Or.inl is_value.k₃
+        case k₃ α β x =>
+          exact Or.inr ⟨x, is_eval_step.step is_eval_once.k⟩
+        repeat contradiction
+        exact Or.inl is_value.s₄
+        exact Or.inl is_value.s₅
+        case s₅ α β γ x y =>
+          exact Or.inr ⟨SKM[((x rhs) (y rhs))], is_eval_step.step is_eval_once.s⟩
+        repeat contradiction
+      | .inr ⟨lhs', h_step_lhs⟩ =>
+        exact Or.inr $ ⟨SKM[(lhs' rhs)], is_eval_step.left h_step_lhs⟩
 
 end valid_judgment
 
