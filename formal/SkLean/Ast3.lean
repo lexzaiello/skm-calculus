@@ -212,6 +212,17 @@ lemma value_lhs (h : is_value SKM[(lhs rhs)]) : is_value lhs := by
 
 end is_value
 
+namespace valid_judgment_hard
+
+lemma strengthening (h_t : valid_judgment_hard e t) : ∃ t, valid_judgment e t := by
+  induction h_t
+  case valid t h_t =>
+    exact ⟨t, h_t⟩
+  case step h =>
+    exact h
+
+end valid_judgment_hard
+
 namespace valid_judgment
 
 lemma valid_lhs (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_lhs, valid_judgment lhs t_lhs := by
@@ -242,10 +253,7 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
       left
       apply weakening
       assumption
-      case call h =>
-        cases h
-        case call h =>
-          cases h
+      contradiction
   match h_t with
     | .call (.call (.call h _) _) _ =>
       cases h
@@ -253,17 +261,11 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
       apply valid_judgment_hard.valid
       apply valid_judgment.call
       case call h =>
-        cases h
-        case call h =>
-          cases h
-          case call h =>
-            cases h
+        contradiction
       apply valid_judgment.call
-      assumption
-      assumption
+      repeat assumption
       apply valid_judgment.call
-      assumption
-      assumption
+      repeat assumption
   right
   apply is_reflective.k_call
   right
@@ -281,10 +283,20 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
       cases h
       apply weakening
       assumption
-      case call h =>
-        cases h
-        case call h =>
-          cases h
+      contradiction
+
+lemma preservation_star (h_t : valid_judgment e t) (h_eval : is_eval_step e e') : valid_judgment_hard e' t ∨ is_reflective e := by
+  induction h_eval generalizing t
+  case left lhs lhs' rhs h_eval_step ih =>
+    have ⟨t_lhs, h_t_lhs⟩ := h_t.valid_lhs
+    have ih' := ih h_t_lhs
+    left
+    apply valid_judgment_hard.step
+    apply valid_judgment_hard.valid
+    apply valid_judgment.call
+    
+    sorry
+  sorry
 
 lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h
