@@ -102,6 +102,9 @@ inductive valid_judgment : Expr → Expr → Prop
   | k₀   : valid_judgment SKM[K] SKM[(M K)]
   | s₀   : valid_judgment SKM[S] SKM[(M S)]
   | m₀   : valid_judgment SKM[M] SKM[(M M)]
+  | k₁   : valid_judgment SKM[(K α)] SKM[((M K) α)]
+  | s₁   : valid_judgment SKM[(S α)] SKM[((M S) α)]
+  | s₂   : valid_judgment SKM[((S α) β)] SKM[(((M S) α) β)]
   | k    : valid_judgment α t_α
     → valid_judgment β t_β
     → valid_judgment SKM[((K α) β)] SKM[(α ~> (β ~> α))]
@@ -114,6 +117,8 @@ inductive valid_judgment : Expr → Expr → Prop
   | arr₀ : valid_judgment α t_α
     → valid_judgment β t_β
     → valid_judgment SKM[(α ~> β)] SKM[(α ~> t_β)]
+  | arr  : valid_judgment SKM[#~>] SKM[(M #~>)]
+  | arr₁ : valid_judgment SKM[(#~> a)] SKM[((M #~>) a)]
   | call : valid_judgment lhs SKM[(t_in ~> t_out)]
     → valid_judgment rhs t_in
     → valid_judgment SKM[(lhs rhs)] SKM[t_out]
@@ -209,6 +214,23 @@ end is_value
 
 namespace valid_judgment
 
+lemma valid_lhs (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_lhs, valid_judgment lhs t_lhs := by
+  cases h_t
+  case k α t_α t_β h_t_α h_T_β =>
+    exact ⟨SKM[((M K) α)], valid_judgment.k₁⟩
+  exact ⟨SKM[(M K)], valid_judgment.k₀⟩
+  exact ⟨SKM[(M S)], valid_judgment.s₀⟩
+  case s₂ α =>
+    exact ⟨SKM[((M S) α)], valid_judgment.s₁⟩
+  case s x α y β γ h_t_α h_t_β h_t_γ =>
+    exact ⟨SKM[(((M S) x) y)], valid_judgment.s₂⟩
+  exact ⟨SKM[(M M)], valid_judgment.m₀⟩
+  case arr₀ α t_α t_β h_t_α h_t_β =>
+    exact ⟨SKM[((M #~>) α)], valid_judgment.arr₁⟩
+  exact ⟨SKM[(M #~>)], valid_judgment.arr⟩
+  case call t_in h_t_rhs h_t_lhs =>
+    exact ⟨SKM[t_in ~> t], h_t_lhs⟩
+
 @[simp]
 lemma weakening : valid_judgment e t → valid_judgment_hard e t := valid_judgment_hard.valid
 
@@ -269,6 +291,9 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e 
   exact Or.inl is_value.k
   exact Or.inl is_value.s
   exact Or.inl is_value.m
+  exact Or.inl is_value.k₁
+  exact Or.inl is_value.s₁
+  exact Or.inl is_value.s₂
   exact Or.inl is_value.k₂
   exact Or.inl is_value.s₃
   case m x α h_t_α ih =>
@@ -299,6 +324,8 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e 
         repeat contradiction
       | .inr ⟨lhs', h_step_lhs⟩ =>
         exact Or.inr $ ⟨SKM[(lhs' rhs)], is_eval_step.left h_step_lhs⟩
+  exact Or.inl is_value.arr₀
+  exact Or.inl is_value.arr₁
 
 end valid_judgment
 
