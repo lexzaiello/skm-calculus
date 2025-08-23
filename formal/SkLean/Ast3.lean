@@ -214,12 +214,13 @@ end is_value
 
 namespace valid_judgment_hard
 
-lemma strengthening (h_t : valid_judgment_hard e t) : ∃ t, valid_judgment e t := by
+lemma strengthening (h_t : valid_judgment_hard e t) : ∃ t₂, valid_judgment e t₂ ∧ beta_eq t t₂ := by
   induction h_t
   case valid t h_t =>
-    exact ⟨t, h_t⟩
-  case step h =>
-    exact h
+    exact ⟨t, ⟨h_t, beta_eq.rfl⟩⟩
+  case step t₂ t₃ h_t₁ h_beq ih =>
+    obtain ⟨t₄, ⟨h_t₂, h_beq'⟩⟩ := ih
+    exact ⟨t₄, ⟨h_t₂, beta_eq.symm (beta_eq.trans (beta_eq.symm h_beq') h_beq)⟩⟩
 
 end valid_judgment_hard
 
