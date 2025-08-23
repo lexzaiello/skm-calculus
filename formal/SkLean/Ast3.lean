@@ -119,26 +119,9 @@ inductive valid_judgment : Expr → Expr → Prop
     → valid_judgment SKM[(lhs rhs)] SKM[t_out]
 
 inductive valid_judgment_hard : Expr → Expr → Prop
-  | k₀   : valid_judgment_hard SKM[K] SKM[(M K)]
-  | s₀   : valid_judgment_hard SKM[S] SKM[(M S)]
-  | m₀   : valid_judgment_hard SKM[M] SKM[(M M)]
-  | k    : valid_judgment_hard α t_α
-    → valid_judgment_hard β t_β
-    → valid_judgment_hard SKM[((K α) β)] SKM[(α ~> (β ~> α))]
-  | s    : valid_judgment_hard α t_α
-    → valid_judgment_hard β t_β
-    → valid_judgment_hard γ t_γ
-    → valid_judgment_hard SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
-  | m    : valid_judgment_hard x α
-    → valid_judgment_hard SKM[(M x)] SKM[((M M) x)]
-  | arr₀ : valid_judgment_hard α t_α
-    → valid_judgment_hard β t_β
-    → valid_judgment_hard SKM[(α ~> β)] SKM[(α ~> t_β)]
-  | call : valid_judgment_hard lhs SKM[(t_in ~> t_out)]
-    → valid_judgment_hard rhs t_in
-    → valid_judgment_hard SKM[(lhs rhs)] t_out
-  | step  : beta_eq t t'
-    → valid_judgment_hard e t
+  | valid : valid_judgment e t → valid_judgment_hard e t
+  | step  : valid_judgment_hard e t
+    → beta_eq t t'
     → valid_judgment_hard e t'
 
 @[simp]
@@ -226,29 +209,10 @@ end is_value
 
 namespace valid_judgment
 
-lemma weakening (h : valid_judgment e t) : valid_judgment_hard e t := by
-  induction h
-  apply valid_judgment_hard.k₀
-  apply valid_judgment_hard.s₀
-  apply valid_judgment_hard.m₀
-  apply valid_judgment_hard.k
-  assumption
-  assumption
-  apply valid_judgment_hard.s
-  assumption
-  assumption
-  assumption
-  apply valid_judgment_hard.m
-  assumption
-  apply valid_judgment_hard.arr₀
-  case call lhs t_in t_out rhs h_T_lhs h_t_rhs ih₁ ih₂ =>
-    apply valid_judgment_hard.call
-    exact ih₁
-    exact ih₂
-  assumption
-  assumption
+@[simp]
+lemma weakening : valid_judgment e t → valid_judgment_hard e t := valid_judgment_hard.valid
 
-lemma preservation'' (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : valid_judgment_hard e' t ∨ is_reflective e := by
+lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : valid_judgment_hard e' t ∨ is_reflective e := by
   induction h_eval generalizing t
   match h_t with
     | .call (.call h _) _ =>
@@ -264,14 +228,20 @@ lemma preservation'' (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : v
     | .call (.call (.call h _) _) _ =>
       cases h
       left
-      apply valid_judgment_hard.call
-      repeat (apply valid_judgment_hard.call; apply weakening; assumption; apply weakening; assumption)
+      apply valid_judgment_hard.valid
+      apply valid_judgment.call
       case call h =>
         cases h
         case call h =>
           cases h
           case call h =>
             cases h
+      apply valid_judgment.call
+      assumption
+      assumption
+      apply valid_judgment.call
+      assumption
+      assumption
   right
   apply is_reflective.k_call
   right
@@ -334,83 +304,35 @@ end valid_judgment
 
 namespace valid_judgment_hard
 
-lemma valid_lhs (h : valid_judgment_hard SKM[(lhs rhs)] t) : ∃ t_in t_out, valid_judgment_hard lhs SKM[(t_in ~> t_out)] := by
-  cases h
-  case call t_in' h_t_ih h_t_lhs =>
-    use t_in'
-    use t
-  case k_call α t_α t_β h_t_α h_t_rhs =>
-    use t_β
-    use α
-    apply valid_judgment_hard.call
-    
-    sorry
-
-theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e e') : valid_judgment_hard e' t := by
-  induction h_pre generalizing e'
-  contradiction
-  contradiction
-  contradiction
-  contradiction
-  contradiction
-  contradiction
-  contradiction
-  contradiction
-  case call lhs t_in t_out rhs h_t_lhs h_t_in ih₁ ih₂ =>
-    have h_t_e' : valid_judgment_hard SKM[(lhs rhs)] SKM[((t_in ~>t_out) rhs)] := by
-      apply valid_judgment_hard.step
-      apply beta_eq.eval
-      apply is_eval_once.arr
-      use t_in
-      use rhs
-      apply valid_judgment_hard.step
-      apply beta_eq.symm
-      apply beta_eq.eval
-      apply is_eval_once.arr
-      apply valid_judgment_hard.step
-      apply beta_eq.symm
-      apply beta_eq.eval
-      apply is_eval_once.arr
-      apply valid_judgment_hard.call
-      exact h_t_lhs
-      exact h_t_in
-    apply valid_judgment_hard.step
-    apply beta_eq.eval
-    apply is_eval_once.arr
-    use t_in
-    use rhs
-    cases h_step
-    
-    sorry
-
-theorem progress (h_t : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
-  induction h_t
-  case valid e' t' h =>
-    exact h.progress
-  case step t' t'' e' h_step h_t ih =>
-    exact ih
-
-theorem progress_hard (h_t : valid_judgment_hard e t) : ∃ n e_final, is_value_n n e e_final := by
-  induction h_t
-  case valid e' t' h_t =>
-    have h := h_t.progress
-    match h with
+theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e e') : valid_judgment_hard e' t ∨ is_reflective e := by
+  induction h_pre
+  case valid h =>
+    match (h.preservation h_step) with
       | .inl h =>
-        use 0
-        use e'
-        apply is_value_n.value
-        exact h
-      | .inr ⟨e'₁, h⟩ =>
-        induction h generalizing t'
-        case left lhs lhs' rhs h_step_lhs ih =>
-          have ⟨t_lhs, h_t_lhs⟩ := h_t.valid_lhs
-          have ⟨n_lhs, lhs_final, h_final_lhs⟩ := ih h_t_lhs h_t_lhs.progress
-          have h_t' : ∃ t, valid_judgment SKM[(lhs_final rhs)] t := by
-            use sorry
-            apply valid_judgment.call
-            
-            sorry
-        sorry
+        exact Or.inl h
+      | .inr h =>
+        exact Or.inr h
+  case step t' t'' h_t₁ h_beq ih =>
+    match ih with
+      | .inl h =>
+        exact Or.inl (valid_judgment_hard.step h h_beq)
+      | .inr h =>
+        exact Or.inr h
+
+theorem progress (h : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
+  induction h
+  case valid h =>
+    match (h.progress) with
+      | .inl h =>
+        exact Or.inl h
+      | .inr h =>
+        exact Or.inr h
+  case step t' t'' h_t₁ h_beq ih =>
+    match ih with
+      | .inl h =>
+        exact Or.inl h
+      | .inr h =>
+        exact Or.inr h
 
 end valid_judgment_hard
 
