@@ -52,10 +52,14 @@ inductive is_reflective : Expr → Prop
     → is_reflective SKM[(lhs rhs)]
 
 inductive is_eval_step : Expr → Expr → Prop
-  | left : is_eval_step lhs lhs'
+  | left  : is_eval_step lhs lhs'
     → is_eval_step SKM[(lhs rhs)] SKM[(lhs' rhs)]
-  | step : is_eval_once e e'
+  | step  : is_eval_once e e'
     → is_eval_step e e'
+  | trans : is_eval_step e e'
+    → is_eval_step e' e''
+    → is_eval_step e e''
+  | rfl : is_eval_step e e
 
 inductive is_eval_step_once : Expr → Expr → Prop
   | left : is_eval_once lhs lhs'
@@ -185,11 +189,6 @@ end beta_eq
 
 namespace is_value
 
-@[simp]
-lemma no_step (h : is_value e) : ¬ ∃ e', is_eval_step e e' := by
-  cases h
-  repeat (intro ⟨e', h⟩; match h with | .step h => cases h)
-
 lemma value_lhs (h : is_value SKM[(lhs rhs)]) : is_value lhs := by
   cases h
   exact is_value.m
@@ -212,18 +211,6 @@ lemma value_lhs (h : is_value SKM[(lhs rhs)]) : is_value lhs := by
 
 end is_value
 
-namespace valid_judgment_hard
-
-lemma strengthening (h_t : valid_judgment_hard e t) : ∃ t₂, valid_judgment e t₂ ∧ beta_eq t t₂ := by
-  induction h_t
-  case valid t h_t =>
-    exact ⟨t, ⟨h_t, beta_eq.rfl⟩⟩
-  case step t₂ t₃ h_t₁ h_beq ih =>
-    obtain ⟨t₄, ⟨h_t₂, h_beq'⟩⟩ := ih
-    exact ⟨t₄, ⟨h_t₂, beta_eq.symm (beta_eq.trans (beta_eq.symm h_beq') h_beq)⟩⟩
-
-end valid_judgment_hard
-
 namespace valid_judgment
 
 lemma valid_lhs (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_lhs, valid_judgment lhs t_lhs := by
@@ -242,6 +229,22 @@ lemma valid_lhs (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_lhs, valid_judgm
   exact ⟨SKM[(M #~>)], valid_judgment.arr⟩
   case call t_in h_t_rhs h_t_lhs =>
     exact ⟨SKM[t_in ~> t], h_t_lhs⟩
+
+end valid_judgment
+
+namespace valid_judgment_hard
+
+lemma strengthening (h_t : valid_judgment_hard e t) : ∃ t₂, valid_judgment e t₂ ∧ beta_eq t t₂ := by
+  induction h_t
+  case valid t h_t =>
+    exact ⟨t, ⟨h_t, beta_eq.rfl⟩⟩
+  case step t₂ t₃ h_t₁ h_beq ih =>
+    obtain ⟨t₄, ⟨h_t₂, h_beq'⟩⟩ := ih
+    exact ⟨t₄, ⟨h_t₂, beta_eq.symm (beta_eq.trans (beta_eq.symm h_beq') h_beq)⟩⟩
+
+end valid_judgment_hard
+
+namespace valid_judgment
 
 @[simp]
 lemma weakening : valid_judgment e t → valid_judgment_hard e t := valid_judgment_hard.valid
@@ -285,19 +288,6 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
       apply weakening
       assumption
       contradiction
-
-lemma preservation_star (h_t : valid_judgment e t) (h_eval : is_eval_step e e') : valid_judgment_hard e' t ∨ is_reflective e := by
-  induction h_eval generalizing t
-  case left lhs lhs' rhs h_eval_step ih =>
-    have ⟨t_lhs, h_t_lhs⟩ := h_t.valid_lhs
-    have ih' := ih h_t_lhs
-    left
-    apply valid_judgment_hard.step
-    apply valid_judgment_hard.valid
-    apply valid_judgment.call
-    
-    sorry
-  sorry
 
 lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h
