@@ -334,6 +334,16 @@ end valid_judgment
 
 namespace valid_judgment_hard
 
+lemma valid_lhs (h_t : valid_judgment_hard SKM[(lhs rhs)] t) : ∃ t_lhs, valid_judgment_hard lhs t_lhs := by
+  cases h_t
+  case valid h =>
+    have ⟨t_lhs, h_t_lhs⟩ := h.valid_lhs
+    exact ⟨t_lhs, h_t_lhs.weakening⟩
+  case step t' h_t' h_beq =>
+    have ⟨t₂, ⟨h_t, h_beq⟩⟩ := h_t'.strengthening
+    have ⟨t_lhs, h_t_lhs⟩ := h_t.valid_lhs
+    exact ⟨t_lhs, h_t_lhs.weakening⟩
+
 theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e e') : valid_judgment_hard e' t ∨ is_reflective e := by
   induction h_pre
   case valid h =>
@@ -348,6 +358,13 @@ theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e 
         exact Or.inl (valid_judgment_hard.step h h_beq)
       | .inr h =>
         exact Or.inr h
+
+theorem preservation_star (h_pre : valid_judgment_hard e t) (h_step : is_eval_step e e') : valid_judgment_hard e' t ∨ is_reflective e := by
+  induction h_step generalizing t
+  case left lhs lhs' rhs h_step ih =>
+    
+    sorry
+  sorry
 
 theorem progress (h : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
   induction h
