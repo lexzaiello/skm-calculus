@@ -399,8 +399,9 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_once e 
       | .inr ⟨lhs', h_step_lhs⟩ =>
         cases lhs
         repeat contradiction
-        
-        sorry
+        right
+        case call.h lhs'' rhs' =>
+          exact ⟨SKM[(lhs' rhs)], is_eval_once.left (by assumption)⟩
   exact Or.inl is_value.arr₀
   exact Or.inl is_value.arr₁
 
