@@ -343,7 +343,22 @@ lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : val
       assumption
       contradiction
   case left lhs lhs' rhs ih₂ ih₃ =>
-    sorry
+    have ⟨t_rhs, ⟨h_t_rhs, h⟩⟩ := h_t.valid_call
+    match h with
+      | .inl h_t_arrow_lhs =>
+        have h := ih₃ h_t_arrow_lhs
+        match h with
+          | .inl h_t_arrow_lhs =>
+            left
+            apply valid_judgment_hard.call
+            assumption
+            apply weakening
+            assumption
+          | .inr h_reflective_lhs =>
+            exact Or.inr $ is_reflective.call h_reflective_lhs
+      | .inr h_comb_lhs =>
+        cases h_comb_lhs
+        repeat contradiction
 
 lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_once e e' := by
   induction h
