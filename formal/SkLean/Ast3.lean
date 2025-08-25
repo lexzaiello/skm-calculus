@@ -131,6 +131,7 @@ inductive valid_judgment : Expr → Expr → Prop
     → valid_judgment γ t_γ
     → valid_judgment SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
   | m    : valid_judgment x α
+    → valid_judgment α t_α
     → valid_judgment SKM[(M x)] SKM[((M M) x)]
   | arr₀ : valid_judgment α t_α
     → valid_judgment β t_β
@@ -161,6 +162,7 @@ inductive valid_judgment_hard : Expr → Expr → Prop
     → valid_judgment_hard γ t_γ
     → valid_judgment_hard SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
   | m    : valid_judgment_hard x α
+    → valid_judgment_hard α t_α
     → valid_judgment_hard SKM[(M x)] SKM[((M M) x)]
   | arr₀ : valid_judgment_hard α t_α
     → valid_judgment_hard β t_β
@@ -294,6 +296,7 @@ lemma weakening : valid_judgment e t → valid_judgment_hard e t := by
   assumption
   apply valid_judgment_hard.m
   assumption
+  assumption
   apply valid_judgment_hard.arr₀
   assumption
   assumption
@@ -375,9 +378,9 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_once e 
     exact Or.inl is_value.m_k
     exact Or.inl is_value.m_s
     exact Or.inl is_value.m_m
+    repeat exact Or.inr ⟨_, is_eval_once.m_call⟩
     exact Or.inl is_value.m_arr
-    case call lhs rhs =>
-      exact Or.inr ⟨SKM[((M lhs) rhs)], is_eval_once.m_call⟩
+    repeat exact Or.inr ⟨_, is_eval_once.m_call⟩
   exact Or.inl is_value.arr
   case call lhs t_in t_out rhs h_t_lhs h_t_rhs ih₁ ih₂ =>
     match ih₁ with
@@ -405,56 +408,16 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_once e 
   exact Or.inl is_value.arr₀
   exact Or.inl is_value.arr₁
 
+theorem progress' (h : valid_judgment e t) : ∃ n e_final, is_value_n n e e_final := by
+  have e' := h.progress
+  match e' with
+    | .inl h_val =>
+      exact ⟨0, ⟨e, is_value_n.value h_val⟩⟩
+    | .inr ⟨e', h_step⟩ =>
+      have h_t' := h.preservation h_step
+      
+      sorry
+
 end valid_judgment
 
-namespace valid_judgment_hard
-
-lemma valid_lhs (h_t : valid_judgment_hard SKM[(lhs rhs)] t) : ∃ t_lhs, valid_judgment_hard lhs t_lhs := by
-  cases h_t
-  case valid h =>
-    have ⟨t_lhs, h_t_lhs⟩ := h.valid_lhs
-    exact ⟨t_lhs, h_t_lhs.weakening⟩
-  case step t' h_t' h_beq =>
-    have ⟨t₂, ⟨h_t, h_beq⟩⟩ := h_t'.strengthening
-    have ⟨t_lhs, h_t_lhs⟩ := h_t.valid_lhs
-    exact ⟨t_lhs, h_t_lhs.weakening⟩
-
-theorem preservation (h_pre : valid_judgment_hard e t) (h_step : is_eval_once e e') : valid_judgment_hard e' t ∨ is_reflective e := by
-  induction h_pre
-  case valid h =>
-    match (h.preservation h_step) with
-      | .inl h =>
-        exact Or.inl h
-      | .inr h =>
-        exact Or.inr h
-  case step t' t'' h_t₁ h_beq ih =>
-    match ih with
-      | .inl h =>
-        exact Or.inl (valid_judgment_hard.step h h_beq)
-      | .inr h =>
-        exact Or.inr h
-
-theorem preservation_star (h_pre : valid_judgment_hard e t) (h_step : is_eval_step e e') : valid_judgment_hard e' t ∨ is_reflective e := by
-  induction h_step generalizing t
-  case left lhs lhs' rhs h_step ih =>
-    
-    sorry
-  sorry
-
-theorem progress (h : valid_judgment_hard e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
-  induction h
-  case valid h =>
-    match (h.progress) with
-      | .inl h =>
-        exact Or.inl h
-      | .inr h =>
-        exact Or.inr h
-  case step t' t'' h_t₁ h_beq ih =>
-    match ih with
-      | .inl h =>
-        exact Or.inl h
-      | .inr h =>
-        exact Or.inr h
-
-end valid_judgment_hard
 
