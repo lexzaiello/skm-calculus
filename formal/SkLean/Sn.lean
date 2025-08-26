@@ -59,9 +59,12 @@ lemma all_sn (h_candidate : is_candidate_for_ty e t) : sn e := by
   case app lhs t_in t_out rhs e' h_t_lhs h_t_rhs h_step ih₁ ih₂ ih₃ =>
     apply Acc.intro
     intro e' h_step'
-    cases ih₃
-    
-    sorry
+    have h_eq : e' = rhs := by
+      apply is_eval_once.deterministic
+      assumption
+      assumption
+    rw [← h_eq] at ih₃
+    exact ih₃
 
 lemma valid_call (h_candidate_lhs : is_candidate_for_ty lhs SKM[(t_in ~> t_out)]) (h_candidate_rhs : is_candidate_for_ty rhs t_in) : is_candidate_for_ty SKM[(lhs rhs)] t_out := by
   cases h_candidate_lhs
