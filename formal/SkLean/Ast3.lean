@@ -75,16 +75,6 @@ inductive beta_eq : Expr → Expr → Prop
   | symm  : beta_eq e₁ e₂      → beta_eq e₂ e₁
   | rfl   : beta_eq e e
 
-inductive is_typed_comb : Expr → Prop
-  | k₀   : is_typed_comb SKM[K]
-  | k₁   : is_typed_comb SKM[(K α)]
-  | s₀   : is_typed_comb SKM[S]
-  | s₁   : is_typed_comb SKM[(S α)]
-  | s₂   : is_typed_comb SKM[((S α) β)]
-  | arr₀ : is_typed_comb SKM[#~>]
-  | arr₁ : is_typed_comb SKM[(#~> x)]
-  | m₀   : is_typed_comb SKM[M]
-
 inductive is_value : Expr → Prop
   | k     : is_value SKM[K]
   | s     : is_value SKM[S]
@@ -174,6 +164,20 @@ inductive valid_judgment_hard : Expr → Expr → Prop
     → beta_eq t t'
     → valid_judgment_hard e t'
 
+inductive is_typed_comb : Expr → Prop
+  | k₀   : is_typed_comb SKM[K]
+  | k₁   : valid_judgment α t_α
+    → is_typed_comb SKM[(K α)]
+  | s₀   : is_typed_comb SKM[S]
+  | s₁   : valid_judgment α t_α
+    → is_typed_comb SKM[(S α)]
+  | s₂   : valid_judgment α t_α
+    → valid_judgment β t_β
+    → is_typed_comb SKM[((S α) β)]
+  | arr₀ : is_typed_comb SKM[#~>]
+  | arr₁ : is_typed_comb SKM[(#~> x)]
+  | m₀   : is_typed_comb SKM[M]
+
 @[simp]
 lemma m_stuck : is_value_n 0 SKM[M] SKM[M] := by
   apply is_value_n.value
@@ -188,6 +192,18 @@ lemma k_stuck : is_value_n 0 SKM[K] SKM[K] := by
 lemma s_stuck : is_value_n 0 SKM[S] SKM[S] := by
   apply is_value_n.value
   exact is_value.s
+
+namespace is_typed_comb
+
+lemma well_typed (h : is_typed_comb e) : ∃ t, valid_judgment e t := by
+  induction h
+  use SKM[(M K)]
+  apply valid_judgment.k₀
+  case k₁ α =>
+    use SKM[((M K) α)]
+  apply valid_judgment.k₁
+
+end is_typed_comb
 
 namespace is_eval_step
 

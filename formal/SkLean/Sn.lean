@@ -37,53 +37,84 @@ lemma is_value_sn (h_v : is_value e) : sn e := by
   cases h_v
   repeat do_stuck
 
-inductive is_candidate_for_ty : Expr → Expr → Prop
-  | val  : valid_judgment e t
-    → is_value e
-    → is_candidate_for_ty e t
-  | step : valid_judgment e t
-    → (∀ e', is_eval_once e e' → is_candidate_for_ty e' t)
-    → is_candidate_for_ty e t
+def is_candidate_for_ty : Expr → Expr → Prop
+  | e, t@SKM[(t_in ~> t_out)] => valid_judgment e t
+       ∧ sn e
+       ∧ (∀ arg, is_candidate_for_ty arg t_in → is_candidate_for_ty SKM[(e arg)] t_out)
+  | e, t => valid_judgment e t ∧ sn e
 
 namespace is_candidate_for_ty
 
-lemma all_sn (h_candidate : is_candidate_for_ty e t) : sn e := by
-  induction h_candidate
-  exact is_value_sn (by assumption)
-  apply sn.intro
-  assumption
-
 lemma all_well_typed (h_candidate : is_candidate_for_ty e t) : valid_judgment e t := by
-  induction h_candidate
-  repeat assumption
+  cases t
+  repeat (cases h_candidate; assumption)
+  case call lhs rhs =>
+    cases lhs
+    repeat (cases h_candidate; assumption)
+    case call l ll =>
+      cases l
+      repeat (cases h_candidate; assumption)
 
-lemma preserved (h_candidate : is_candidate_for_ty e t) (h_step : is_eval_once e e') : is_candidate_for_ty e' t := by
-  let h_t := h_candidate.all_well_typed
-  induction h_candidate
-  case val e'' t' h_t h_val =>
-    have h := h_val.no_step
-    simp_all
-  case step e'' t' h_t ih₁ ih₂ =>
-    exact ih₁ _ h_step
+lemma all_sn (h_candidate : is_candidate_for_ty e t) : sn e := by
+  cases t
+  repeat (cases h_candidate; assumption)
+  case call lhs rhs =>
+    cases lhs
+    repeat (cases h_candidate; assumption)
+    case call l ll =>
+      cases l
+      repeat (cases h_candidate; assumption)
+      cases h_candidate
+      case arr.intro left right =>
+        have ⟨h, _⟩ := right
+        assumption
+      cases h_candidate
+      case call.intro left right =>
+        assumption
+
+lemma call (h_candidate_lhs : is_candidate_for_ty lhs SKM[(t_in ~> t_out)]) (h_candidate_rhs : is_candidate_for_ty rhs t_in) : is_candidate_for_ty SKM[(lhs rhs)] t_out := by
+  cases h_candidate_lhs
+  case intro ih₁ ih₂ =>
+    have ⟨ih₂, ih₃⟩ := ih₂
+    have h := ih₃ _ h_candidate_rhs
+    assumption
 
 end is_candidate_for_ty
 
 namespace valid_judgment
 
 lemma all_candidates (h : valid_judgment e t) : is_candidate_for_ty e t := by
-  have h_progress := h.progress
-  match h_progress with
-    | .inl h_stuck =>
-      exact is_candidate_for_ty.val h h_stuck
-    | .inr ⟨e', h_step⟩ =>
-      have h_preservation := h.preservation h_step
-      induction h generalizing e'
-      repeat contradiction
-      apply is_candidate_for_ty.step
-      apply valid_judgment.call
-      repeat assumption
-      intro e'' h_step'
-      
+  induction e generalizing t
+  cases h
+  unfold is_candidate_for_ty
+  constructor
+  apply valid_judgment.k₀
+  do_stuck
+  unfold is_candidate_for_ty
+  cases h
+  simp
+  apply valid_judgment.s₀
+  unfold is_candidate_for_ty
+  cases h
+  simp
+  apply valid_judgment.m₀
+  cases h
+  unfold is_candidate_for_ty
+  constructor
+  apply valid_judgment.arr
+  do_stuck
+  case call lhs rhs ih₁ ih₂ =>
+    have ⟨t_rhs, ⟨h_t_rhs, h_lhs⟩⟩ := h.valid_call
+    match h_lhs with
+      | .inl h_t_lhs =>
+        have h := ih₁ h_t_lhs
+        have h₂ := ih₂ h_t_rhs
+        apply is_candidate_for_ty.call
+        repeat assumption
+      | .inr h_comb_lhs =>
+        cases h
+        
+        sorry
 
 end valid_judgment
 
