@@ -300,7 +300,7 @@ lemma weakening : valid_judgment e t → valid_judgment_hard e t := by
   assumption
   assumption
 
-lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : valid_judgment e' t := by
+theorem preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : valid_judgment e' t := by
   induction h_eval generalizing t
   match h_t with
     | .call (.call h _) _ =>
