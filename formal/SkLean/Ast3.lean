@@ -175,7 +175,8 @@ inductive is_typed_comb : Expr → Prop
     → valid_judgment β t_β
     → is_typed_comb SKM[((S α) β)]
   | arr₀ : is_typed_comb SKM[#~>]
-  | arr₁ : is_typed_comb SKM[(#~> x)]
+  | arr₁ : valid_judgment x t_x
+    → is_typed_comb SKM[(#~> x)]
   | m₀   : is_typed_comb SKM[M]
 
 @[simp]
@@ -199,9 +200,28 @@ lemma well_typed (h : is_typed_comb e) : ∃ t, valid_judgment e t := by
   induction h
   use SKM[(M K)]
   apply valid_judgment.k₀
-  case k₁ α =>
+  case k₁ α _ h =>
     use SKM[((M K) α)]
-  apply valid_judgment.k₁
+    apply valid_judgment.k₁
+    assumption
+  use SKM[(M S)]
+  apply valid_judgment.s₀
+  case s₁ α t_α h_t_α =>
+    use SKM[((M S) α)]
+    apply valid_judgment.s₁
+    assumption
+  case s₂ α t_α β t_β h_t_α h_t_β =>
+    use SKM[(((M S) α) β)]
+    apply valid_judgment.s₂
+    repeat assumption
+  use SKM[(M #~>)]
+  apply valid_judgment.arr
+  case arr₁ x t_x h_t_x =>
+    use SKM[((M #~>) x)]
+    apply valid_judgment.arr₁
+    assumption
+  use SKM[(M M)]
+  apply valid_judgment.m₀
 
 end is_typed_comb
 
@@ -275,12 +295,12 @@ lemma valid_rhs (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_rhs, valid_judgm
 lemma valid_call (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_rhs, valid_judgment rhs t_rhs ∧ (valid_judgment lhs SKM[(t_rhs ~> t)] ∨ is_typed_comb lhs) := by
   cases h_t
   case k α t_α t_β h_t_α h_T_β =>
-    exact ⟨t_β, ⟨by assumption, Or.inr is_typed_comb.k₁⟩⟩
+    exact ⟨t_β, ⟨by assumption, Or.inr $ is_typed_comb.k₁ (by assumption)⟩⟩
   exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.k₀⟩⟩
   exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.s₀⟩⟩
-  exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.s₁⟩⟩
-  exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.s₂⟩⟩
-  exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.arr₁⟩⟩
+  exact ⟨_, ⟨by assumption, Or.inr $ is_typed_comb.s₁ (by assumption)⟩⟩
+  exact ⟨_, ⟨by assumption, Or.inr $ is_typed_comb.s₂ (by assumption) (by assumption)⟩⟩
+  exact ⟨_, ⟨by assumption, Or.inr $ is_typed_comb.arr₁ (by assumption)⟩⟩
   exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.arr₀⟩⟩
   case call t_in h_t_rhs h_t_lhs =>
     exact ⟨_, ⟨by assumption, Or.inl h_t_lhs⟩⟩
