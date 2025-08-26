@@ -43,6 +43,8 @@ inductive is_eval_once : Expr → Expr → Prop
   | s_call   : is_eval_once SKM[((((M S) α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
   | m_call   : is_eval_once SKM[(M (lhs rhs))] SKM[((M lhs) rhs)]
   | arr      : is_eval_once SKM[((t_in ~> t_out) arg)] SKM[t_out]
+  | left     : is_eval_once lhs lhs'
+    → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
 
 inductive is_reflective : Expr → Prop
   | k_call : is_reflective SKM[(((M K) α) β)]
@@ -52,10 +54,12 @@ inductive is_reflective : Expr → Prop
     → is_reflective SKM[(lhs rhs)]
 
 inductive is_eval_step : Expr → Expr → Prop
-  | left : is_eval_step lhs lhs'
-    → is_eval_step SKM[(lhs rhs)] SKM[(lhs' rhs)]
   | step  : is_eval_once e e'
     → is_eval_step e e'
+  | trans : is_eval_step e e'
+    → is_eval_step e' e''
+    → is_eval_step e e''
+  | rfl : is_eval_step e e
 
 inductive is_eval_step_once : Expr → Expr → Prop
   | left : is_eval_once lhs lhs'
@@ -196,17 +200,13 @@ lemma imp_beta_eq : is_eval_step e e' → beta_eq e e' := by
   case step lhs lhs' rhs =>
     exact beta_eq.eval rhs
   apply beta_eq.trans
-  apply beta_eq.left
+  assumption
   assumption
   exact beta_eq.rfl
 
 end is_eval_step
 
 namespace is_eval_once
-
-lemma deterministic (h_eval₁ : is_eval_once e e₁) (h_eval₂ : is_eval_once e e₂) : e₁ = e₂ := by
-  induction h_eval₁
-  repeat (cases h_eval₂; rfl)
 
 end is_eval_once
 
@@ -324,8 +324,19 @@ theorem preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : v
       cases h
       assumption
       contradiction
+  case left lhs lhs' rhs ih₂ ih₃ =>
+    have ⟨t_rhs, ⟨h_t_rhs, h⟩⟩ := h_t.valid_call
+    match h with
+      | .inl h_t_arrow_lhs =>
+        have h_t_arrow_lhs := ih₃ h_t_arrow_lhs
+        apply valid_judgment.call
+        assumption
+        assumption
+      | .inr h_comb_lhs =>
+        cases h_comb_lhs
+        repeat contradiction
 
-lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e e' := by
+lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_once e e' := by
   induction h
   exact Or.inl is_value.k
   exact Or.inl is_value.s
@@ -342,23 +353,23 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_step e 
         cases h_val_lhs
         repeat contradiction
         case arr α β =>
-          exact Or.inr ⟨β, is_eval_step.step is_eval_once.arr⟩
+          exact Or.inr ⟨β, is_eval_once.arr⟩
         repeat contradiction
         exact Or.inl is_value.k₃
         case k₃ α β x =>
-          exact Or.inr ⟨x, is_eval_step.step  is_eval_once.k⟩
+          exact Or.inr ⟨x, is_eval_once.k⟩
         repeat contradiction
         exact Or.inl is_value.s₄
         exact Or.inl is_value.s₅
         case s₅ α β γ x y =>
-          exact Or.inr ⟨SKM[((x rhs) (y rhs))], is_eval_step.step  is_eval_once.s⟩
+          exact Or.inr ⟨SKM[((x rhs) (y rhs))], is_eval_once.s⟩
         repeat contradiction
       | .inr ⟨lhs', h_step_lhs⟩ =>
         cases lhs
         repeat contradiction
         right
         case call.h lhs'' rhs' =>
-          exact ⟨SKM[(lhs' rhs)], is_eval_step.left (by assumption)⟩
+          exact ⟨SKM[(lhs' rhs)], is_eval_once.left (by assumption)⟩
   exact Or.inl is_value.arr₀
   exact Or.inl is_value.arr₁
 
