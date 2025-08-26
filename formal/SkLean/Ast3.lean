@@ -130,9 +130,6 @@ inductive valid_judgment : Expr → Expr → Prop
     → valid_judgment β t_β
     → valid_judgment γ t_γ
     → valid_judgment SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
-  | m    : valid_judgment x α
-    → valid_judgment α t_α
-    → valid_judgment SKM[(M x)] SKM[((M M) x)]
   | arr₀ : valid_judgment α t_α
     → valid_judgment β t_β
     → valid_judgment SKM[(α ~> β)] SKM[(α ~> t_β)]
@@ -163,7 +160,7 @@ inductive valid_judgment_hard : Expr → Expr → Prop
     → valid_judgment_hard SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
   | m    : valid_judgment_hard x α
     → valid_judgment_hard α t_α
-    → valid_judgment_hard SKM[(M x)] SKM[((M M) x)]
+    → valid_judgment_hard SKM[(M x)] SKM[t_α]
   | arr₀ : valid_judgment_hard α t_α
     → valid_judgment_hard β t_β
     → valid_judgment_hard SKM[(α ~> β)] SKM[(α ~> t_β)]
@@ -263,7 +260,6 @@ lemma valid_call (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_rhs, valid_judg
   exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.s₀⟩⟩
   exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.s₁⟩⟩
   exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.s₂⟩⟩
-  exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.m₀⟩⟩
   exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.arr₁⟩⟩
   exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.arr₀⟩⟩
   case call t_in h_t_rhs h_t_lhs =>
@@ -294,9 +290,6 @@ lemma weakening : valid_judgment e t → valid_judgment_hard e t := by
   assumption
   assumption
   assumption
-  apply valid_judgment_hard.m
-  assumption
-  assumption
   apply valid_judgment_hard.arr₀
   assumption
   assumption
@@ -307,58 +300,38 @@ lemma weakening : valid_judgment e t → valid_judgment_hard e t := by
   assumption
   assumption
 
-lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : valid_judgment_hard e' t ∨ is_reflective e := by
+lemma preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : valid_judgment e' t := by
   induction h_eval generalizing t
   match h_t with
     | .call (.call h _) _ =>
       cases h
-      left
-      apply weakening
       assumption
       contradiction
   match h_t with
     | .call (.call (.call h _) _) _ =>
       cases h
-      left
-      apply valid_judgment_hard.call
+      apply valid_judgment.call
       case call h =>
         contradiction
-      apply valid_judgment_hard.call
-      repeat (apply weakening; assumption)
-      apply valid_judgment_hard.call
-      repeat (apply weakening; assumption)
-  right
-  apply is_reflective.k_call
-  right
-  apply is_reflective.s_call
-  cases h_t
-  case m_call.call lhs rhs t_in h_t_in h =>
-    cases h
-  case m_call.m lhs rhs α h_t_rhs =>
-    right
-    exact is_reflective.m_call
+      apply valid_judgment.call
+      repeat (assumption)
+      apply valid_judgment.call
+      repeat (assumption)
+  repeat contradiction
   case arr t_in t_out arg =>
-    left
     cases h_t
-    case h.call h =>
+    case call h =>
       cases h
-      apply weakening
       assumption
       contradiction
   case left lhs lhs' rhs ih₂ ih₃ =>
     have ⟨t_rhs, ⟨h_t_rhs, h⟩⟩ := h_t.valid_call
     match h with
       | .inl h_t_arrow_lhs =>
-        have h := ih₃ h_t_arrow_lhs
-        match h with
-          | .inl h_t_arrow_lhs =>
-            left
-            apply valid_judgment_hard.call
-            assumption
-            apply weakening
-            assumption
-          | .inr h_reflective_lhs =>
-            exact Or.inr $ is_reflective.call h_reflective_lhs
+        have h_t_arrow_lhs := ih₃ h_t_arrow_lhs
+        apply valid_judgment.call
+        assumption
+        assumption
       | .inr h_comb_lhs =>
         cases h_comb_lhs
         repeat contradiction
@@ -373,14 +346,6 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_once e 
   exact Or.inl is_value.s₂
   exact Or.inl is_value.k₂
   exact Or.inl is_value.s₃
-  case m x α h_t_α ih =>
-    cases x
-    exact Or.inl is_value.m_k
-    exact Or.inl is_value.m_s
-    exact Or.inl is_value.m_m
-    repeat exact Or.inr ⟨_, is_eval_once.m_call⟩
-    exact Or.inl is_value.m_arr
-    repeat exact Or.inr ⟨_, is_eval_once.m_call⟩
   exact Or.inl is_value.arr
   case call lhs t_in t_out rhs h_t_lhs h_t_rhs ih₁ ih₂ =>
     match ih₁ with
@@ -407,16 +372,6 @@ lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_once e 
           exact ⟨SKM[(lhs' rhs)], is_eval_once.left (by assumption)⟩
   exact Or.inl is_value.arr₀
   exact Or.inl is_value.arr₁
-
-theorem progress' (h : valid_judgment e t) : ∃ n e_final, is_value_n n e e_final := by
-  have e' := h.progress
-  match e' with
-    | .inl h_val =>
-      exact ⟨0, ⟨e, is_value_n.value h_val⟩⟩
-    | .inr ⟨e', h_step⟩ =>
-      have h_t' := h.preservation h_step
-      
-      sorry
 
 end valid_judgment
 
