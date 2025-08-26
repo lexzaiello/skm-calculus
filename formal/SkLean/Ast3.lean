@@ -224,6 +224,10 @@ end beta_eq
 
 namespace is_value
 
+lemma no_step (h : is_value e) : ¬ ∃ e', is_eval_once e e' := by
+  induction h
+  repeat (intro e'; cases e'; contradiction)
+
 lemma value_lhs (h : is_value SKM[(lhs rhs)]) : is_value lhs := by
   cases h
   exact is_value.m
