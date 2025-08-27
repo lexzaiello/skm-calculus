@@ -39,20 +39,27 @@ lemma is_value_sn (h_v : is_value e) : sn e := by
 
 def is_candidate_for_ty : Expr → Expr → Prop
   | e, t@SKM[(t_in ~> t_out)] => valid_judgment e t
-       ∧ sn e
-       ∧ (∀ arg, is_candidate_for_ty arg t_in → is_candidate_for_ty SKM[(e arg)] t_out)
-  | e, t => valid_judgment e t ∧ sn e
+    ∧ sn e
+    ∧ (∀ arg, is_candidate_for_ty arg t_in → is_candidate_for_ty SKM[(e arg)] t_out)
+  | e, t => match t with
+    | SKM[((α₁ ~> (β₁ ~> γ₁)) ~> ((α₂ ~> β₂) ~> (α₃ ~> γ₂)))] =>
+      α₁ = α₂ ∧ α₂ = α₃ ∧ β₁ = β₂ ∧ γ₁ = γ₂
+      ∧ valid_judgment e t
+      ∧ sn e
+    | SKM[((α₁ ~> (_β ~> α₂)))] => α₁ = α₂ ∧ valid_judgment e t
+      ∧ sn e
+    | t => valid_judgment e t ∧ sn e
 
 namespace is_candidate_for_ty
 
 lemma all_well_typed (h_candidate : is_candidate_for_ty e t) : valid_judgment e t := by
-  cases t
+  induction t
   repeat (cases h_candidate; assumption)
-  case call lhs rhs =>
+  case call lhs rhs ih₁ ih₂ =>
     cases lhs
     repeat (cases h_candidate; assumption)
-    case call l ll =>
-      cases l
+    case call a b =>
+      cases a
       repeat (cases h_candidate; assumption)
 
 lemma all_sn (h_candidate : is_candidate_for_ty e t) : sn e := by
@@ -79,8 +86,12 @@ lemma call (h_candidate_lhs : is_candidate_for_ty lhs SKM[(t_in ~> t_out)]) (h_c
     have h := ih₃ _ h_candidate_rhs
     assumption
 
-lemma call_comb (h_candidate_lhs : is_candidate_for_ty lhs t_lhs) (h_candidate_rhs : is_candidate_for_ty rhs t_rhs) (h_comb_lhs : is_typed_comb lhs) : ∃ t, is_candidate_for_ty SKM[(lhs rhs)] t := by
-  
+lemma call_comb (h_candidate_lhs : is_candidate_for_ty lhs t_lhs) (h_candidate_rhs : is_candidate_for_ty rhs t_rhs)  (h_comb_lhs : is_typed_comb lhs t_lhs) : ∃ t, is_candidate_for_ty SKM[(lhs rhs)] t := by
+  have h_t_rhs := h_candidate_rhs.all_well_typed
+  induction h_comb_lhs
+  exact ⟨SKM[((M K) rhs)], ⟨valid_judgment.k₁ (by assumption), by do_stuck⟩⟩
+  case k₁ α t_α h_t_α =>
+    exact ⟨SKM[(α ~> (rhs ~> α))], ⟨valid_judgment.k (by assumption) (by assumption), by constructor; do_stuck; sorry⟩⟩
   sorry
 
 end is_candidate_for_ty
