@@ -45,11 +45,8 @@ inductive RC : Expr → Expr → Prop
     → sn lhs
     → (∀ arg, valid_judgment arg t_in → RC SKM[(lhs arg)] t_out)
     → RC lhs SKM[(t_in ~> t_out)]
-  | val  : is_value e
-    → valid_judgment e t
-    → RC e t
 
-namespace is_candidate_for_ty
+namespace RC
 
 lemma all_well_typed (h_candidate : RC e t) : valid_judgment e t := by
   induction h_candidate
@@ -63,53 +60,29 @@ lemma all_sn (h_candidate : RC e t) : sn e := by
     cases h
     repeat do_stuck
   assumption
-  exact is_value_sn (by assumption)
 
-lemma call (h_rc_lhs : RC lhs t_lhs) (h_rc_rhs : RC rhs t_rhs) (h_t : valid_judgment SKM[(lhs rhs)] t) : RC SKM[(lhs rhs)] t := by
+lemma call (h_rc_lhs : RC lhs t_lhs) (h_t : valid_judgment SKM[(lhs rhs)] t) : RC SKM[(lhs rhs)] t := by
   induction h_rc_lhs
   case base ih₁ ih₂ =>
     exact ih₁ _ _ h_t
   case arr lhs t_in t_out h_t_lhs h_sn_lhs ih₁ ih₂ =>
     cases h_t
     repeat contradiction
-    case call lhs h_t_rhs h_t_lhs =>
-      
-      sorry
+    case call lhs h_t_rhs h_t_lhs' =>
+      have h := h_t_lhs'.deterministic h_t_lhs
+      simp_all
 
-end is_candidate_for_ty
+end RC
 
 namespace valid_judgment
 
-lemma all_candidates (h : valid_judgment e t) : is_candidate_for_ty e t := by
-  induction e generalizing t
+lemma all_candidates (h : valid_judgment e t) : RC e t := by
+  induction e
   cases h
-  constructor
-  apply valid_judgment.k₀
-  do_stuck
-  unfold is_candidate_for_ty
-  cases h
-  simp
-  apply valid_judgment.s₀
-  unfold is_candidate_for_ty
-  cases h
-  simp
-  apply valid_judgment.m₀
-  cases h
-  unfold is_candidate_for_ty
-  constructor
-  apply valid_judgment.arr
-  do_stuck
-  case call lhs rhs ih₁ ih₂ =>
-    have ⟨t_rhs, ⟨h_t_rhs, h_lhs⟩⟩ := h.valid_call
-    match h_lhs with
-      | .inl h_t_lhs =>
-        have h := ih₁ h_t_lhs
-        have h₂ := ih₂ h_t_rhs
-        apply is_candidate_for_ty.call
-        repeat assumption
-      | .inr h_comb_lhs =>
-        
-        sorry
+  apply RC.base
+  apply is_typed_comb.k₀
+  intro arg t' h_t
+  
 
 end valid_judgment
 
