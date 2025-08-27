@@ -45,6 +45,10 @@ inductive RC : Expr → Expr → Prop
     → sn lhs
     → (∀ arg, valid_judgment arg t_in → RC SKM[(lhs arg)] t_out)
     → RC lhs SKM[(t_in ~> t_out)]
+  | k    : RC SKM[K]     SKM[(M K)]
+  | s    : RC SKM[S]     SKM[(M S)]
+  | m    : RC SKM[M]     SKM[(M M)]
+  | arr₀ : RC SKM[(#~>)] SKM[(M #~>)]
 
 namespace RC
 
@@ -53,6 +57,10 @@ lemma all_well_typed (h_candidate : RC e t) : valid_judgment e t := by
   case base h _ _  =>
     exact h.well_typed
   repeat assumption
+  apply valid_judgment.k₀
+  apply valid_judgment.s₀
+  apply valid_judgment.m₀
+  apply valid_judgment.arr
 
 lemma all_sn (h_candidate : RC e t) : sn e := by
   induction h_candidate
@@ -60,6 +68,7 @@ lemma all_sn (h_candidate : RC e t) : sn e := by
     cases h
     repeat do_stuck
   assumption
+  repeat do_stuck
 
 lemma call (h_rc_lhs : RC lhs t_lhs) (h_t : valid_judgment SKM[(lhs rhs)] t) : RC SKM[(lhs rhs)] t := by
   induction h_rc_lhs
@@ -71,18 +80,38 @@ lemma call (h_rc_lhs : RC lhs t_lhs) (h_t : valid_judgment SKM[(lhs rhs)] t) : R
     case call lhs h_t_rhs h_t_lhs' =>
       have h := h_t_lhs'.deterministic h_t_lhs
       simp_all
+  apply RC.base
+  cases h_t
+  apply is_typed_comb.k₁
+  assumption
+  contradiction
+  intro arg t' h_t
 
 end RC
 
 namespace valid_judgment
 
 lemma all_candidates (h : valid_judgment e t) : RC e t := by
-  induction e
+  induction e generalizing t
   cases h
-  apply RC.base
-  apply is_typed_comb.k₀
-  intro arg t' h_t
-  
+  exact RC.k
+  cases h
+  exact RC.s
+  cases h
+  exact RC.m
+  cases h
+  apply RC.arr₀
+  case call lhs rhs ih₁ ih₂ =>
+    have ⟨t_rhs, ⟨h_t_rhs, h_lhs⟩⟩ := h.valid_call
+    match h_lhs with
+      | .inl h_t_lhs =>
+        apply RC.call
+        exact ih₁ h_t_lhs
+        assumption
+      | .inr ⟨t_lhs, h_comb_lhs⟩ =>
+        apply RC.call
+        exact ih₁ h_comb_lhs.well_typed
+        assumption
 
 end valid_judgment
 
