@@ -79,6 +79,10 @@ lemma call (h_candidate_lhs : is_candidate_for_ty lhs SKM[(t_in ~> t_out)]) (h_c
     have h := ih₃ _ h_candidate_rhs
     assumption
 
+lemma call_comb (h_candidate_lhs : is_candidate_for_ty lhs t_lhs) (h_candidate_rhs : is_candidate_for_ty rhs t_rhs) (h_comb_lhs : is_typed_comb lhs) : ∃ t, is_candidate_for_ty SKM[(lhs rhs)] t := by
+  
+  sorry
+
 end is_candidate_for_ty
 
 namespace valid_judgment

@@ -46,13 +46,6 @@ inductive is_eval_once : Expr → Expr → Prop
   | left     : is_eval_once lhs lhs'
     → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
 
-inductive is_reflective : Expr → Prop
-  | k_call : is_reflective SKM[(((M K) α) β)]
-  | s_call : is_reflective SKM[((((M S) α) β) γ)]
-  | m_call : is_reflective SKM[(M (lhs rhs))]
-  | call   : is_reflective lhs
-    → is_reflective SKM[(lhs rhs)]
-
 inductive is_eval_step : Expr → Expr → Prop
   | step  : is_eval_once e e'
     → is_eval_step e e'
@@ -148,9 +141,6 @@ inductive valid_judgment_hard : Expr → Expr → Prop
     → valid_judgment_hard β t_β
     → valid_judgment_hard γ t_γ
     → valid_judgment_hard SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
-  | m    : valid_judgment_hard x α
-    → valid_judgment_hard α t_α
-    → valid_judgment_hard SKM[(M x)] SKM[t_α]
   | arr₀ : valid_judgment_hard α t_α
     → valid_judgment_hard β t_β
     → valid_judgment_hard SKM[(α ~> β)] SKM[(α ~> t_β)]
@@ -164,20 +154,20 @@ inductive valid_judgment_hard : Expr → Expr → Prop
     → beta_eq t t'
     → valid_judgment_hard e t'
 
-inductive is_typed_comb : Expr → Prop
-  | k₀   : is_typed_comb SKM[K]
+inductive is_typed_comb : Expr → Expr → Prop
+  | k₀   : is_typed_comb SKM[K] SKM[(M K)]
   | k₁   : valid_judgment α t_α
-    → is_typed_comb SKM[(K α)]
-  | s₀   : is_typed_comb SKM[S]
+    → is_typed_comb SKM[(K α)] SKM[((M K) α)]
+  | s₀   : is_typed_comb SKM[S] SKM[(M S)]
   | s₁   : valid_judgment α t_α
-    → is_typed_comb SKM[(S α)]
+    → is_typed_comb SKM[(S α)] SKM[((M S) α)]
   | s₂   : valid_judgment α t_α
     → valid_judgment β t_β
-    → is_typed_comb SKM[((S α) β)]
-  | arr₀ : is_typed_comb SKM[#~>]
+    → is_typed_comb SKM[((S α) β)] SKM[(((M S) α) β)]
+  | arr₀ : is_typed_comb SKM[#~>] SKM[(M #~>)]
   | arr₁ : valid_judgment x t_x
-    → is_typed_comb SKM[(#~> x)]
-  | m₀   : is_typed_comb SKM[M]
+    → is_typed_comb SKM[(#~> x)] SKM[((M #~>) x)]
+  | m₀   : is_typed_comb SKM[M] SKM[(M M)]
 
 @[simp]
 lemma m_stuck : is_value_n 0 SKM[M] SKM[M] := by
@@ -196,31 +186,23 @@ lemma s_stuck : is_value_n 0 SKM[S] SKM[S] := by
 
 namespace is_typed_comb
 
-lemma well_typed (h : is_typed_comb e) : ∃ t, valid_judgment e t := by
+lemma well_typed (h : is_typed_comb e t) : valid_judgment e t := by
   induction h
-  use SKM[(M K)]
   apply valid_judgment.k₀
   case k₁ α _ h =>
-    use SKM[((M K) α)]
     apply valid_judgment.k₁
     assumption
-  use SKM[(M S)]
   apply valid_judgment.s₀
   case s₁ α t_α h_t_α =>
-    use SKM[((M S) α)]
     apply valid_judgment.s₁
     assumption
   case s₂ α t_α β t_β h_t_α h_t_β =>
-    use SKM[(((M S) α) β)]
     apply valid_judgment.s₂
     repeat assumption
-  use SKM[(M #~>)]
   apply valid_judgment.arr
   case arr₁ x t_x h_t_x =>
-    use SKM[((M #~>) x)]
     apply valid_judgment.arr₁
     assumption
-  use SKM[(M M)]
   apply valid_judgment.m₀
 
 end is_typed_comb
@@ -292,16 +274,16 @@ lemma valid_rhs (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_rhs, valid_judgm
   cases h_t
   repeat (constructor; assumption)
 
-lemma valid_call (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_rhs, valid_judgment rhs t_rhs ∧ (valid_judgment lhs SKM[(t_rhs ~> t)] ∨ is_typed_comb lhs) := by
+lemma valid_call (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_rhs, valid_judgment rhs t_rhs ∧ (valid_judgment lhs SKM[(t_rhs ~> t)] ∨ ∃ t, is_typed_comb lhs t) := by
   cases h_t
   case k α t_α t_β h_t_α h_T_β =>
-    exact ⟨t_β, ⟨by assumption, Or.inr $ is_typed_comb.k₁ (by assumption)⟩⟩
-  exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.k₀⟩⟩
-  exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.s₀⟩⟩
-  exact ⟨_, ⟨by assumption, Or.inr $ is_typed_comb.s₁ (by assumption)⟩⟩
-  exact ⟨_, ⟨by assumption, Or.inr $ is_typed_comb.s₂ (by assumption) (by assumption)⟩⟩
-  exact ⟨_, ⟨by assumption, Or.inr $ is_typed_comb.arr₁ (by assumption)⟩⟩
-  exact ⟨_, ⟨by assumption, Or.inr is_typed_comb.arr₀⟩⟩
+    exact ⟨t_β, ⟨by assumption, Or.inr $ ⟨_, is_typed_comb.k₁ (by assumption)⟩⟩⟩
+  exact ⟨_, ⟨by assumption, Or.inr ⟨_, is_typed_comb.k₀⟩⟩⟩
+  exact ⟨_, ⟨by assumption, Or.inr ⟨_, is_typed_comb.s₀⟩⟩⟩
+  exact ⟨_, ⟨by assumption, Or.inr $ ⟨_, is_typed_comb.s₁ (by assumption)⟩⟩⟩
+  exact ⟨_, ⟨by assumption, Or.inr $ ⟨_, is_typed_comb.s₂ (by assumption) (by assumption)⟩⟩⟩
+  exact ⟨_, ⟨by assumption, Or.inr $ ⟨_, is_typed_comb.arr₁ (by assumption)⟩⟩⟩
+  exact ⟨_, ⟨by assumption, Or.inr ⟨_, is_typed_comb.arr₀⟩⟩⟩
   case call t_in h_t_rhs h_t_lhs =>
     exact ⟨_, ⟨by assumption, Or.inl h_t_lhs⟩⟩
 
@@ -372,7 +354,7 @@ theorem preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : v
         apply valid_judgment.call
         assumption
         assumption
-      | .inr h_comb_lhs =>
+      | .inr ⟨_, h_comb_lhs⟩ =>
         cases h_comb_lhs
         repeat contradiction
 
