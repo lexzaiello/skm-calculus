@@ -270,6 +270,33 @@ end is_value
 
 namespace valid_judgment
 
+lemma deterministic (h_t₁ : valid_judgment e t₁) (h_t₂ : valid_judgment e t₂) : t₁ = t₂ := by
+  induction h_t₁ generalizing t₂
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  case arr₀ h_t_α h_t_β ih₁ ih₂ =>
+    cases h_t₂
+    have h_eq₁ := ih₁ (by assumption)
+    have h_eq₂ := ih₂ (by assumption)
+    simp_all
+    contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  case call lhs t_in t_out rhs h_t_lhs h_t_rhs ih₁ ih₂ =>
+    cases h_t₂
+    repeat contradiction
+    have h_eq₁ := ih₁ (by assumption)
+    have h_eq₂ := ih₂ (by assumption)
+    simp_all
+
 lemma valid_rhs (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_rhs, valid_judgment rhs t_rhs := by
   cases h_t
   repeat (constructor; assumption)
