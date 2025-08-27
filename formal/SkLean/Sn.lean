@@ -1,6 +1,6 @@
 import SkLean.Ast3
 
-def sn (e : Expr) : Prop := Acc (λ e' e => is_eval_once e e') e
+def sn : Expr → Prop := Acc (λ e' e => is_eval_once e e')
 
 syntax (name := do_stuck) "do_stuck " : tactic
 
@@ -37,62 +37,44 @@ lemma is_value_sn (h_v : is_value e) : sn e := by
   cases h_v
   repeat do_stuck
 
-def is_candidate_for_ty : Expr → Expr → Prop
-  | e, t@SKM[(t_in ~> t_out)] => valid_judgment e t
-    ∧ sn e
-    ∧ (∀ arg, is_candidate_for_ty arg t_in → is_candidate_for_ty SKM[(e arg)] t_out)
-  | e, t => match t with
-    | SKM[((α₁ ~> (β₁ ~> γ₁)) ~> ((α₂ ~> β₂) ~> (α₃ ~> γ₂)))] =>
-      α₁ = α₂ ∧ α₂ = α₃ ∧ β₁ = β₂ ∧ γ₁ = γ₂
-      ∧ valid_judgment e t
-      ∧ sn e
-    | SKM[((α₁ ~> (_β ~> α₂)))] => α₁ = α₂ ∧ valid_judgment e t
-      ∧ sn e
-    | t => valid_judgment e t ∧ sn e
+inductive RC : Expr → Expr → Prop
+  | base : is_typed_comb e t
+    → (∀ arg t', valid_judgment SKM[(e arg)] t' → RC SKM[(e arg)] t')
+    → RC e t
+  | arr  : valid_judgment lhs SKM[(t_in ~> t_out)]
+    → sn lhs
+    → (∀ arg, valid_judgment arg t_in → RC SKM[(lhs arg)] t_out)
+    → RC lhs SKM[(t_in ~> t_out)]
+  | val  : is_value e
+    → valid_judgment e t
+    → RC e t
 
 namespace is_candidate_for_ty
 
-lemma all_well_typed (h_candidate : is_candidate_for_ty e t) : valid_judgment e t := by
-  induction t
-  repeat (cases h_candidate; assumption)
-  case call lhs rhs ih₁ ih₂ =>
-    cases lhs
-    repeat (cases h_candidate; assumption)
-    case call a b =>
-      cases a
-      repeat (cases h_candidate; assumption)
+lemma all_well_typed (h_candidate : RC e t) : valid_judgment e t := by
+  induction h_candidate
+  case base h _ _  =>
+    exact h.well_typed
+  repeat assumption
 
-lemma all_sn (h_candidate : is_candidate_for_ty e t) : sn e := by
-  cases t
-  repeat (cases h_candidate; assumption)
-  case call lhs rhs =>
-    cases lhs
-    repeat (cases h_candidate; assumption)
-    case call l ll =>
-      cases l
-      repeat (cases h_candidate; assumption)
-      cases h_candidate
-      case arr.intro left right =>
-        have ⟨h, _⟩ := right
-        assumption
-      cases h_candidate
-      case call.intro left right =>
-        assumption
+lemma all_sn (h_candidate : RC e t) : sn e := by
+  induction h_candidate
+  case base h _ _ =>
+    cases h
+    repeat do_stuck
+  assumption
+  exact is_value_sn (by assumption)
 
-lemma call (h_candidate_lhs : is_candidate_for_ty lhs SKM[(t_in ~> t_out)]) (h_candidate_rhs : is_candidate_for_ty rhs t_in) : is_candidate_for_ty SKM[(lhs rhs)] t_out := by
-  cases h_candidate_lhs
-  case intro ih₁ ih₂ =>
-    have ⟨ih₂, ih₃⟩ := ih₂
-    have h := ih₃ _ h_candidate_rhs
-    assumption
-
-lemma call_comb (h_candidate_lhs : is_candidate_for_ty lhs t_lhs) (h_candidate_rhs : is_candidate_for_ty rhs t_rhs)  (h_comb_lhs : is_typed_comb lhs t_lhs) : ∃ t, is_candidate_for_ty SKM[(lhs rhs)] t := by
-  have h_t_rhs := h_candidate_rhs.all_well_typed
-  induction h_comb_lhs
-  exact ⟨SKM[((M K) rhs)], ⟨valid_judgment.k₁ (by assumption), by do_stuck⟩⟩
-  case k₁ α t_α h_t_α =>
-    exact ⟨SKM[(α ~> (rhs ~> α))], ⟨valid_judgment.k (by assumption) (by assumption), by constructor; do_stuck; sorry⟩⟩
-  sorry
+lemma call (h_rc_lhs : RC lhs t_lhs) (h_rc_rhs : RC rhs t_rhs) (h_t : valid_judgment SKM[(lhs rhs)] t) : RC SKM[(lhs rhs)] t := by
+  induction h_rc_lhs
+  case base ih₁ ih₂ =>
+    exact ih₁ _ _ h_t
+  case arr lhs t_in t_out h_t_lhs h_sn_lhs ih₁ ih₂ =>
+    cases h_t
+    repeat contradiction
+    case call lhs h_t_rhs h_t_lhs =>
+      
+      sorry
 
 end is_candidate_for_ty
 
@@ -101,7 +83,6 @@ namespace valid_judgment
 lemma all_candidates (h : valid_judgment e t) : is_candidate_for_ty e t := by
   induction e generalizing t
   cases h
-  unfold is_candidate_for_ty
   constructor
   apply valid_judgment.k₀
   do_stuck
@@ -127,7 +108,6 @@ lemma all_candidates (h : valid_judgment e t) : is_candidate_for_ty e t := by
         apply is_candidate_for_ty.call
         repeat assumption
       | .inr h_comb_lhs =>
-        cases h
         
         sorry
 
