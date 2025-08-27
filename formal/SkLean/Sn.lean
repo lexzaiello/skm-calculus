@@ -113,5 +113,7 @@ lemma all_candidates (h : valid_judgment e t) : RC e t := by
         exact ih₁ h_comb_lhs.well_typed
         assumption
 
+theorem sn (h : valid_judgment e t) : sn e := h.all_candidates.all_sn
+
 end valid_judgment
 
