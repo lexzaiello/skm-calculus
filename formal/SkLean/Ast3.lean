@@ -42,7 +42,6 @@ inductive is_eval_once : Expr → Expr → Prop
   | k_call   : is_eval_once SKM[(((M K) α) β)] SKM[(α ~> (β ~> α))]
   | s_call   : is_eval_once SKM[((((M S) α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
   | m_call   : is_eval_once SKM[(M (lhs rhs))] SKM[((M lhs) rhs)]
-  | arr_call : is_eval_once SKM[(((M #~>) t_in) t_out)] SKM[(t_in ~> (M t_out))]
   | arr      : is_eval_once SKM[((t_in ~> t_out) arg)] SKM[t_out]
   | left     : is_eval_once lhs lhs'
     → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
@@ -96,49 +95,59 @@ inductive is_value_n : ℕ → Expr → Expr → Prop
   | value : is_value e        → is_value_n 0 e e
   | succ  : is_eval_step e e' → is_value_n n e' e_final → is_value_n n.succ e e_final
 
-inductive is_comb : Expr → Prop
-  | k   : is_comb SKM[K]
-  | s   : is_comb SKM[S]
-  | m   : is_comb SKM[M]
-  | arr : is_comb SKM[#~>]
-
 inductive valid_judgment : Expr → Expr → Prop
-  | comb₀     : is_comb e → valid_judgment e SKM[(M e)]
-  | comb_call : valid_judgment lhs t_lhs
-    → valid_judgment rhs t_rhs
-    → (¬ ∃ t', is_eval_once SKM[(t_lhs rhs)] t')
-    → valid_judgment SKM[(lhs rhs)] SKM[(t_lhs rhs)]
-  | k         : valid_judgment α t_α
+  | k₀   : valid_judgment SKM[K] SKM[(M K)]
+  | s₀   : valid_judgment SKM[S] SKM[(M S)]
+  | m₀   : valid_judgment SKM[M] SKM[(M M)]
+  | k₁   : valid_judgment α t_α
+    → valid_judgment SKM[(K α)] SKM[((M K) α)]
+  | s₁   : valid_judgment α t_α
+    → valid_judgment SKM[(S α)] SKM[((M S) α)]
+  | s₂   : valid_judgment α t_α
+  → valid_judgment β t_β
+  → valid_judgment SKM[((S α) β)] SKM[(((M S) α) β)]
+  | k    : valid_judgment α t_α
     → valid_judgment β t_β
     → valid_judgment SKM[((K α) β)] SKM[(α ~> (β ~> α))]
-  | s         : valid_judgment α t_α
+  | s    : valid_judgment α t_α
     → valid_judgment β t_β
     → valid_judgment γ t_γ
     → valid_judgment SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
-  | arr       : valid_judgment α t_α
+  | arr₀ : valid_judgment α t_α
     → valid_judgment β t_β
     → valid_judgment SKM[(α ~> β)] SKM[(α ~> t_β)]
-  | call      : valid_judgment lhs SKM[(t_in ~> t_out)]
+  | arr  : valid_judgment SKM[#~>] SKM[(M #~>)]
+  | arr₁ : valid_judgment a t_a
+    → valid_judgment SKM[(#~> a)] SKM[((M #~>) a)]
+  | call : valid_judgment lhs SKM[(t_in ~> t_out)]
     → valid_judgment rhs t_in
     → valid_judgment SKM[(lhs rhs)] SKM[t_out]
 
 inductive valid_judgment_hard : Expr → Expr → Prop
-  | comb₀     : is_comb e → valid_judgment_hard e SKM[(M e)]
-  | comb_call : valid_judgment_hard lhs t_lhs
-    → valid_judgment_hard rhs t_rhs
-    → (¬ ∃ t', is_eval_once SKM[(t_lhs rhs)] t')
-    → valid_judgment_hard SKM[(lhs rhs)] SKM[(t_lhs rhs)]
-  | k         : valid_judgment_hard α t_α
+  | k₀   : valid_judgment_hard SKM[K] SKM[(M K)]
+  | s₀   : valid_judgment_hard SKM[S] SKM[(M S)]
+  | m₀   : valid_judgment_hard SKM[M] SKM[(M M)]
+  | k₁   : valid_judgment_hard α t_α
+    → valid_judgment_hard SKM[(K α)] SKM[((M K) α)]
+  | s₁   : valid_judgment_hard α t_α
+    → valid_judgment_hard SKM[(S α)] SKM[((M S) α)]
+  | s₂   : valid_judgment_hard α t_α
+    → valid_judgment_hard β t_β
+    → valid_judgment_hard SKM[((S α) β)] SKM[(((M S) α) β)]
+  | k    : valid_judgment_hard α t_α
     → valid_judgment_hard β t_β
     → valid_judgment_hard SKM[((K α) β)] SKM[(α ~> (β ~> α))]
-  | s         : valid_judgment_hard α t_α
+  | s    : valid_judgment_hard α t_α
     → valid_judgment_hard β t_β
     → valid_judgment_hard γ t_γ
     → valid_judgment_hard SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
-  | arr       : valid_judgment_hard α t_α
+  | arr₀ : valid_judgment_hard α t_α
     → valid_judgment_hard β t_β
     → valid_judgment_hard SKM[(α ~> β)] SKM[(α ~> t_β)]
-  | call      : valid_judgment_hard lhs SKM[(t_in ~> t_out)]
+  | arr  : valid_judgment_hard SKM[#~>] SKM[(M #~>)]
+  | arr₁ : valid_judgment_hard a t_a
+    → valid_judgment_hard SKM[(#~> a)] SKM[((M #~>) a)]
+  | call : valid_judgment_hard lhs SKM[(t_in ~> t_out)]
     → valid_judgment_hard rhs t_in
     → valid_judgment_hard SKM[(lhs rhs)] SKM[t_out]
   | step  : valid_judgment_hard e t
@@ -167,6 +176,29 @@ lemma k_stuck : is_value_n 0 SKM[K] SKM[K] := by
 lemma s_stuck : is_value_n 0 SKM[S] SKM[S] := by
   apply is_value_n.value
   exact is_value.s
+
+namespace is_typed_comb
+
+lemma well_typed (h : is_typed_comb e t) : valid_judgment e t := by
+  induction h
+  apply valid_judgment.k₀
+  case k₁ α _ h =>
+    apply valid_judgment.k₁
+    assumption
+  apply valid_judgment.s₀
+  case s₁ α t_α h_t_α =>
+    apply valid_judgment.s₁
+    assumption
+  case s₂ α t_α β t_β h_t_α h_t_β =>
+    apply valid_judgment.s₂
+    repeat assumption
+  apply valid_judgment.arr
+  case arr₁ x t_x h_t_x =>
+    apply valid_judgment.arr₁
+    assumption
+  apply valid_judgment.m₀
+
+end is_typed_comb
 
 namespace is_eval_step
 
@@ -241,102 +273,30 @@ Ugliest proof I have ever done. Fix this.
 -/
 lemma deterministic (h_t₁ : valid_judgment e t₁) (h_t₂ : valid_judgment e t₂) : t₁ = t₂ := by
   induction h_t₁ generalizing t₂
-  case comb₀ e' h_comb =>
-    cases h_comb
-    repeat (cases h_t₂; rfl)
-  case comb_call lhs t_lhs rhs t_rhs h_t_lhs h_t_rhs h_no_t_step ih₁ ih₂ =>
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  case arr₀ h_t_α h_t_β ih₁ ih₂ =>
     cases h_t₂
-    contradiction
-    case comb_call t_lhs' t_rhs' h_t_lhs' h_t_rhs' h_no_t_step' =>
-      rw [ih₁ h_t_lhs']
-    cases h_t_lhs
-    contradiction
-    case k.comb_call α _ _ _ _ _ _ h _ _ =>
-      cases h
-      have h_yes_step : is_eval_once SKM[(((M K) α) rhs)] SKM[(α ~> (rhs ~> α))] := is_eval_once.k_call
-      simp_all
-    contradiction
-    cases h_t_lhs
-    contradiction
-    case s.comb_call α t_α β t_β t_γ h_t_α h_t_β h_t_rhs t_lhs' t_rhs' h_t_left h_t_right h_no_step =>
-      cases h_t_left
-      contradiction
-      case comb_call h_t_s h_t_α _ =>
-        cases h_t_s
-        have h_yes_step : is_eval_once SKM[((((M S) α) β) rhs)] SKM[((α ~> (β ~> rhs)) ~> ((α ~> β) ~> (α ~> rhs)))] := is_eval_once.s_call
-        simp_all
-      contradiction
-    contradiction
-    cases h_t_lhs
-    contradiction
-    case arr.comb_call α t_α t_β _ _ _ _ h_t_arr _ _ =>
-      cases h_t_arr
-      have h_yes_step : is_eval_once SKM[(((M #~>) α) rhs)] SKM[(α ~> (M rhs))] := is_eval_once.arr_call
-      simp_all
-    contradiction
-    case call t_in h_t_rhs' h_t_lhs' =>
-      have h := ih₁ h_t_lhs'
-      simp_all
-      have h := ih₂ h_t_rhs'
-      have h_yes_step : is_eval_once SKM[((t_in ~> t₂) rhs)] t₂ := is_eval_once.arr
-      simp_all
-  cases h_t₂
-  contradiction
-  case k.comb_call h _ _ =>
-    cases h
-    contradiction
-    case comb_call α _ β _ _ _ _ _ _ _ _ _ h _ _ _ =>
-      cases h
-      have h_yes_step : is_eval_once SKM[(((M K) α) β)] SKM[(α ~> (β ~> α))] := is_eval_once.k_call
-      simp_all
-    contradiction
-  rfl
-  contradiction
-  cases h_t₂
-  contradiction
-  case s.comb_call h _ _ =>
-    cases h
-    contradiction
-    case comb_call α _ β _ γ _ _ _ _ _ _ _ _ _ _ _ h _ _ _ =>
-      have h_yes_step : is_eval_once SKM[((((M S) α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))] := is_eval_once.s_call
-      cases h
-      simp_all
-      contradiction
-      case comb_call h _ _ _ _ =>
-        cases h
-        simp_all
-      contradiction
-    contradiction
-  rfl
-  contradiction
-  cases h_t₂
-  contradiction
-  case arr.comb_call h _ _ =>
-    cases h
-    contradiction
-    case comb_call α _ β _ _ _ _ _ _ _ _ _ h _ _ _ =>
-      cases h
-      have h_yes_step : is_eval_once SKM[(((M #~>) α) β)] SKM[(α ~> (M β))] := is_eval_once.arr_call
-      simp_all
-    contradiction
-  case arr.arr α t_α₁ β t_β₁ h_t_α₁ h_t_β₁ ih₁ ih₂ α₂ β₂ h_t_α₂ h_t_β₂ =>
-    have h := ih₁ h_t_α₁
+    have h_eq₁ := ih₁ (by assumption)
+    have h_eq₂ := ih₂ (by assumption)
     simp_all
-    rw [ih₂ h_t_β₂]
+    contradiction
+  repeat (cases h_t₂; rfl)
   contradiction
   case call lhs t_in t_out rhs h_t_lhs h_t_rhs ih₁ ih₂ =>
     cases h_t₂
-    contradiction
-    case comb_call t_lhs' h_t_lhs' h_t_rhs' h_no_step =>
-      have h := ih₁ h_t_lhs'
-      rw [← h] at h_no_step
-      have h_yes_step : is_eval_once SKM[((t_in ~> t_out) rhs)] t_out := is_eval_once.arr
-      simp_all
     repeat contradiction
-    case call t_in' h_t_in' h_t_lhs' =>
-      have h := ih₁ h_t_lhs'
-      have h := ih₁ h_t_lhs
-      simp_all
+    have h_eq₁ := ih₁ (by assumption)
+    have h_eq₂ := ih₂ (by assumption)
+    simp_all
 
 syntax (name := do_stuck_e) "do_stuck_e " : tactic
 
