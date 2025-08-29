@@ -30,29 +30,53 @@ structure ConstInfo where
 
 inductive TypeError where
   | argument_mismatch (expected actual in_e : Ast.Expr) : TypeError
+  | no_type_not_comb  (at_e : Ast.Expr)                 : TypeError
 
 instance : ToString TypeError where
   toString
   | .argument_mismatch expected actual in_e => s!"Argument type mismatch in function application of {in_e}. Expected {expected}, but found {actual}"
+  | .no_type_not_comb at_e => s!"type inference failed for {at_e}, but not a combinator"
 
-def is_typed_comb (e : Ast.Expr) : Bool
+def is_typed_comb : Ast.Expr → Bool
   | SKM[K]
   | SKM[M]
+  | SKM[S]
   | SKM[(K _α)]
   | SKM[(S _α)]
   | SKM[((S _α) _β)]
   | SKM[#~>]
   | SKM[(#~> _t_in)] => true
   | SKM[(M e)] => is_typed_comb e
-  
+  | _ => false
 
-partial def infer (e : Ast.Expr) : Except TypeError Ast.Expr :=
-  match e with
-  | SKM[K]               => SKM[(M K)]
-  | SKM[S]               => SKM[(M S)]
-  | SKM[M]               => SKM[(M M)]
-  | SKM[Ty n]            => SKM[Ty n.succ]
-  | SKM[#~>]             => SKM[(M #~>)]
+def add_m : Ast.Expr → Ast.Expr
+  | SKM[M]    => SKM[(M M)]
+  | SKM[K]    => SKM[(M K)]
+  | SKM[S]    => SKM[(M S)]
+  | SKM[#~>]  => SKM[(M #~>)]
+  | SKM[Ty n] => SKM[(M (Ty n))]
+  | SKM[(lhs rhs)] => SKM[((#(add_m lhs)) rhs)]
+
+def eval_once : Ast.Expr → Option Ast.Expr
+  | SKM[((((K _α) _β) x) _y)] => pure x
+  | SKM[((((((S _α) _β) _γ) x) y) z)] => pure SKM[((x z) (y z))]
+  | SKM[(((M K) α) β)]     => pure SKM[(α ~> (β ~> α))]
+  | SKM[((((M S) α) β) γ)] => pure SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
+  | SKM[(M (Ty n))] => pure SKM[Ty n.succ]
+  | SKM[((M t_in) ~> t_out)] => pure SKM[(t_in ~> (M t_out))]
+  | SKM[(M (lhs rhs))] => pure SKM[((M lhs) rhs)]
+  | SKM[((_t_in ~> t_out) _arg)] => t_out
+  | x => x
+
+def infer : Ast.Expr → Except TypeError Ast.Expr
+  | SKM[K]               => pure SKM[(M K)]
+  | SKM[S]               => pure SKM[(M S)]
+  | SKM[M]               => pure SKM[(M M)]
+  | SKM[Ty n]            => pure SKM[Ty n.succ]
+  | SKM[#~>]             => pure SKM[(M #~>)]
+  | SKM[(M e)] => infer e
+  | SKM[(t_in ~> t_out)] => do
+    pure SKM[(t_in ~> #(← infer t_out))]
   | SKM[(lhs rhs)]       => do
     let t_lhs ← infer lhs
     match t_lhs with
@@ -60,12 +84,15 @@ partial def infer (e : Ast.Expr) : Except TypeError Ast.Expr :=
       let found ← infer rhs
 
       if found == t_in then
-        .ok t_out
+        pure t_out
       else
-        .error (.argument_mismatch t_in t_lhs lhs)
-    
-  | SKM[(t_in ~> t_out)] => SKM[(t_in ~> #(infer t_out))]
-  | SKM[(M e)] => infer e
+        .error $ .argument_mismatch t_in t_lhs lhs
+    | e =>
+      if is_typed_comb e then
+        let with_m := SKM[((#(add_m lhs)) rhs)]
+        pure $ (eval_once with_m).getD with_m
+      else
+        .error $ .no_type_not_comb lhs
 
 partial def do_translate (ctx : List Ast.Expr) (e : Lean.Expr) : MetaM Ast.Expr := do
   let abstr_app_vars (ctx : List Ast.Expr) (ty lhs rhs : Lean.Expr) : MetaM AppInfo := do
