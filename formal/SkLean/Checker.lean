@@ -74,6 +74,6 @@ lemma valid_rhs (_h_t : infer SKM[(lhs rhs)] = .ok t) : ∃ t_rhs, infer rhs = t
 
 end Expr
 
-example : Expr.infer SKM[((((K (M K)) (M K)) K) K)] = .ok SKM[(M K)] := by
-  change Except.ok SKM[(M K)] = .ok SKM[(M K)]
-  rfl
+example : Expr.infer SKM[((((K (M K)) (M K)) K) K)] = .ok SKM[(M K)] := rfl
+
+
