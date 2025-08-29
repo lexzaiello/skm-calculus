@@ -65,7 +65,7 @@ partial def do_translate (ctx : List Ast.Expr) (e : Lean.Expr) : MetaM Ast.Expr 
     | .lam _ ty (.bvar 0) _ =>
       let ty' ← (do_translate ctx ty)
 
-      pure SKM[(((((S (ty' ~> (ty' ~> ty'))) (ty' ~> ty')) ty') ((K ty') (ty' ~> ty'))) ((K ty') ty'))]
+      pure SKM[(((((S ty') (ty' ~> ty')) ty') ((K ty') (ty' ~> ty'))) ((K ty') ty'))]
     | .lam _ ty (.app lhs rhs) _ =>
       let { lhs', rhs', ty_lhs, ty_rhs, ty' } ← abstr_app_vars ctx ty lhs rhs
 
@@ -73,7 +73,7 @@ partial def do_translate (ctx : List Ast.Expr) (e : Lean.Expr) : MetaM Ast.Expr 
     | .forallE _ ty (.bvar 0) _ =>
       let ty' ← do_translate ctx ty
 
-      pure SKM[((((((M S) (ty' ~> (ty' ~> ty'))) (ty' ~> ty')) ty') ((K ty') (ty' ~> ty'))) ((K ty') ty'))]
+      pure SKM[((((((M S) ty') (ty' ~> ty')) ty') ((K ty') (ty' ~> ty'))) ((K ty') ty'))]
     | .forallE _ ty (.app lhs rhs) _ =>
       let { lhs', rhs', ty_lhs, ty_rhs, ty' } ← abstr_app_vars ctx ty lhs rhs
 

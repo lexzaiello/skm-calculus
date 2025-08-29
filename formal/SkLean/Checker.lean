@@ -45,8 +45,7 @@ def infer : Ast.Expr → Except TypeError Ast.Expr
     let t := SKM[(t_lhs rhs)]
     pure $ (eval_once t).getD t
   | SKM[(M e)] => infer e
-  | SKM[(t_in ~> t_out)] => do
-    pure SKM[(t_in ~> #(← infer t_out))]
+  | SKM[(_t_in ~> t_out)] => infer t_out
   | SKM[(lhs rhs)]       => do
     let t_lhs ← infer lhs
     match t_lhs with
@@ -76,4 +75,3 @@ end Expr
 
 example : Expr.infer SKM[((((K (M K)) (M K)) K) K)] = .ok SKM[(M K)] := rfl
 example : Expr.infer SKM[((((K ((Ty 0) ~> (Ty 0 ~> Ty 0))) (M K)) ((K Ty 0) Ty 0)) K)] = .ok SKM[(Ty 0 ~> (Ty 0 ~> Ty 0))]:= rfl
-
