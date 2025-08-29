@@ -50,6 +50,7 @@ def toStringImpl (e : Expr) : String :=
   | SKM[K] => "K"
   | SKM[M] => "M"
   | SKM[#~>] => "→"
+  | SKM[(t_in ~> t_out)] => s!"{t_in.toStringImpl} → {t_out.toStringImpl}"
   | SKM[(lhs rhs)] => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
   | SKM[Ty n] => s!"Type {n}"
 

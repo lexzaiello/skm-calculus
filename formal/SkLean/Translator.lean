@@ -65,7 +65,7 @@ partial def do_translate (ctx : List Ast.Expr) (e : Lean.Expr) : MetaM Ast.Expr 
     | .lam _ ty (.bvar 0) _ =>
       let ty' ← (do_translate ctx ty)
 
-      pure SKM[(((((S (ty' ~> (ty' ~> ty'))) (ty' ~> ty' ~> ty')) ty') ((K ty') (ty' ~> ty'))) ((K ty') ty'))]
+      pure SKM[(((((S (ty' ~> (ty' ~> ty'))) (ty' ~> ty')) ty') ((K ty') (ty' ~> ty'))) ((K ty') ty'))]
     | .lam _ ty (.app lhs rhs) _ =>
       let { lhs', rhs', ty_lhs, ty_rhs, ty' } ← abstr_app_vars ctx ty lhs rhs
 
@@ -80,7 +80,8 @@ partial def do_translate (ctx : List Ast.Expr) (e : Lean.Expr) : MetaM Ast.Expr 
       pure SKM[((((((M S) ty_lhs) ty_rhs) ty') lhs') rhs')]
     | .lam _ ty (.bvar n) _ =>
       let ty' ← do_translate ctx ty
-      let t_v ← ctx[n]? |> or_throw "missing type in context"
+      let ctx' := ty' :: ctx
+      let t_v ← ctx'[n]? |> or_throw s!"missing type #{n} in context"
 
       pure SKM[((K t_v) ty')]
     | .lam _ ty c _ =>
@@ -89,7 +90,7 @@ partial def do_translate (ctx : List Ast.Expr) (e : Lean.Expr) : MetaM Ast.Expr 
     | .forallE _ ty (.bvar n) _ =>
       let ty' ← do_translate ctx ty
       let ctx' := ty' :: ctx
-      let t_v ← ctx'[n]? |> or_throw "missing type in context"
+      let t_v ← ctx'[n]? |> or_throw s!"missing type #{n} in context"
 
       pure SKM[(((M K) t_v) ty')]
     | .forallE _ ty c _ =>
@@ -110,6 +111,7 @@ elab "translate" e:term : term => do
   let ⟨e, _⟩ ← (Elab.Term.elabTerm e .none).run
   toExpr <$> do_translate [] e
 
-#eval Expr.eval_unsafe $ translate ((λ (x : Type 1) => x) (Type 0))
-#eval translate (λ (x : Type 1) => x)
+#eval Expr.infer $ translate ((λ (x : Type 1) => x) (Type 0))
+
+
 
