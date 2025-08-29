@@ -42,7 +42,6 @@ inductive is_eval_once : Expr → Expr → Prop
   | k_call   : is_eval_once SKM[(((M K) α) β)] SKM[(α ~> (β ~> α))]
   | s_call   : is_eval_once SKM[((((M S) α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
   | m_call   : is_eval_once SKM[(M (lhs rhs))] SKM[((M lhs) rhs)]
-  | m_arr    : is_eval_once SKM[(((M #~>) t_in) t_out)] SKM[(t_in ~> (M t_out))]
   | arr      : is_eval_once SKM[((t_in ~> t_out) arg)] SKM[t_out]
   | left     : is_eval_once lhs lhs'
     → is_eval_once SKM[(lhs rhs)] SKM[(lhs' rhs)]
@@ -96,31 +95,61 @@ inductive is_value_n : ℕ → Expr → Expr → Prop
   | value : is_value e        → is_value_n 0 e e
   | succ  : is_eval_step e e' → is_value_n n e' e_final → is_value_n n.succ e e_final
 
-inductive is_comb : Expr → Prop
-  | s   : is_comb SKM[S]
-  | k   : is_comb SKM[K]
-  | m   : is_comb SKM[M]
-  | arr : is_comb SKM[#~>]
-
 inductive valid_judgment : Expr → Expr → Prop
-  | comb  : is_comb e → valid_judgment e SKM[(M e)]
-  | arr   : valid_judgment lhs SKM[(t_in ~> t_out)]
+  | k₀   : valid_judgment SKM[K] SKM[(M K)]
+  | s₀   : valid_judgment SKM[S] SKM[(M S)]
+  | m₀   : valid_judgment SKM[M] SKM[(M M)]
+  | k₁   : valid_judgment α t_α
+    → valid_judgment SKM[(K α)] SKM[((M K) α)]
+  | s₁   : valid_judgment α t_α
+    → valid_judgment SKM[(S α)] SKM[((M S) α)]
+  | s₂   : valid_judgment α t_α
+  → valid_judgment β t_β
+  → valid_judgment SKM[((S α) β)] SKM[(((M S) α) β)]
+  | k    : valid_judgment α t_α
+    → valid_judgment β t_β
+    → valid_judgment SKM[((K α) β)] SKM[(α ~> (β ~> α))]
+  | s    : valid_judgment α t_α
+    → valid_judgment β t_β
+    → valid_judgment γ t_γ
+    → valid_judgment SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
+  | arr₀ : valid_judgment α t_α
+    → valid_judgment β t_β
+    → valid_judgment SKM[(α ~> β)] SKM[(α ~> t_β)]
+  | arr  : valid_judgment SKM[#~>] SKM[(M #~>)]
+  | arr₁ : valid_judgment a t_a
+    → valid_judgment SKM[(#~> a)] SKM[((M #~>) a)]
+  | call : valid_judgment lhs SKM[(t_in ~> t_out)]
     → valid_judgment rhs t_in
-    → valid_judgment SKM[(lhs rhs)] t_out
-  | call₀ : valid_judgment lhs t_lhs
-    → valid_judgment rhs t_rhs
-    → (¬ ∃ t', is_eval_once SKM[(t_lhs rhs)] t')
-    → valid_judgment SKM[(lhs rhs)] SKM[(t_lhs rhs)]
+    → valid_judgment SKM[(lhs rhs)] SKM[t_out]
 
 inductive valid_judgment_hard : Expr → Expr → Prop
-  | comb  : is_comb e → valid_judgment_hard e SKM[(M e)]
-  | arr   : valid_judgment_hard lhs SKM[(t_in ~> t_out)]
+  | k₀   : valid_judgment_hard SKM[K] SKM[(M K)]
+  | s₀   : valid_judgment_hard SKM[S] SKM[(M S)]
+  | m₀   : valid_judgment_hard SKM[M] SKM[(M M)]
+  | k₁   : valid_judgment_hard α t_α
+    → valid_judgment_hard SKM[(K α)] SKM[((M K) α)]
+  | s₁   : valid_judgment_hard α t_α
+    → valid_judgment_hard SKM[(S α)] SKM[((M S) α)]
+  | s₂   : valid_judgment_hard α t_α
+    → valid_judgment_hard β t_β
+    → valid_judgment_hard SKM[((S α) β)] SKM[(((M S) α) β)]
+  | k    : valid_judgment_hard α t_α
+    → valid_judgment_hard β t_β
+    → valid_judgment_hard SKM[((K α) β)] SKM[(α ~> (β ~> α))]
+  | s    : valid_judgment_hard α t_α
+    → valid_judgment_hard β t_β
+    → valid_judgment_hard γ t_γ
+    → valid_judgment_hard SKM[(((S α) β) γ)] SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
+  | arr₀ : valid_judgment_hard α t_α
+    → valid_judgment_hard β t_β
+    → valid_judgment_hard SKM[(α ~> β)] SKM[(α ~> t_β)]
+  | arr  : valid_judgment_hard SKM[#~>] SKM[(M #~>)]
+  | arr₁ : valid_judgment_hard a t_a
+    → valid_judgment_hard SKM[(#~> a)] SKM[((M #~>) a)]
+  | call : valid_judgment_hard lhs SKM[(t_in ~> t_out)]
     → valid_judgment_hard rhs t_in
-    → valid_judgment_hard SKM[(lhs rhs)] t_out
-  | call₀ : valid_judgment_hard lhs t_lhs
-    → valid_judgment_hard rhs t_rhs
-    → (¬ ∃ t', is_eval_once SKM[(t_lhs rhs)] t')
-    → valid_judgment_hard SKM[(lhs rhs)] SKM[(t_lhs rhs)]
+    → valid_judgment_hard SKM[(lhs rhs)] SKM[t_out]
   | step  : valid_judgment_hard e t
     → beta_eq t t'
     → valid_judgment_hard e t'
@@ -158,28 +187,23 @@ lemma s_stuck : is_value_n 0 SKM[S] SKM[S] := by
 namespace is_typed_comb
 
 lemma well_typed (h : is_typed_comb e t) : valid_judgment e t := by
-  cases h
-  exact valid_judgment.comb is_comb.k
-  exact valid_judgment.call₀ (valid_judgment.comb is_comb.k) (by assumption) (λ ⟨t', h⟩ => by contradiction)
-  exact valid_judgment.comb is_comb.s
-  exact valid_judgment.call₀ (valid_judgment.comb is_comb.s) (by assumption) (λ ⟨t', h⟩ => by contradiction)
-  apply valid_judgment.call₀
-  apply valid_judgment.call₀
-  exact valid_judgment.comb is_comb.s
-  assumption
-  repeat (intro ⟨t', h⟩; (repeat cases h); contradiction; assumption)
-  intro ⟨t', h⟩
-  contradiction
-  apply valid_judgment.comb
-  apply is_comb.arr
-  apply valid_judgment.call₀
-  apply valid_judgment.comb
-  apply is_comb.arr
-  assumption
-  intro ⟨t', h⟩
-  contradiction
-  apply valid_judgment.comb
-  apply is_comb.m
+  induction h
+  apply valid_judgment.k₀
+  case k₁ α _ h =>
+    apply valid_judgment.k₁
+    assumption
+  apply valid_judgment.s₀
+  case s₁ α t_α h_t_α =>
+    apply valid_judgment.s₁
+    assumption
+  case s₂ α t_α β t_β h_t_α h_t_β =>
+    apply valid_judgment.s₂
+    repeat assumption
+  apply valid_judgment.arr
+  case arr₁ x t_x h_t_x =>
+    apply valid_judgment.arr₁
+    assumption
+  apply valid_judgment.m₀
 
 end is_typed_comb
 
@@ -248,32 +272,29 @@ namespace valid_judgment
 
 lemma deterministic (h_t₁ : valid_judgment e t₁) (h_t₂ : valid_judgment e t₂) : t₁ = t₂ := by
   induction h_t₁ generalizing t₂
-  cases h_t₂
-  repeat rfl
-  repeat contradiction
-  case arr lhs t_in t_out rhs h_t_lhs h_t_rhs ih₁ ih₂ =>
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  repeat (cases h_t₂; rfl)
+  contradiction
+  case arr₀ h_t_α h_t_β ih₁ ih₂ =>
     cases h_t₂
+    have h_eq₁ := ih₁ (by assumption)
+    have h_eq₂ := ih₂ (by assumption)
+    simp_all
     contradiction
-    have h := ih₁ (by assumption)
-    simp_all
-    have h₁ := ih₁ (by assumption)
-    have h₂ := ih₂ (by assumption)
-    simp_all
-    case call₀ t_lhs' t_rhs h_t_lhs h_t_rhs =>
-      have h_t_step_actually : is_eval_once SKM[((t_lhs' ~> t_out) rhs)] t_out := is_eval_once.arr
-      rw [← h₁] at h_t_rhs
-      have h := h_t_rhs _ h_t_step_actually
-      contradiction
-  case call₀ lhs t_lhs rhs t_rhs h_t_lhs h_t_rhs h_no_step_t ih₁ ih₂ =>
+  repeat (cases h_t₂; rfl)
+  contradiction
+  case call lhs t_in t_out rhs h_t_lhs h_t_rhs ih₁ ih₂ =>
     cases h_t₂
-    contradiction
-    have h := ih₁ (by assumption)
-    simp_all
-    case arr t_in h_t_rhs' h_t_lhs' =>
-      have h_t_step_actually : is_eval_once SKM[((t_in ~> t₂) rhs)] t₂ := is_eval_once.arr
-      have h := h_no_step_t rhs
-      simp_all
-    have h := ih₁ (by assumption)
+    repeat contradiction
+    have h_eq₁ := ih₁ (by assumption)
+    have h_eq₂ := ih₂ (by assumption)
     simp_all
 
 lemma valid_rhs (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_rhs, valid_judgment rhs t_rhs := by
@@ -363,10 +384,6 @@ theorem preservation (h_t : valid_judgment e t) (h_eval : is_eval_once e e') : v
       | .inr ⟨_, h_comb_lhs⟩ =>
         cases h_comb_lhs
         repeat contradiction
-  case m_call lhs rhs =>
-    have ⟨t_rhs, ⟨h_t_rhs, h⟩⟩ := h_t.valid_call
-    have ⟨t_rhs, ⟨h_t_rhs, h⟩⟩ := h_t_rhs.valid_call
-    
 
 lemma progress (h : valid_judgment e t) : is_value e ∨ ∃ e', is_eval_once e e' := by
   induction h

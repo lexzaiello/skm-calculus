@@ -37,12 +37,6 @@ lemma is_value_sn (h_v : is_value e) : sn e := by
   cases h_v
   repeat do_stuck
 
-def RC (e t : Expr) : Prop :=
-  valid_judgment e t ∧ sn e ∧ (match e, t with
-    | e, SKM[(t_in ~> t_out)] => ∀ arg, RC arg t_in → RC SKM[(e arg)] t_out
-    | e, t => is_typed_comb e t)
-
-/-
 inductive RC : Expr → Expr → Prop
   | base : is_typed_comb e t
     → (∀ arg t', valid_judgment SKM[(e arg)] t' → RC SKM[(e arg)] t')
@@ -55,36 +49,43 @@ inductive RC : Expr → Expr → Prop
   | s    : RC SKM[S]     SKM[(M S)]
   | m    : RC SKM[M]     SKM[(M M)]
   | arr₀ : RC SKM[(#~>)] SKM[(M #~>)]
--/
-
-
-syntax (name := obv_rc) "obv_rc" "assumption"? term : tactic
-
-macro_rules
-  | `(tactic| obv_rc $e:term) =>
-    `(tactic| constructor; apply $e; (repeat assumption); constructor; do_stuck; rfl)
 
 namespace RC
 
 lemma all_well_typed (h_candidate : RC e t) : valid_judgment e t := by
-  unfold RC at h_candidate
-  simp_all
+  induction h_candidate
+  case base h _ _  =>
+    exact h.well_typed
+  repeat assumption
+  apply valid_judgment.k₀
+  apply valid_judgment.s₀
+  apply valid_judgment.m₀
+  apply valid_judgment.arr
 
 lemma all_sn (h_candidate : RC e t) : sn e := by
-  unfold RC at h_candidate
-  simp_all
+  induction h_candidate
+  case base h _ _ =>
+    cases h
+    repeat do_stuck
+  assumption
+  repeat do_stuck
 
-lemma call (h_candidate_lhs : RC lhs SKM[(t_in ~> t_out)]) (h_candidate_rhs : RC rhs t_in) : RC SKM[(lhs rhs)] t_out := by
-  cases h_candidate_lhs
-  simp_all
-
-lemma call_comb (h_candidate_lhs : RC lhs t_lhs) (h_candidate_rhs : RC rhs t_rhs) (h_comb_lhs : is_typed_comb lhs t_lhs) : ∃ t, RC SKM[(lhs rhs)] t := by
-  have h_t_lhs := h_comb_lhs.well_typed
-  have h_t_rhs := h_candidate_rhs.all_well_typed
-  induction h_t_lhs
-  exact ⟨SKM[((M K) rhs)], ⟨valid_judgment.k₁ (by assumption), ⟨by do_stuck, is_typed_comb.k₁ (by assumption)⟩⟩⟩
-  exact ⟨SKM[((M S) rhs)], ⟨valid_judgment.s₁ (by assumption), ⟨by do_stuck, is_typed_comb.s₁ (by assumption)⟩⟩⟩
-  exact ⟨t_rhs, ⟨valid_judgment.call (by assumption), ⟨by do_stuck, is_typed_comb.s₁ (by assumption)⟩⟩⟩
+lemma call (h_rc_lhs : RC lhs t_lhs) (h_t : valid_judgment SKM[(lhs rhs)] t) : RC SKM[(lhs rhs)] t := by
+  induction h_rc_lhs
+  case base ih₁ ih₂ =>
+    exact ih₁ _ _ h_t
+  case arr lhs t_in t_out h_t_lhs h_sn_lhs ih₁ ih₂ =>
+    cases h_t
+    repeat contradiction
+    case call lhs h_t_rhs h_t_lhs' =>
+      have h := h_t_lhs'.deterministic h_t_lhs
+      simp_all
+  apply RC.base
+  cases h_t
+  apply is_typed_comb.k₁
+  assumption
+  contradiction
+  intro arg t' h_t
 
 end RC
 
@@ -93,23 +94,24 @@ namespace valid_judgment
 lemma all_candidates (h : valid_judgment e t) : RC e t := by
   induction e generalizing t
   cases h
-  obv_rc valid_judgment.k₀
+  exact RC.k
   cases h
-  obv_rc valid_judgment.s₀
+  exact RC.s
   cases h
-  obv_rc valid_judgment.m₀
+  exact RC.m
   cases h
-  obv_rc valid_judgment.arr
+  apply RC.arr₀
   case call lhs rhs ih₁ ih₂ =>
-    have ⟨t_rhs, ⟨h_t_rhs, h_t_lhs⟩⟩ := h.valid_call
-    have h_rc_rhs := ih₂ h_t_rhs
-    match h_t_lhs with
+    have ⟨t_rhs, ⟨h_t_rhs, h_lhs⟩⟩ := h.valid_call
+    match h_lhs with
       | .inl h_t_lhs =>
-        have h_rc_lhs := ih₁ h_t_lhs
-        sorry
-      | .inr h_comb =>
-        
-        sorry
+        apply RC.call
+        exact ih₁ h_t_lhs
+        assumption
+      | .inr ⟨t_lhs, h_comb_lhs⟩ =>
+        apply RC.call
+        exact ih₁ h_comb_lhs.well_typed
+        assumption
 
 theorem sn (h : valid_judgment e t) : sn e := h.all_candidates.all_sn
 
