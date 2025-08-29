@@ -65,3 +65,7 @@ def infer : Ast.Expr → Except TypeError Ast.Expr
         .error $ .no_type_not_comb lhs
 
 end Expr
+
+example : Expr.infer SKM[((((K (M K)) (M K)) K) K)] = .ok SKM[(M K)] := by
+  change Except.ok SKM[(M K)] = .ok SKM[(M K)]
+  rfl

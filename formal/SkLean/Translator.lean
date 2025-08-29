@@ -31,21 +31,25 @@ structure ConstInfo where
   c'     : Ast.Expr
 
 partial def do_translate (ctx : List Ast.Expr) (e : Lean.Expr) : MetaM Ast.Expr := do
+  let unwrap_check_error : Except TypeError Ast.Expr → MetaM Ast.Expr
+    | .ok e => pure e
+    | e     => throwError s!"typechecker error: {e}"
+
   let abstr_app_vars (ctx : List Ast.Expr) (ty lhs rhs : Lean.Expr) : MetaM AppInfo := do
     let ty'    ← do_translate ctx ty
     let ctx' := (ty' :: ctx)
-    let ty_lhs ← do_translate ctx' (← Lean.Meta.inferType lhs)
-    let ty_rhs ← do_translate ctx' (← Lean.Meta.inferType rhs)
     let lhs'   ← do_translate ctx' lhs
     let rhs'   ← do_translate ctx' rhs
+    let ty_lhs ← unwrap_check_error $ Expr.infer lhs'
+    let ty_rhs ← unwrap_check_error $ Expr.infer rhs'
 
     pure { lhs' := lhs', rhs' := rhs', ty_lhs := ty_lhs, ty_rhs := ty_rhs, ty' := ty' }
 
   let abstr_const (ctx : List Ast.Expr) (ty c : Lean.Expr) : MetaM ConstInfo := do
     let ty' ← do_translate ctx ty
     let ctx' := (ty' :: ctx)
-    let t_c ← do_translate ctx' (← Lean.Meta.inferType c)
-    let c' ← do_translate ctx' c
+    let c'  ← do_translate ctx' c
+    let t_c ← unwrap_check_error $ Expr.infer c'
 
     pure { ty' := ty', c' := c', ty_c := t_c }
 
@@ -84,11 +88,13 @@ partial def do_translate (ctx : List Ast.Expr) (e : Lean.Expr) : MetaM Ast.Expr 
       pure SKM[(((K ty_c) ty') c')]
     | .forallE _ ty (.bvar n) _ =>
       let ty' ← do_translate ctx ty
-      let t_v ← ctx[n]? |> or_throw "missing type in context"
+      let ctx' := ty' :: ctx
+      let t_v ← ctx'[n]? |> or_throw "missing type in context"
 
       pure SKM[(((M K) t_v) ty')]
     | .forallE _ ty c _ =>
       let { ty', ty_c, c' } ← abstr_const ctx ty c
+
       pure SKM[((((M K) ty_c) ty') c')]
     | .sort n =>
       let depth := n.depth
@@ -105,5 +111,5 @@ elab "translate" e:term : term => do
   toExpr <$> do_translate [] e
 
 #eval Expr.eval_unsafe $ translate ((λ (x : Type 1) => x) (Type 0))
-#eval translate (λ (x : Type 1) (y : Type 2) => x)
+#eval translate (λ (x : Type 1) => x)
 
