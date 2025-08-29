@@ -378,7 +378,24 @@ lemma valid_call (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_rhs, valid_judg
     apply is_comb.s
     repeat (assumption; do_stuck_e)
     do_stuck_e
-  
+  case arr α t_α t_β h_t_α h_t_rhs =>
+    use t_β
+    constructor
+    assumption
+    right
+    use SKM[((M #~>) α)]
+    constructor
+    apply valid_judgment.comb_call
+    apply valid_judgment.comb₀
+    apply is_comb.arr
+    assumption
+    repeat do_stuck_e
+  case call t_in h_t_rhs h_t_lh =>
+    use t_in
+    constructor
+    assumption
+    left
+    assumption
 
 end valid_judgment
 
