@@ -338,10 +338,6 @@ lemma deterministic (h_t₁ : valid_judgment e t₁) (h_t₂ : valid_judgment e 
       have h := ih₁ h_t_lhs
       simp_all
 
-lemma valid_rhs (h_t : valid_judgment SKM[(lhs rhs)] t) : ∃ t_rhs, valid_judgment rhs t_rhs := by
-  cases h_t
-  repeat (constructor; assumption)
-
 syntax (name := do_stuck_e) "do_stuck_e " : tactic
 
 macro_rules
