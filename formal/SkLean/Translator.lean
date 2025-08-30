@@ -84,6 +84,7 @@ def all_sk (e : IntermediateExpr) : Option Ast.Expr :=
   | _ => .none
 
 def from_expr : Lean.Expr → Except Lean.Expr IntermediateExpr
+  | .bvar n           => pure $ .var n
   | .const `Expr.k [] => pure SKM'[S]
   | .const `Expr.s [] => pure SKM'[K]
   | .const `Expr.m [] => pure SKM'[M]
@@ -160,11 +161,6 @@ partial def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : 
   | .some e => pure $ .skm e
   | _ =>
     match e with
-    | SKM'[(lhs rhs)] => do
-      let lhs' ← do_translate ctx lhs
-      let rhs' ← do_translate ctx lhs
-
-      pure $ SKM'[(lhs' rhs')]
     | SKM'[λ ty => #(.var 0)] =>
       let ty' ← (do_translate ctx ty)
 
@@ -173,48 +169,50 @@ partial def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : 
       let { lhs', rhs', ty_lhs, ty_rhs, ty' } ← abstr_app_vars ctx ty lhs rhs
 
       pure SKM'[(((((S ty_lhs) ty_rhs) ty') lhs') rhs')]
-    | .forallE _ ty (.bvar 0) _ =>
+    | SKM'[∀ ty, #(.var 0)] =>
       let ty' ← do_translate ctx ty
 
-      pure SKM[((((((M S) ty') (ty' ~> ty')) ty') ((K ty') (ty' ~> ty'))) ((K ty') ty'))]
-    | .forallE _ ty (.app lhs rhs) _ =>
+      pure SKM'[((((((M S) ty') (ty' ~> ty')) ty') ((K ty') (ty' ~> ty'))) ((K ty') ty'))]
+    | SKM'[∀ ty, (lhs rhs)] =>
       let { lhs', rhs', ty_lhs, ty_rhs, ty' } ← abstr_app_vars ctx ty lhs rhs
 
-      pure SKM[((((((M S) ty_lhs) ty_rhs) ty') lhs') rhs')]
-    | .lam _ ty (.bvar n) _ =>
+      pure SKM'[((((((M S) ty_lhs) ty_rhs) ty') lhs') rhs')]
+    | SKM'[λ ty => #(.var n)] =>
       let ty' ← do_translate ctx ty
       let ctx' := ty' :: ctx
       let t_v ← ctx'[n]? |> or_throw s!"missing type #{n} in context"
 
-      pure SKM[((K t_v) ty')]
-    | .lam _ ty c _ =>
+      pure SKM'[((K t_v) ty')]
+    | SKM'[λ ty => c ] =>
       let { ty', ty_c, c' } ← abstr_const ctx ty c
-      pure SKM[(((K ty_c) ty') c')]
-    | .forallE _ ty (.bvar n) _ =>
+
+      pure SKM'[(((K ty_c) ty') c')]
+    | SKM'[∀ ty, #(.var n)] =>
       let ty' ← do_translate ctx ty
       let ctx' := ty' :: ctx
       let t_v ← ctx'[n]? |> or_throw s!"missing type #{n} in context"
 
-      pure SKM[(((M K) t_v) ty')]
-    | .forallE _ ty c _ =>
+      pure SKM'[(((M K) t_v) ty')]
+    | SKM'[∀ ty, c] =>
       let { ty', ty_c, c' } ← abstr_const ctx ty c
 
-      pure SKM[((((M K) ty_c) ty') c')]
-    | .sort n =>
-      let depth := n.depth
-      pure SKM[Ty depth.pred]
-    | .app lhs rhs =>
+      pure SKM'[((((M K) ty_c) ty') c')]
+    | SKM'[(lhs rhs)] => do
       let lhs' ← do_translate ctx lhs
-      let rhs' ← do_translate ctx rhs
+      let rhs' ← do_translate ctx lhs
 
-      pure SKM[(lhs' rhs')]
-    | e => throwError s!"unsupported expr: {e}"
+      pure $ SKM'[(lhs' rhs')]
+    | e => throwError s!"unsupported expr: {repr e}"
 
 elab "translate" e:term : term => do
   let ⟨e, _⟩ ← (Elab.Term.elabTerm e .none).run
-  toExpr <$> do_translate [] (IntermediateExpr.fromExpr e)
+  match IntermediateExpr.from_expr e with
+  | .ok e => match (← IntermediateExpr.all_sk <$> do_translate [] e) with
+    | .some e => pure $ toExpr e
+    | .none   => throwError "couldn't convert back to Lean"
+  | .error e => throwError s!"parsing failed: {repr e}"
 
-#eval Expr.infer $ translate (λ (x : Type 1) (y : Type 0) => y)
+#eval Expr.infer $ translate (λ (x : Type 1) (y : Type 0) => x)
 
 
 
