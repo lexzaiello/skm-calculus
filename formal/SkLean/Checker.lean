@@ -29,22 +29,16 @@ def add_m : Ast.Expr → Ast.Expr
   | SKM[K]    => SKM[(M K)]
   | SKM[S]    => SKM[(M S)]
   | SKM[#~>]  => SKM[(M #~>)]
-  | SKM[Ty n] => SKM[(M (Ty n))]
   | SKM[(lhs rhs)] => SKM[((#(add_m lhs)) rhs)]
 
 def infer : Ast.Expr → Except TypeError Ast.Expr
   | SKM[K]               => pure SKM[(M K)]
   | SKM[S]               => pure SKM[(M S)]
   | SKM[M]               => pure SKM[(M M)]
-  | SKM[Ty n]            => pure SKM[Ty n.succ]
   | SKM[#~>]             => pure SKM[(M #~>)]
   | SKM[((K α) β)]       => pure SKM[(α ~> (β ~> α))]
-  | SKM[(((S α) β) γ)]   => pure SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (γ ~> α)))]
-  | SKM[(M (lhs rhs))]   => do
-    let t_lhs ← infer lhs
-    let t := SKM[(t_lhs rhs)]
-    pure $ (eval_once t).getD t
-  | SKM[(M e)] => infer e
+  | SKM[(((S α) β) γ)]   => pure SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
+  | SKM[(M e)] => do pure SKM[(M #(← infer e))]
   | SKM[(_t_in ~> t_out)] => infer t_out
   | SKM[(lhs rhs)]       => do
     let t_lhs ← infer lhs
@@ -74,4 +68,4 @@ lemma valid_rhs (_h_t : infer SKM[(lhs rhs)] = .ok t) : ∃ t_rhs, infer rhs = t
 end Expr
 
 example : Expr.infer SKM[((((K (M K)) (M K)) K) K)] = .ok SKM[(M K)] := rfl
-example : Expr.infer SKM[((((K ((Ty 0) ~> (Ty 0 ~> Ty 0))) (M K)) ((K Ty 0) Ty 0)) K)] = .ok SKM[(Ty 0 ~> (Ty 0 ~> Ty 0))]:= rfl
+
