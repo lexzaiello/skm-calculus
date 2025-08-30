@@ -205,7 +205,7 @@ def abstract : AbstractMode → List IntermediateExpr → ℕ → IntermediateEx
       pure SKM'[!(((pre #(.skm t_e)) t) e)]
   | _, _, _, _ => throwError "context empty"
 
-partial def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM IntermediateExpr := do
+def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM IntermediateExpr := do
   match e.all_sk with
   | .some e => pure $ .skm e
   | _ => go ctx 0 e
