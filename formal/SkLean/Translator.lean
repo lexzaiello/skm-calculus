@@ -18,6 +18,7 @@ inductive IntermediateExpr where
   | var  : ℕ → IntermediateExpr
   | forE : IntermediateExpr → IntermediateExpr → IntermediateExpr
   | skm  : Ast.Expr  → IntermediateExpr
+  | intr : IntermediateExpr → IntermediateExpr
 deriving BEq, Repr, Lean.ToExpr
 
 structure AppInfo where
@@ -45,6 +46,7 @@ syntax "#" term                   : skmexpr'
 syntax "(" skmexpr' ")"           : skmexpr'
 syntax "λ" skmexpr' "=>" skmexpr' : skmexpr'
 syntax "∀" skmexpr' "," skmexpr'  : skmexpr'
+syntax "!" skmexpr'               : skmexpr'
 
 syntax " {{ " skmexpr' " }} "     : term
 syntax "SKM'[ " skmexpr' " ] "    : term
@@ -53,6 +55,7 @@ macro_rules
   | `(SKM'[ $e:skmexpr' ]) => `({{ $e }})
 
 macro_rules
+  | `({{ !$e:skmexpr' }})                    => `(IntermediateExpr.intr {{ $e }})
   | `({{ K }})                               => `(IntermediateExpr.k)
   | `({{ S }})                               => `(IntermediateExpr.s)
   | `({{ M }})                               => `(IntermediateExpr.m)
@@ -68,6 +71,16 @@ macro_rules
 
 namespace IntermediateExpr
 
+def all_human_sk (e : IntermediateExpr) : Bool :=
+  match e with
+  | SKM'[S]         => true
+  | SKM'[K]         => true
+  | SKM'[M]         => true
+  | SKM'[Ty n]      => true
+  | SKM'[(lhs rhs)] => all_human_sk lhs ∧ all_human_sk rhs
+  | SKM'[#~>]       => true
+  | _               => false
+
 def all_sk (e : IntermediateExpr) : Option Ast.Expr :=
   match e with
   | .skm e          => pure e
@@ -81,6 +94,7 @@ def all_sk (e : IntermediateExpr) : Option Ast.Expr :=
 
     pure SKM[(lhs' rhs')]
   | SKM'[#~>] => SKM[#~>]
+  | .intr e => e.all_sk
   | _ => .none
 
 def from_expr : Lean.Expr → Except Lean.Expr IntermediateExpr
@@ -118,8 +132,8 @@ def shift_down_from : ℕ →  IntermediateExpr → IntermediateExpr
 def free_in : ℕ → IntermediateExpr → Bool
   | j, (.var i) => i == j
   | j, (.call f x) => free_in j f || free_in j x
-  | j, SKM'[λ t => body] => free_in j.succ t || free_in j.succ body
-  | j, SKM'[∀ t, body] => free_in j.succ t || free_in j.succ body
+  | j, SKM'[λ t => body] | j, SKM'[!(λ t => body)] => free_in j.succ t || free_in j.succ body
+  | j, SKM'[∀ t, body] | j, SKM'[!(∀ t, body)] => free_in j.succ t || free_in j.succ body
   | _, _ => false
 
 end IntermediateExpr
@@ -143,28 +157,30 @@ inductive AbstractMode where
   | e : AbstractMode
 
 def abstract : AbstractMode → List IntermediateExpr → ℕ → IntermediateExpr → MetaM IntermediateExpr
-  | mode, ctx, j, e@SKM'[(lhs #(.var i))] =>
+  | mode, ctx@(t::_), j, e@SKM'[(lhs #(.var i))]
+  | mode, ctx@(t::_), j, e@SKM'[!(lhs #(.var i))] =>
     if i == j && ¬ (lhs.free_in j) then
       pure $ lhs.shift_down_from j
-    else
+    else do
       pure e
   | mode, ctx@(t::_), j, (.var i) => do
     let ty ← ctx[i]? |> or_throw s!"missing type #{i} in context"
 
     if i == j then
       let pre := match mode with
-        | .e => SKM'[S]
-        | .m => SKM'[(M S)]
-      pure SKM'[(((((pre ty) (ty ~> ty)) ty) ((K ty) (ty ~> ty))) ((K ty) ty))]
+        | .e => SKM'[!S]
+        | .m => SKM'[!(M S)]
+      pure SKM'[!(((((pre ty) (ty ~> ty)) ty) ((K ty) (ty ~> ty))) ((K ty) ty))]
     else
       let pre := match mode with
         | .e => SKM'[K]
         | .m => SKM'[(M K)]
-      pure SKM'[(((pre ty) t) #(.var (if i > j then i.pred else i)))]
-  | mode, c@(t::_), j, e@SKM'[(lhs rhs)] => do
-    match e.all_sk with
-    | .some e => pure (.skm e)
-    | e =>
+      pure SKM'[!(((pre ty) t) #(.var (if i > j then i.pred else i)))]
+  | mode, c@(t::_), j, e@SKM'[(lhs rhs)]
+  | mode, c@(t::_), j, e@SKM'[!(lhs rhs)] => do
+    if e.all_human_sk then
+      pure e
+    else
       let l ← abstract .e c j lhs
       let r ← abstract .e c j rhs
 
@@ -172,21 +188,21 @@ def abstract : AbstractMode → List IntermediateExpr → ℕ → IntermediateEx
       let t_rhs ← unwrap_intermediate r >>= (unwrap_check_error ∘ Expr.infer)
 
       let pre := match mode with
-        | .e => SKM'[S]
-        | .m => SKM'[(M S)]
+        | .e => SKM'[!S]
+        | .m => SKM'[!(M S)]
 
-      pure SKM'[(((((pre #(.skm t_lhs)) #(.skm t_rhs)) t) l) r)]
+      pure SKM'[!(((((pre #(.skm t_lhs)) #(.skm t_rhs)) t) l) r)]
   | mode, c@(t::_), j, e => do
     let t_e ← unwrap_intermediate e >>= (unwrap_check_error ∘ Expr.infer)
 
-    match e.all_sk with
-    | .some e => pure (.skm e)
-    | _       =>
+    if e.all_human_sk then
+      pure e
+    else
       let pre := match mode with
-        | .e => SKM'[K]
-        | .m => SKM'[(M K)]
+        | .e => SKM'[!K]
+        | .m => SKM'[!(M K)]
 
-      pure SKM'[(((pre #(.skm t_e)) t) e)]
+      pure SKM'[!(((pre #(.skm t_e)) t) e)]
   | _, _, _, _ => throwError "context empty"
 
 partial def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM IntermediateExpr := do
@@ -194,17 +210,20 @@ partial def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : 
   | .some e => pure $ .skm e
   | _ => go ctx 0 e
   where go : List IntermediateExpr → ℕ → IntermediateExpr → MetaM IntermediateExpr
-    | ctx, lvl, SKM'[(λ t => body)] => do
+    | ctx, lvl, SKM'[(λ t => body)]
+    | ctx, lvl, SKM'[!(λ t => body)] => do
       let t'    ← go ctx lvl.succ t
       let body' ← go (t'::ctx) lvl.succ body
 
       abstract .e (t'::ctx) 0 body'
-    | ctx, lvl, SKM'[(∀ t, body)] => do
+    | ctx, lvl, SKM'[(∀ t, body)]
+    | ctx, lvl, SKM'[!(∀ t, body)] => do
       let t'    ← go ctx lvl.succ t
       let body' ← go (t'::ctx) lvl.succ body
 
       abstract .m (t'::ctx) 0 body'
-    | ctx, lvl, SKM'[(lhs rhs)] => do
+    | ctx, lvl, SKM'[(lhs rhs)]
+    | ctx, lvl, SKM'[!(lhs rhs)] => do
       let lhs' ← go ctx lvl lhs
       let rhs' ← go ctx lvl rhs
 
@@ -219,7 +238,7 @@ elab "translate" e:term : term => do
     | .none   => throwError "couldn't convert back to Lean"
   | .error e => throwError s!"parsing failed: {repr e}"
 
-#eval Expr.infer $ translate (λ (x : Type 1) (y : Type 0) => y)
+#eval Expr.infer $ translate (λ (x : Type 1) (y : Type 0) => x)
 
 
 
