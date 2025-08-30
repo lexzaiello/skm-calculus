@@ -115,21 +115,63 @@ def shift_down_from : ℕ →  IntermediateExpr → IntermediateExpr
   | j, .forE t b       => SKM'[∀ #(t.shift_down_from j.succ), #(b.shift_down_from j.succ)]
   | _, x               => x
 
+def free_in : ℕ → IntermediateExpr → Bool
+  | j, (.var i) => i == j
+  | j, (.call f x) => free_in j f || free_in j x
+  | j, SKM'[λ t => body] => free_in j.succ t || free_in j.succ body
+  | j, SKM'[∀ t, body] => free_in j.succ t || free_in j.succ body
+  | _, _ => false
+
 end IntermediateExpr
 
-partial def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM IntermediateExpr := do
-  let unwrap_check_error : Except TypeError Ast.Expr → MetaM Ast.Expr
+def or_throw {α : Type} (msg : String) (x : Option α) : MetaM α :=
+    match x with
+      | .some e => pure e
+      | _ => throwError s!"{msg}: {repr e}"
+
+def unwrap_check_error : Except TypeError Ast.Expr → MetaM Ast.Expr
     | .ok e => pure e
     | e     => throwError s!"typechecker error: {e}"
 
-  let unwrap_parse : Except Lean.Expr IntermediateExpr → MetaM IntermediateExpr
-    | .ok e => pure e
-    | e     => throwError s!"unparseable expression: {repr e}"
-
-  let unwrap_intermediate (e : IntermediateExpr) : MetaM Ast.Expr :=
+def unwrap_intermediate (e : IntermediateExpr) : MetaM Ast.Expr :=
     match e.all_sk with
     | .some e => pure e
     | _       => throwError s!"expected SKM expression, found {repr e}"
+
+def abstract : List IntermediateExpr → ℕ → IntermediateExpr → MetaM IntermediateExpr
+  | ctx, j, e@SKM'[(lhs #(.var i))] =>
+    if i == j && ¬ (lhs.free_in j) then
+      pure $ lhs.shift_down_from j
+    else
+      pure e
+  | ctx@(t::_), j, (.var i) => do
+    let ty ← ctx[i]? |> or_throw s!"missing type #{i} in context"
+
+    if i == j then
+      pure SKM'[(((((S ty) (ty ~> ty)) ty) ((K ty) (ty ~> ty))) ((K ty) ty))]
+    else
+      pure SKM'[(((K ty) t) #(.var (if i > j then i.pred else i)))]
+  | c@(t::_), j, e@SKM'[(lhs rhs)] => do
+    match e.all_sk with
+    | .some e => pure (.skm e)
+    | e =>
+      let l ← abstract c j lhs
+      let r ← abstract c j rhs
+
+      let t_lhs ← unwrap_intermediate l >>= (unwrap_check_error ∘ Expr.infer)
+      let t_rhs ← unwrap_intermediate r >>= (unwrap_check_error ∘ Expr.infer)
+
+      pure SKM'[(((((S #(.skm t_lhs)) #(.skm t_rhs)) t) l) r)]
+  | c@(t::_), j, e => do
+    match e.all_sk with
+    | .some e => pure (.skm e)
+    | _       => pure SKM'[(((K #(sorry)) t) e)]
+  | _, _, _ => throwError "context empty"
+
+partial def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM IntermediateExpr := do
+  let unwrap_parse : Except Lean.Expr IntermediateExpr → MetaM IntermediateExpr
+    | .ok e => pure e
+    | e     => throwError s!"unparseable expression: {repr e}"
 
   let do_trans (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM IntermediateExpr :=
     do_translate ctx e
@@ -151,11 +193,6 @@ partial def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : 
     let t_c ← unwrap_check_error $ Expr.infer (← unwrap_intermediate c')
 
     pure { ty' := ty', c' := c', ty_c := (.skm t_c) }
-
-  let or_throw {α : Type} (msg : String) (x : Option α) : MetaM α :=
-    match x with
-      | .some e => pure e
-      | _ => throwError s!"{msg}: {repr e}"
 
   match e.all_sk with
   | .some e => pure $ .skm e
@@ -212,7 +249,7 @@ elab "translate" e:term : term => do
     | .none   => throwError "couldn't convert back to Lean"
   | .error e => throwError s!"parsing failed: {repr e}"
 
-#eval Expr.infer $ translate (λ (x : Type 1) (y : Type 0) => x)
+#eval Expr.infer $ translate (λ (x : Type 1) (y : Type 0) => y)
 
 
 
