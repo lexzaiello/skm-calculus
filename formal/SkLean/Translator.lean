@@ -127,7 +127,7 @@ end IntermediateExpr
 def or_throw {α : Type} (msg : String) (x : Option α) : MetaM α :=
     match x with
       | .some e => pure e
-      | _ => throwError s!"{msg}: {repr e}"
+      | _ => throwError msg
 
 def unwrap_check_error : Except TypeError Ast.Expr → MetaM Ast.Expr
     | .ok e => pure e
@@ -138,108 +138,78 @@ def unwrap_intermediate (e : IntermediateExpr) : MetaM Ast.Expr :=
     | .some e => pure e
     | _       => throwError s!"expected SKM expression, found {repr e}"
 
-def abstract : List IntermediateExpr → ℕ → IntermediateExpr → MetaM IntermediateExpr
-  | ctx, j, e@SKM'[(lhs #(.var i))] =>
+inductive AbstractMode where
+  | m : AbstractMode
+  | e : AbstractMode
+
+def abstract : AbstractMode → List IntermediateExpr → ℕ → IntermediateExpr → MetaM IntermediateExpr
+  | mode, ctx, j, e@SKM'[(lhs #(.var i))] =>
     if i == j && ¬ (lhs.free_in j) then
       pure $ lhs.shift_down_from j
     else
       pure e
-  | ctx@(t::_), j, (.var i) => do
+  | mode, ctx@(t::_), j, (.var i) => do
     let ty ← ctx[i]? |> or_throw s!"missing type #{i} in context"
 
     if i == j then
-      pure SKM'[(((((S ty) (ty ~> ty)) ty) ((K ty) (ty ~> ty))) ((K ty) ty))]
+      let pre := match mode with
+        | .e => SKM'[S]
+        | .m => SKM'[(M S)]
+      pure SKM'[(((((pre ty) (ty ~> ty)) ty) ((K ty) (ty ~> ty))) ((K ty) ty))]
     else
-      pure SKM'[(((K ty) t) #(.var (if i > j then i.pred else i)))]
-  | c@(t::_), j, e@SKM'[(lhs rhs)] => do
+      let pre := match mode with
+        | .e => SKM'[K]
+        | .m => SKM'[(M K)]
+      pure SKM'[(((pre ty) t) #(.var (if i > j then i.pred else i)))]
+  | mode, c@(t::_), j, e@SKM'[(lhs rhs)] => do
     match e.all_sk with
     | .some e => pure (.skm e)
     | e =>
-      let l ← abstract c j lhs
-      let r ← abstract c j rhs
+      let l ← abstract .e c j lhs
+      let r ← abstract .e c j rhs
 
       let t_lhs ← unwrap_intermediate l >>= (unwrap_check_error ∘ Expr.infer)
       let t_rhs ← unwrap_intermediate r >>= (unwrap_check_error ∘ Expr.infer)
 
-      pure SKM'[(((((S #(.skm t_lhs)) #(.skm t_rhs)) t) l) r)]
-  | c@(t::_), j, e => do
+      let pre := match mode with
+        | .e => SKM'[S]
+        | .m => SKM'[(M S)]
+
+      pure SKM'[(((((pre #(.skm t_lhs)) #(.skm t_rhs)) t) l) r)]
+  | mode, c@(t::_), j, e => do
+    let t_e ← unwrap_intermediate e >>= (unwrap_check_error ∘ Expr.infer)
+
     match e.all_sk with
     | .some e => pure (.skm e)
-    | _       => pure SKM'[(((K #(sorry)) t) e)]
-  | _, _, _ => throwError "context empty"
+    | _       =>
+      let pre := match mode with
+        | .e => SKM'[K]
+        | .m => SKM'[(M K)]
+
+      pure SKM'[(((pre #(.skm t_e)) t) e)]
+  | _, _, _, _ => throwError "context empty"
 
 partial def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM IntermediateExpr := do
-  let unwrap_parse : Except Lean.Expr IntermediateExpr → MetaM IntermediateExpr
-    | .ok e => pure e
-    | e     => throwError s!"unparseable expression: {repr e}"
-
-  let do_trans (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM IntermediateExpr :=
-    do_translate ctx e
-
-  let abstr_app_vars (ctx : List IntermediateExpr) (ty lhs rhs : IntermediateExpr) : MetaM AppInfo := do
-    let ty'    ← do_trans ctx ty
-    let ctx' := (ty' :: ctx)
-    let lhs'   ← (do_trans ctx' lhs)
-    let rhs'   ← (do_trans ctx' rhs)
-    let ty_lhs ← unwrap_check_error $ Expr.infer (← unwrap_intermediate lhs')
-    let ty_rhs ← unwrap_check_error $ Expr.infer (← unwrap_intermediate rhs')
-
-    pure { lhs' := lhs', rhs' := rhs', ty_lhs := (.skm ty_lhs), ty_rhs := (.skm ty_rhs), ty' := ty' }
-
-  let abstr_const (ctx : List IntermediateExpr) (ty c : IntermediateExpr) : MetaM ConstInfo := do
-    let ty' ← (do_trans ctx ty)
-    let ctx' := (ty' :: ctx)
-    let c' ← (do_trans ctx' c)
-    let t_c ← unwrap_check_error $ Expr.infer (← unwrap_intermediate c')
-
-    pure { ty' := ty', c' := c', ty_c := (.skm t_c) }
-
   match e.all_sk with
   | .some e => pure $ .skm e
-  | _ =>
-    match e with
-    | SKM'[λ ty => #(.var 0)] =>
-      let ty' ← (do_translate ctx ty)
+  | _ => go ctx 0 e
+  where go : List IntermediateExpr → ℕ → IntermediateExpr → MetaM IntermediateExpr
+    | ctx, lvl, SKM'[(λ t => body)] => do
+      let t'    ← go ctx lvl.succ t
+      let body' ← go (t'::ctx) lvl.succ body
 
-      pure SKM'[(((((S ty') (ty' ~> ty')) ty') ((K ty') (ty' ~> ty'))) ((K ty') ty'))]
-    | SKM'[λ ty => (lhs rhs)] =>
-      let { lhs', rhs', ty_lhs, ty_rhs, ty' } ← abstr_app_vars ctx ty lhs rhs
+      abstract .e (t'::ctx) 0 body'
+    | ctx, lvl, SKM'[(∀ t, body)] => do
+      let t'    ← go ctx lvl.succ t
+      let body' ← go (t'::ctx) lvl.succ body
 
-      pure SKM'[(((((S ty_lhs) ty_rhs) ty') lhs') rhs')]
-    | SKM'[∀ ty, #(.var 0)] =>
-      let ty' ← do_translate ctx ty
-
-      pure SKM'[((((((M S) ty') (ty' ~> ty')) ty') ((K ty') (ty' ~> ty'))) ((K ty') ty'))]
-    | SKM'[∀ ty, (lhs rhs)] =>
-      let { lhs', rhs', ty_lhs, ty_rhs, ty' } ← abstr_app_vars ctx ty lhs rhs
-
-      pure SKM'[((((((M S) ty_lhs) ty_rhs) ty') lhs') rhs')]
-    | SKM'[λ ty => #(.var n)] =>
-      let ty' ← do_translate ctx ty
-      let ctx' := ty' :: ctx
-      let t_v ← ctx'[n]? |> or_throw s!"missing type #{n} in context"
-
-      pure SKM'[((K t_v) ty')]
-    | SKM'[λ ty => c ] =>
-      let { ty', ty_c, c' } ← abstr_const ctx ty c
-
-      pure SKM'[(((K ty_c) ty') c')]
-    | SKM'[∀ ty, #(.var n)] =>
-      let ty' ← do_translate ctx ty
-      let ctx' := ty' :: ctx
-      let t_v ← ctx'[n]? |> or_throw s!"missing type #{n} in context"
-
-      pure SKM'[(((M K) t_v) ty')]
-    | SKM'[∀ ty, c] =>
-      let { ty', ty_c, c' } ← abstr_const ctx ty c
-
-      pure SKM'[((((M K) ty_c) ty') c')]
-    | SKM'[(lhs rhs)] => do
-      let lhs' ← do_translate ctx lhs
-      let rhs' ← do_translate ctx lhs
+      abstract .m (t'::ctx) 0 body'
+    | ctx, lvl, SKM'[(lhs rhs)] => do
+      let lhs' ← go ctx lvl lhs
+      let rhs' ← go ctx lvl rhs
 
       pure $ SKM'[(lhs' rhs')]
-    | e => throwError s!"unsupported expr: {repr e}"
+    | _, _, e => pure e
 
 elab "translate" e:term : term => do
   let ⟨e, _⟩ ← (Elab.Term.elabTerm e .none).run
