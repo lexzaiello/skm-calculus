@@ -44,11 +44,8 @@ def infer : Ast.Expr → Except (@TypeError Ast.Expr) Ast.Expr
   | SKM[(M #~>)]         => pure SKM[Prp]
   | SKM[Prp]             => pure SKM[Ty 0]
   | SKM[Ty n]            => pure SKM[Ty n.succ]
-  | SKM[((K α) β)]       => pure SKM[(α ~> β ~> α)]
-  | SKM[(((S α) β) γ)]   => do
-    let t' := (eval_once SKM[((α γ) (β γ))]).getD SKM[((α γ) (β γ))]
-
-    pure SKM[(α ~> β ~> γ ~> t')]
+  | SKM[((K α) β)]       => pure SKM[(α ~> (((K (Ty 0)) (M β)) (β ~> (((K (M β)) α) β))))]
+  | SKM[(((S α) β) γ)]   => pure SKM[(α ~> ((((K (Ty 0))) (M β)) (β ~> ((((K (Ty 0)) (M γ)) (γ ~> (((((S (M α)) (M β)) γ) α) β)))))))]
   | SKM[(M e)] => do pure SKM[(M #(← infer e))]
   | SKM[(_t_in ~> _t_out)] => pure SKM[Ty 0]
   | SKM[(lhs rhs)]       => do
@@ -58,7 +55,7 @@ def infer : Ast.Expr → Except (@TypeError Ast.Expr) Ast.Expr
       let found ← infer rhs
 
       if found == t_in then
-        pure t_out
+        pure $ (eval_once SKM[(t_out rhs)]).getD SKM[(t_out rhs)]
       else
         .error $ .argument_mismatch t_in t_lhs lhs rhs
     | e =>
