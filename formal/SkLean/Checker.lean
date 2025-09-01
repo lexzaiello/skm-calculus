@@ -2,12 +2,12 @@ import SkLean.Ast3
 import SkLean.Eval
 
 inductive TypeError where
-  | argument_mismatch (expected actual in_e : Ast.Expr) : TypeError
+  | argument_mismatch (expected actual in_e arg : Ast.Expr) : TypeError
   | no_type_not_comb  (at_e : Ast.Expr)                 : TypeError
 
 instance : ToString TypeError where
   toString
-  | .argument_mismatch expected actual in_e => s!"Argument type mismatch in function application of {in_e}. Expected {expected}, but found {actual}"
+  | .argument_mismatch expected actual in_e arg => s!"Argument type mismatch in function application of {in_e} with {arg}. Expected {expected}, but found {actual}"
   | .no_type_not_comb at_e => s!"type inference failed for {at_e}, but not a combinator"
 
 namespace Expr
@@ -29,15 +29,22 @@ def add_m : Ast.Expr → Ast.Expr
   | SKM[K]    => SKM[(M K)]
   | SKM[S]    => SKM[(M S)]
   | SKM[#~>]  => SKM[(M #~>)]
+  | SKM[Ty n] => SKM[(M Ty n)]
+  | SKM[Prp]  => SKM[(M Prp)]
   | SKM[(lhs rhs)] => SKM[((#(add_m lhs)) rhs)]
 
 def infer : Ast.Expr → Except TypeError Ast.Expr
   | SKM[K]               => pure SKM[(M K)]
   | SKM[S]               => pure SKM[(M S)]
   | SKM[M]               => pure SKM[(M M)]
+  | SKM[Prp]             => pure SKM[Ty 0]
+  | SKM[Ty n]            => pure SKM[Ty n.succ]
   | SKM[#~>]             => pure SKM[(M #~>)]
-  | SKM[((K α) β)]       => pure SKM[(α ~> (β ~> α))]
-  | SKM[(((S α) β) γ)]   => pure SKM[((α ~> (β ~> γ)) ~> ((α ~> β) ~> (α ~> γ)))]
+  | SKM[((K α) β)]       => pure SKM[(α ~> β ~> α)]
+  | SKM[(((S α) β) γ)]   => do
+    let t' := (eval_once SKM[((α γ) (β γ))]).getD SKM[((α γ) (β γ))]
+
+    pure SKM[(α ~> β ~> γ ~> t')]
   | SKM[(M e)] => do pure SKM[(M #(← infer e))]
   | SKM[(_t_in ~> t_out)] => infer t_out
   | SKM[(lhs rhs)]       => do
@@ -49,7 +56,7 @@ def infer : Ast.Expr → Except TypeError Ast.Expr
       if found == t_in then
         pure t_out
       else
-        .error $ .argument_mismatch t_in t_lhs lhs
+        .error $ .argument_mismatch t_in t_lhs lhs rhs
     | e =>
       if is_typed_comb e then
         let with_m := SKM[((#(add_m lhs)) rhs)]

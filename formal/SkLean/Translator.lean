@@ -12,6 +12,7 @@ inductive IntermediateExpr where
   | m    : IntermediateExpr
   | arr  : IntermediateExpr
   | ty   : ℕ → IntermediateExpr
+  | prp  : IntermediateExpr
   | call : IntermediateExpr → IntermediateExpr → IntermediateExpr
   | lam  : IntermediateExpr → IntermediateExpr → IntermediateExpr
   | var  : ℕ → IntermediateExpr
@@ -36,6 +37,9 @@ declare_syntax_cat skmexpr'
 syntax "K"                        : skmexpr'
 syntax "S"                        : skmexpr'
 syntax "M"                        : skmexpr'
+syntax "Prp"                      : skmexpr'
+syntax "Ty" term                  : skmexpr'
+syntax "Typ" num                  : skmexpr'
 syntax "#~>"                      : skmexpr'
 syntax skmexpr' "~>" skmexpr'     : skmexpr'
 syntax "(" skmexpr' skmexpr' ")"  : skmexpr'
@@ -57,6 +61,9 @@ macro_rules
   | `({{ K }})                               => `(IntermediateExpr.k)
   | `({{ S }})                               => `(IntermediateExpr.s)
   | `({{ M }})                               => `(IntermediateExpr.m)
+  | `({{ Ty $n:term }})                      => `(IntermediateExpr.ty $n)
+  | `({{ Typ $n:num }})                      => `(IntermediateExpr.ty $n)
+  | `({{ Prp }})                             => `(IntermediateExpr.prp)
   | `({{ λ $t:skmexpr' => $body:skmexpr' }}) => `(IntermediateExpr.lam {{$t}}  {{$body}})
   | `({{ ∀ $t:skmexpr', $body:skmexpr' }})   => `(IntermediateExpr.forE {{$t}} {{$body}})
   | `({{ #~> }})                             => `(IntermediateExpr.arr)
@@ -75,30 +82,61 @@ def all_human_sk (e : IntermediateExpr) : Bool :=
   | SKM`[M]         => true
   | SKM`[(lhs rhs)] => all_human_sk lhs ∧ all_human_sk rhs
   | SKM`[#~>]       => true
+  | SKM`[Prp]       => true
+  | SKM`[Ty _]      => true
   | _               => false
 
-def all_sk (e : IntermediateExpr) : Option Ast.Expr :=
+def all_sk (e : IntermediateExpr) : Except IntermediateExpr Ast.Expr :=
   match e with
   | .skm e          => pure e
   | SKM`[S]         => pure SKM[S]
   | SKM`[K]         => pure SKM[K]
   | SKM`[M]         => pure SKM[M]
+  | SKM`[Prp]       => pure SKM[Prp]
+  | SKM`[Ty n]      => pure SKM[Ty n]
   | SKM`[(lhs rhs)] => do
     let lhs' ← lhs.all_sk
     let rhs' ← rhs.all_sk
 
     pure SKM[(lhs' rhs')]
-  | SKM`[#~>] => SKM[#~>]
+  | SKM`[#~>] => pure SKM[#~>]
   | .intr e => e.all_sk
-  | _ => .none
+  | e => .error e
 
 def from_expr : Lean.Expr → Except Lean.Expr IntermediateExpr
-  | (.app (.const `Ast.ExprBox []) e) => from_expr e
+  | .const `IntermediateExpr.k []     => pure .k
+  | .const `IntermediateExpr.s []     => pure .s
+  | .const `IntermediateExpr.m []     => pure .m
+  | .const `IntermediateExpr.arr []   => pure .arr
+  | .app
+    (.const `IntermediateExpr.ty [])
+    (.lit (.natVal n)) => pure $ .ty n
+  | .const `IntermediateExpr.prp []   => pure .prp
+  | (.app (.app (.const `IntermediateExpr.call []) lhs) rhs) => do
+    let lhs' ← from_expr lhs
+    let rhs' ← from_expr rhs
+
+    pure SKM`[(lhs' rhs')]
+  | (.app (.app (.const `IntermediateExpr.lam []) t) body) => do
+    let t ← from_expr t
+    let body ← from_expr body
+
+    pure SKM`[(λ t => body)]
+  | (.app (.app (.const `IntermediateExpr.forE []) t) body) => do
+    let t ← from_expr t
+    let body ← from_expr body
+
+    pure SKM`[(∀ t, body)]
   | .bvar n           => pure $ .var n
   | .const `Ast.Expr.k [] => pure SKM`[K]
   | .const `Ast.Expr.s [] => pure SKM`[S]
   | .const `Ast.Expr.m [] => pure SKM`[M]
-  | (.app (.const `Ast.Expr.ty []) (.lit (.natVal n))) => pure $ .ty n
+  | (.app (.const `Ast.Expr.ty []) (.lit (.natVal n))) => pure SKM`[Ty n]
+  | (.app (.const `Ast.Expr.ty []) (.app (.app (.app (.const `OfNat.ofNat []) _ty) (.lit (.natVal n))) _inst)) =>
+    pure SKM`[Ty n]
+  | (.const `Ast.Expr.prp []) => pure SKM`[Prp]
+  | .sort .zero => pure SKM`[Prp]
+  | .sort n     => pure SKM`[Ty n.depth.pred]
   | (.app (.app (.const `Ast.Expr.call []) lhs) rhs) => do
     let lhs' ← from_expr lhs
     let rhs' ← from_expr rhs
@@ -149,8 +187,8 @@ def unwrap_check_error : Except TypeError Ast.Expr → MetaM Ast.Expr
 
 def unwrap_intermediate (e : IntermediateExpr) : MetaM Ast.Expr :=
     match e.all_sk with
-    | .some e => pure e
-    | _       => throwError s!"expected SKM expression, found {repr e}"
+    | .ok e     => pure e
+    | .error e  => throwError s!"expected SKM expression, found {repr e}"
 
 inductive AbstractMode where
   | m : AbstractMode
@@ -170,7 +208,7 @@ def abstract : AbstractMode → List IntermediateExpr → ℕ → IntermediateEx
       let pre := match mode with
         | .e => SKM`[!S]
         | .m => SKM`[!(M S)]
-      pure SKM`[!(((((pre ty) (ty ~> ty)) ty) ((K ty) (ty ~> ty))) ((K ty) ty))]
+      pure SKM`[!(((((pre (ty ~> ((ty ~> ty) ~> ty))) (ty ~> ty ~> ty)) ty) ((K ty) (ty ~> ty))) ((K ty) ty))]
     else
       let pre := match mode with
         | .e => SKM`[K]
@@ -207,9 +245,10 @@ def abstract : AbstractMode → List IntermediateExpr → ℕ → IntermediateEx
 
 def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM IntermediateExpr := do
   match e.all_sk with
-  | .some e => pure $ .skm e
+  | .ok e => pure $ .skm e
   | _ => go ctx 0 e
   where go : List IntermediateExpr → ℕ → IntermediateExpr → MetaM IntermediateExpr
+    -- Dependent identity
     | ctx, lvl, SKM`[(λ t => body)]
     | ctx, lvl, SKM`[!(λ t => body)] => do
       let t'    ← go ctx lvl.succ t
@@ -231,13 +270,11 @@ def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM In
     | _, _, e => pure e
 
 elab "translate" e:term : term => do
-  let ⟨e, _⟩ ← (Elab.Term.elabTerm e .none).run
+  let e ← Elab.Term.elabTerm e .none
   match IntermediateExpr.from_expr e with
   | .ok e => match (← IntermediateExpr.all_sk <$> do_translate [] e) with
-    | .some e => pure $ toExpr e
-    | .none   => throwError "couldn't convert back to Lean"
+    | .ok e      => pure $ toExpr e
+    | .error e   => throwError "couldn't convert back to Lean: {repr e}"
   | .error e => throwError s!"parsing failed: {repr e}"
 
-
-example : (Expr.infer $ (translate (λ (x : SKM'[(M K)]) (y : SKM'[(M S)]) => x))) = .ok SKM[((M K) ~> ((M S) ~> (M K)))] := rfl
-
+#eval do_translate [] SKM`[λ Typ 0 => (((((S (#(.var 0) ~> ((#(.var 0) ~> #(.var 0)) ~> #(.var 0)))) (#(.var 0) ~> (#(.var 0) ~> #(.var 0)))) #(.var 0)) ((K #(.var 0)) (#(.var 0) ~> #(.var 0)))) ((K #(.var 0)) #(.var 0)))]
