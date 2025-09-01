@@ -7,6 +7,15 @@ inductive IsComb : Ast.Expr → Prop
   | m   : IsComb SKM[M]
   | arr : IsComb SKM[#~>]
 
+namespace IsComb
+
+@[simp]
+lemma no_step (h : IsComb e) : ¬ ∃ e', Expr.eval_once e = .some e' := by
+  cases h
+  repeat (intro ⟨e', h⟩; cases h)
+
+end IsComb
+
 inductive HasType : Ast.Expr → Ast.Expr → Prop
   | comb : IsComb e
     → HasType e SKM[(M e)]
@@ -33,10 +42,18 @@ inductive HasType : Ast.Expr → Ast.Expr → Prop
   | call : HasType lhs SKM[t_in ~> t_out]
     → HasType rhs t_in
     → HasType SKM[(lhs rhs)] t_out
+  | beq  : HasType e t
+    → BetaEq t t'
+    → HasType e t'
 
 namespace HasType
 
-theorem preservation (h : HasType e t) (h : Expr.eval_once e = .some e') : HasType e' t := by
-  sorry
+lemma valid_call (h_eval : Expr.eval_once SKM[(lhs rhs)] = .some e') (h_t : HasType SKM[(lhs rhs)] t) : ∃ t_rhs, HasType lhs SKM[(t_rhs ~> t)] ∧ HasType rhs t_rhs := by
+  
+
+theorem preservation (h_t : HasType e t) (h_eval : Expr.eval_once e = .some e') : HasType e' t := by
+  induction e
+  repeat contradiction
+  
 
 end HasType
