@@ -122,7 +122,7 @@ lemma all_canonical_norm (h_t : HasType e t) : IsValue t := by
   exact IsValue.single (IsSingle.prp)
   repeat exact IsValue.single (IsSingle.ty)
   case call lhs t_in t_out rhs n t' h_t_lhs h_t_rhs h_val₁ h_val₂ h_val₃ =>
-    sorry
+    exact h_val₁.final_is_val
 
 lemma conv (h_t : HasType e t) (h_beq : BetaEq t t') : HasType e t' := by
   induction h_beq
