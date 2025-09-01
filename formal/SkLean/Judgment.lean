@@ -7,6 +7,11 @@ inductive IsComb : Ast.Expr → Prop
   | m   : IsComb SKM[M]
   | arr : IsComb SKM[#~>]
 
+inductive IsSingle : Ast.Expr → Prop
+  | comb : IsComb e → IsSingle e
+  | prp : IsSingle SKM[Prp]
+  | ty  : IsSingle SKM[Ty n]
+
 namespace IsComb
 
 @[simp]
@@ -16,44 +21,149 @@ lemma no_step (h : IsComb e) : ¬ ∃ e', Expr.eval_once e = .some e' := by
 
 end IsComb
 
+inductive IsValue : Ast.Expr → Prop
+  | single : IsSingle e → IsValue e
+  | k₁     : IsValue SKM[(K α)]
+  | k₂     : IsValue SKM[((K α) β)]
+  | k₃     : IsValue SKM[(((K α) β) x)]
+  | s₁     : IsValue SKM[(S α)]
+  | s₂     : IsValue SKM[((S α) β)]
+  | s₃     : IsValue SKM[(((S α) β) γ)]
+  | s₄     : IsValue SKM[((((S α) β) γ) x)]
+  | s₅     : IsValue SKM[(((((S α) β) γ) x) y)]
+  | arr₁   : IsValue SKM[(#~> _α)]
+  | arr    : IsValue SKM[(t_in ~> t_out)]
+  | arr₂   : IsValue SKM[(α ~> β)]
+  | m_k₁   : IsValue SKM[((M K) α)]
+  | m_s₁   : IsValue SKM[((M S) α)]
+  | m_s₂   : IsValue SKM[(((M S) α) β)]
+  | m_comb : IsComb e
+    → IsValue SKM[(M e)]
+
+
+inductive IsValueN : ℕ → Expr → Expr → Prop
+  | val  : IsValue e → IsValueN 0 e e
+  | succ : IsEvalOnce e e'
+    → IsValueN n e' e_final
+    → IsValueN n.succ e e_final
+
 inductive HasType : Ast.Expr → Ast.Expr → Prop
-  | comb : IsComb e
+  | comb  : IsComb e
     → HasType e SKM[(M e)]
-  | k₁   : HasType α t_α
+  | k₁    : HasType α t_α
     → HasType SKM[(K α)] SKM[((M K) α)]
-  | k    : HasType α t_α
+  | k     : HasType α t_α
     → HasType β t_β
-    → HasType SKM[((K α) β)] SKM[(α ~> β ~> α)]
-  | s₁   : HasType α t_α
+    → HasType SKM[((K α) β)] SKM[(α ~> (((K (Ty 0)) α) (β ~> (((K (M α)) β) α))))]
+  | s₁    : HasType α t_α
     → HasType SKM[(S α)] SKM[((M S) α)]
-  | s₂   : HasType α t_α
+  | s₂    : HasType α t_α
     → HasType β t_β
     → HasType SKM[((S α) β)] SKM[(((M S) α) β)]
-  | s    : HasType α t_α
+  | s     : HasType α t_α
     → HasType β t_β
     → HasType γ t_γ
-    → HasType SKM[(((S α) β) γ)] SKM[(α ~> β ~> γ ~> ((α γ) (β γ)))]
-  | m_m  : IsComb e
+    → HasType SKM[(((S α) β) γ)] SKM[(α ~> ((((K (Ty 0))) α) (β ~> ((((K (Ty 0)) β) (γ ~> (((((S (M α)) (M β)) γ) α) β)))))))]
+  | m_m   : IsComb e
     → HasType SKM[(M e)] SKM[Prp]
-  | prp  : HasType SKM[Prp] SKM[Ty 0]
-  | ty   : HasType SKM[Ty n] SKM[Ty n.succ]
-  | arr  : HasType SKM[t_in ~> t_out] SKM[Ty 0]
-  -- Non-dependent
-  | call : HasType lhs SKM[t_in ~> t_out]
+  | prp   : HasType SKM[Prp] SKM[Ty 0]
+  | ty    : HasType SKM[Ty n] SKM[Ty n.succ]
+  | arr   : HasType SKM[t_in ~> t_out] SKM[Ty 0]
+  -- Polymorphic
+  | call  : HasType lhs SKM[t_in ~> t_out]
     → HasType rhs t_in
-    → HasType SKM[(lhs rhs)] t_out
-  | beq  : HasType e t
-    → BetaEq t t'
-    → HasType e t'
+    → IsValueN n SKM[((t_in ~> t_out) rhs)] t'
+    → HasType SKM[(lhs rhs)] t'
+
+namespace IsValue
+
+lemma no_step (h : IsValue e) : ¬ ∃ e', IsEvalOnce e e' := by
+  intro ⟨e', h_step⟩
+  cases h
+  repeat cases h_step
+  repeat contradiction
+
+end IsValue
+
+namespace IsValueN
+
+lemma final_is_val (h : IsValueN n e e_final) : IsValue e_final := by
+  induction n generalizing e
+  cases h
+  assumption
+  case succ n ih =>
+    cases h
+    case succ e' h_step h_val =>
+      exact ih h_val
+
+lemma trans (h₁ : IsValueN n₁ e₁ e₂) (h₂ : IsValueN n₂ e₂ e₃) : IsValueN n₁ e₁ e₂ := by
+  induction h₁
+  cases h₂
+  exact IsValueN.val (by assumption)
+  have h := IsValue.no_step (by assumption)
+  simp_all
+  case succ ih =>
+    apply IsValueN.succ
+    assumption
+    exact ih h₂
+
+end IsValueN
 
 namespace HasType
 
-lemma valid_call (h_eval : Expr.eval_once SKM[(lhs rhs)] = .some e') (h_t : HasType SKM[(lhs rhs)] t) : ∃ t_rhs, HasType lhs SKM[(t_rhs ~> t)] ∧ HasType rhs t_rhs := by
-  
+lemma all_canonical_norm (h_t : HasType e t) : IsValue t := by
+  induction h_t
+  exact IsValue.m_comb (by assumption)
+  apply IsValue.m_k₁
+  apply IsValue.arr
+  apply IsValue.m_s₁
+  apply IsValue.m_s₂
+  apply IsValue.arr
+  exact IsValue.single (IsSingle.prp)
+  repeat exact IsValue.single (IsSingle.ty)
+  case call lhs t_in t_out rhs n t' h_t_lhs h_t_rhs h_val₁ h_val₂ h_val₃ =>
+    sorry
 
-theorem preservation (h_t : HasType e t) (h_eval : Expr.eval_once e = .some e') : HasType e' t := by
-  induction e
-  repeat contradiction
-  
+lemma conv (h_t : HasType e t) (h_beq : BetaEq t t') : HasType e t' := by
+  induction h_beq
+  assumption
+  case tail t₁ t₂ h_beq₁ h_step h_t₂ =>
+    
+    sorry
+
+lemma preservation_k (h_t : HasType SKM[((((K α) β) x) y)] t) : HasType x t := by
+  cases h_t
+  contradiction
+  case call h _ _ =>
+    cases h
+    case call h _ _  =>
+      cases h
+      case k h =>
+        cases h
+        case succ h _ =>
+          cases h
+          case arr h =>
+            cases h
+            case succ h _ =>
+              cases h
+              case k h =>
+                cases h
+                case val h =>
+                  cases h
+                  contradiction
+                  case succ h _ =>
+                    cases h
+                    case arr h =>
+                      cases h
+                      contradiction
+                      case succ h _ =>
+                        cases h
+                        case k h =>
+                          cases h
+                          assumption
+                          
+
+theorem preservation (h_t : HasType e t) (h_eval : IsEvalOnce e e') : HasType e' t := by
+  sorry
 
 end HasType

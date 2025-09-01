@@ -44,4 +44,18 @@ inductive IsEvalOnce : Ast.Expr → Ast.Expr → Prop
   | left   : IsEvalOnce lhs lhs'
     → IsEvalOnce SKM[(lhs rhs)] SKM[(lhs' rhs)]
 
-def BetaEq := Relation.ReflTransGen (λ x y => IsEvalOnce x y ∨ IsEvalOnce y x)
+abbrev BetaEq := Relation.ReflTransGen (λ x y => IsEvalOnce x y ∨ IsEvalOnce y x)
+
+namespace BetaEq
+
+lemma step : IsEvalOnce e e' → BetaEq e e' := (Relation.ReflTransGen.tail Relation.ReflTransGen.refl) ∘ Or.inl
+
+lemma trans (h_beq₁ : BetaEq a₁ a₂) (h_beq₂ : BetaEq a₂ a₃) : BetaEq a₁ a₃ := Relation.ReflTransGen.trans h_beq₁ h_beq₂
+
+lemma symm (h : BetaEq a₁ a₂) : BetaEq a₂ a₁ := by
+  apply Relation.ReflTransGen.symmetric
+  intro x y h
+  cases h
+  repeat simp_all
+
+end BetaEq

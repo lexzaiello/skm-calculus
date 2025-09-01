@@ -224,7 +224,7 @@ def abstract : AbstractMode → List IntermediateExpr → ℕ → IntermediateEx
       let pre := match mode with
         | .e => SKM`[!S]
         | .m => SKM`[!(M S)]
-      pure SKM`[!(((((pre (ty ~> ((ty ~> ty) ~> ty))) (ty ~> ty ~> ty)) ty) ((K ty) (ty ~> ty))) ((K ty) ty))]
+      pure SKM`[!(((((pre (ty ~> ((((K Ty 0) ty) (ty ~> ty)) ~> ty))) (ty ~> ty ~> ty)) ty) ((K ty) (ty ~> ty))) ((K ty) ty))]
     else
       let pre := match mode with
         | .e => SKM`[K]

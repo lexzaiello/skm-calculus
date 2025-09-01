@@ -50,12 +50,12 @@ def infer : Ast.Expr → Except (@TypeError Ast.Expr) Ast.Expr
   | SKM[(_t_in ~> _t_out)] => pure SKM[Ty 0]
   | SKM[(lhs rhs)]       => do
     let t_lhs ← infer lhs
-    match t_lhs with
-    | SKM[(t_in ~> t_out)] =>
+    match (eval_once t_lhs).getD t_lhs with
+    | SKM[(t_in ~> _t_out)] =>
       let found ← infer rhs
 
       if found == t_in then
-        pure $ (eval_once SKM[(t_out rhs)]).getD SKM[(t_out rhs)]
+        pure $ (eval_once SKM[(t_lhs rhs)]).getD SKM[(t_lhs rhs)]
       else
         .error $ .argument_mismatch t_in t_lhs lhs rhs
     | e =>
@@ -75,5 +75,6 @@ lemma valid_rhs (_h_t : infer SKM[(lhs rhs)] = .ok t) : ∃ t_rhs, infer rhs = t
 
 end Expr
 
-example : Expr.infer SKM[((((K (M K)) (M K)) K) K)] = .ok SKM[(M K)] := rfl
+#eval Expr.infer SKM[((((K (M K)) (M K)) K) K)]
 
+example : Expr.infer SKM[((((K (M K)) (M K)) K) K)] = .ok SKM[(M K)] := rfl
