@@ -21,6 +21,9 @@ inductive IntermediateExpr where
   | intr : IntermediateExpr → IntermediateExpr
 deriving BEq, Repr, Lean.ToExpr
 
+instance : ToString IntermediateExpr where
+  toString e := s!"{repr e}"
+
 structure AppInfo where
   lhs'   : IntermediateExpr
   rhs'   : IntermediateExpr
@@ -103,6 +106,26 @@ def all_sk (e : IntermediateExpr) : Except IntermediateExpr Ast.Expr :=
   | .intr e => e.all_sk
   | e => .error e
 
+def infer' : List IntermediateExpr → IntermediateExpr → Except (@TypeError IntermediateExpr) IntermediateExpr
+  | ctx, e@(.var n)
+  | ctx, (.intr e@(.var n)) => match ctx[n]? with
+    | .some e => pure e
+    | .none => .error (.no_type_not_comb e)
+  | ctx, e =>
+    match e.all_sk with
+    | .ok e => match Expr.infer e with
+      | .ok e => .ok (.skm e)
+      | .error (.argument_mismatch a b c d) => .error $ .argument_mismatch (.skm a) (.skm b) (.skm c) (.skm d)
+      | .error (.no_type_not_comb e) => .error $ .no_type_not_comb (.skm e)
+    | _ =>
+      match e with
+      | SKM`[(lhs rhs)]
+      | SKM`[!(lhs rhs)] => do
+        let t_lhs ← infer' ctx lhs
+
+        pure SKM`[(t_lhs rhs)]
+      | e => .error (.no_type_not_comb e)
+
 def from_expr : Lean.Expr → Except Lean.Expr IntermediateExpr
   | .const `IntermediateExpr.k []     => pure .k
   | .const `IntermediateExpr.s []     => pure .s
@@ -181,7 +204,7 @@ def or_throw {α : Type} (msg : String) (x : Option α) : MetaM α :=
       | .some e => pure e
       | _ => throwError msg
 
-def unwrap_check_error : Except TypeError Ast.Expr → MetaM Ast.Expr
+def unwrap_check_error {α : Type} [ToString α] : Except (@TypeError α) α → MetaM α
     | .ok e => pure e
     | e     => throwError s!"typechecker error: {e}"
 
@@ -195,12 +218,6 @@ inductive AbstractMode where
   | e : AbstractMode
 
 def abstract : AbstractMode → List IntermediateExpr → ℕ → IntermediateExpr → MetaM IntermediateExpr
-  | mode, ctx@(t::_), j, e@SKM`[(lhs #(.var i))]
-  | mode, ctx@(t::_), j, e@SKM`[!(lhs #(.var i))] =>
-    if i == j && ¬ (lhs.free_in j) then
-      pure $ lhs.shift_down_from j
-    else do
-      pure e
   | mode, ctx@(t::_), j, (.var i) => do
     let ty ← ctx[i]? |> or_throw s!"missing type #{i} in context"
 
@@ -222,14 +239,14 @@ def abstract : AbstractMode → List IntermediateExpr → ℕ → IntermediateEx
       let l ← abstract .e c j lhs
       let r ← abstract .e c j rhs
 
-      let t_lhs ← unwrap_intermediate l >>= (unwrap_check_error ∘ Expr.infer)
-      let t_rhs ← unwrap_intermediate r >>= (unwrap_check_error ∘ Expr.infer)
+      let t_lhs ← unwrap_check_error (l.infer' c)
+      let t_rhs ← unwrap_check_error (r.infer' c)
 
       let pre := match mode with
         | .e => SKM`[!S]
         | .m => SKM`[!(M S)]
 
-      pure SKM`[!(((((pre #(.skm t_lhs)) #(.skm t_rhs)) t) l) r)]
+      pure SKM`[!(((((pre t_lhs) t_rhs) t) l) r)]
   | mode, c@(t::_), j, e => do
     let t_e ← unwrap_intermediate e >>= (unwrap_check_error ∘ Expr.infer)
 
@@ -248,7 +265,6 @@ def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM In
   | .ok e => pure $ .skm e
   | _ => go ctx 0 e
   where go : List IntermediateExpr → ℕ → IntermediateExpr → MetaM IntermediateExpr
-    -- Dependent identity
     | ctx, lvl, SKM`[(λ t => body)]
     | ctx, lvl, SKM`[!(λ t => body)] => do
       let t'    ← go ctx lvl.succ t
@@ -269,6 +285,10 @@ def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM In
       pure $ SKM`[(lhs' rhs')]
     | _, _, e => pure e
 
+def compile (e : IntermediateExpr) : MetaM Ast.Expr := do match (← IntermediateExpr.all_sk <$> do_translate [] e) with
+  | .ok e => pure e
+  | .error e => throwError "err: {e}"
+
 elab "translate" e:term : term => do
   let e ← Elab.Term.elabTerm e .none
   match IntermediateExpr.from_expr e with
@@ -277,4 +297,4 @@ elab "translate" e:term : term => do
     | .error e   => throwError "couldn't convert back to Lean: {repr e}"
   | .error e => throwError s!"parsing failed: {repr e}"
 
-#eval do_translate [] SKM`[λ Typ 0 => (((((S (#(.var 0) ~> ((#(.var 0) ~> #(.var 0)) ~> #(.var 0)))) (#(.var 0) ~> (#(.var 0) ~> #(.var 0)))) #(.var 0)) ((K #(.var 0)) (#(.var 0) ~> #(.var 0)))) ((K #(.var 0)) #(.var 0)))]
+#eval compile SKM`[(((λ Typ 2 => (((((S (#(.var 0) ~> ((#(.var 0) ~> #(.var 0)) ~> #(.var 0)))) (#(.var 0) ~> (#(.var 0) ~> #(.var 0)))) #(.var 0)) ((K #(.var 0)) (#(.var 0) ~> #(.var 0)))) ((K #(.var 0)) #(.var 0)))) (Typ 1)) (Typ 0))]

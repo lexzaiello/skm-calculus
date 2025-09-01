@@ -1,11 +1,11 @@
 import SkLean.Ast3
 import SkLean.Eval
 
-inductive TypeError where
-  | argument_mismatch (expected actual in_e arg : Ast.Expr) : TypeError
-  | no_type_not_comb  (at_e : Ast.Expr)                 : TypeError
+inductive TypeError {α : Type} where
+  | argument_mismatch (expected actual in_e arg : α) : TypeError
+  | no_type_not_comb  (at_e : α)                 : TypeError
 
-instance : ToString TypeError where
+instance (α : Type) [ToString α] : ToString (@TypeError α) where
   toString
   | .argument_mismatch expected actual in_e arg => s!"Argument type mismatch in function application of {in_e} with {arg}. Expected {expected}, but found {actual}"
   | .no_type_not_comb at_e => s!"type inference failed for {at_e}, but not a combinator"
@@ -33,20 +33,24 @@ def add_m : Ast.Expr → Ast.Expr
   | SKM[Prp]  => SKM[(M Prp)]
   | SKM[(lhs rhs)] => SKM[((#(add_m lhs)) rhs)]
 
-def infer : Ast.Expr → Except TypeError Ast.Expr
+def infer : Ast.Expr → Except (@TypeError Ast.Expr) Ast.Expr
   | SKM[K]               => pure SKM[(M K)]
   | SKM[S]               => pure SKM[(M S)]
   | SKM[M]               => pure SKM[(M M)]
+  | SKM[#~>]             => pure SKM[(M #~>)]
+  | SKM[(M K)]           => pure SKM[Prp]
+  | SKM[(M S)]           => pure SKM[Prp]
+  | SKM[(M M)]           => pure SKM[Prp]
+  | SKM[(M #~>)]         => pure SKM[Prp]
   | SKM[Prp]             => pure SKM[Ty 0]
   | SKM[Ty n]            => pure SKM[Ty n.succ]
-  | SKM[#~>]             => pure SKM[(M #~>)]
   | SKM[((K α) β)]       => pure SKM[(α ~> β ~> α)]
   | SKM[(((S α) β) γ)]   => do
     let t' := (eval_once SKM[((α γ) (β γ))]).getD SKM[((α γ) (β γ))]
 
     pure SKM[(α ~> β ~> γ ~> t')]
   | SKM[(M e)] => do pure SKM[(M #(← infer e))]
-  | SKM[(_t_in ~> t_out)] => infer t_out
+  | SKM[(_t_in ~> _t_out)] => pure SKM[Ty 0]
   | SKM[(lhs rhs)]       => do
     let t_lhs ← infer lhs
     match t_lhs with
