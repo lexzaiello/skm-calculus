@@ -114,22 +114,15 @@ namespace HasType
 lemma all_canonical_norm (h_t : HasType e t) : IsValue t := by
   induction h_t
   exact IsValue.m_comb (by assumption)
-  apply IsValue.m_k₁
-  apply IsValue.arr
-  apply IsValue.m_s₁
-  apply IsValue.m_s₂
-  apply IsValue.arr
+  exact IsValue.m_k₁
+  exact IsValue.arr
+  exact IsValue.m_s₁
+  exact IsValue.m_s₂
+  exact IsValue.arr
   exact IsValue.single (IsSingle.prp)
   repeat exact IsValue.single (IsSingle.ty)
   case call lhs t_in t_out rhs n t' h_t_lhs h_t_rhs h_val₁ h_val₂ h_val₃ =>
     exact h_val₁.final_is_val
-
-lemma conv (h_t : HasType e t) (h_beq : BetaEq t t') : HasType e t' := by
-  induction h_beq
-  assumption
-  case tail t₁ t₂ h_beq₁ h_step h_t₂ =>
-    
-    sorry
 
 lemma preservation_k (h_t : HasType SKM[((((K α) β) x) y)] t) : HasType x t := by
   cases h_t
@@ -161,7 +154,15 @@ lemma preservation_k (h_t : HasType SKM[((((K α) β) x) y)] t) : HasType x t :=
                         case k h =>
                           cases h
                           assumption
-                          
+                          case succ h_t_α _ _ _ _ _ _ =>
+                            have h := h_t_α.all_canonical_norm.no_step
+                            simp_all
+                        contradiction
+                    contradiction
+                contradiction
+              contradiction
+          contradiction
+      contradiction
 
 theorem preservation (h_t : HasType e t) (h_eval : IsEvalOnce e e') : HasType e' t := by
   sorry
