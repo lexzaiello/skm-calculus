@@ -199,14 +199,13 @@ def free_in : ℕ → IntermediateExpr → Bool
 
 end IntermediateExpr
 
-def or_throw {α : Type} (msg : String) (x : Option α) : MetaM α :=
-    match x with
-      | .some e => pure e
-      | _ => throwError msg
+def or_throw {α : Type} (msg : String) : Option α → MetaM α
+  | .some e => pure e
+  | _ => throwError msg
 
 def unwrap_check_error {α : Type} [ToString α] : Except (@TypeError α) α → MetaM α
-    | .ok e => pure e
-    | e     => throwError s!"typechecker error: {e}"
+  | .ok e => pure e
+  | e     => throwError s!"typechecker error: {e}"
 
 def unwrap_intermediate (e : IntermediateExpr) : MetaM Ast.Expr :=
     match e.all_sk with
@@ -297,4 +296,4 @@ elab "translate" e:term : term => do
     | .error e   => throwError "couldn't convert back to Lean: {repr e}"
   | .error e => throwError s!"parsing failed: {repr e}"
 
-#eval compile SKM`[(((λ Typ 2 => (((((S (#(.var 0) ~> ((#(.var 0) ~> #(.var 0)) ~> #(.var 0)))) (#(.var 0) ~> (#(.var 0) ~> #(.var 0)))) #(.var 0)) ((K #(.var 0)) (#(.var 0) ~> #(.var 0)))) ((K #(.var 0)) #(.var 0)))) (Typ 1)) (Typ 0))]
+#eval translate λ (x : Type) (y : x) => y

@@ -5,8 +5,8 @@ namespace Expr
 def eval_once : Ast.Expr → Option Ast.Expr
   | SKM[((((K _α) _β) x) _y)] => pure x
   | SKM[((((((S _α) _β) _γ) x) y) z)] => pure SKM[((x z) (y z))]
-  | SKM[(((M K) α) β)]     => pure SKM[(α ~> (((K (Ty 0)) (M β)) (β ~> (((K (M β)) α) β))))]
-  | SKM[((((M S) α) β) γ)] => pure SKM[(α ~> ((((K (Ty 0))) (M β)) (β ~> ((((K (Ty 0)) (M γ)) (γ ~> (((((S (M α)) (M β)) γ) α) β)))))))]
+  | SKM[(((M K) α) β)]     => pure SKM[(α ~> (((K (Ty 0)) α) (β ~> (((K (M β)) α) β))))]
+  | SKM[((((M S) α) β) γ)] => pure SKM[(α ~> ((((K (Ty 0))) α) (β ~> ((((K (Ty 0)) β) (γ ~> (((((S (M α)) (M β)) γ) α) β)))))))]
   | SKM[((M M) K)] => pure SKM[Prp]
   | SKM[((M M) S)] => pure SKM[Prp]
   | SKM[((M M) M)] => pure SKM[Prp]
@@ -30,8 +30,8 @@ end Expr
 inductive IsEvalOnce : Ast.Expr → Ast.Expr → Prop
   | k      : IsEvalOnce SKM[((((K _α) _β) x) y)]          x
   | s      : IsEvalOnce SKM[((((((S _α) _β) _γ) x) y) z)] SKM[((x z) (y z))]
-  | m_k    : IsEvalOnce SKM[(((M K) α) β)]                SKM[(α ~> β ~> (((K (M β)) α) β))]
-  | m_s    : IsEvalOnce SKM[((((M S) α) β) γ)]            SKM[(α ~> β ~> γ ~> (((((S (M α)) (M β)) γ) α) β))]
+  | m_k    : IsEvalOnce SKM[(((M K) α) β)]                SKM[(α ~> (((K (Ty 0)) α) (β ~> (((K (M β)) α) β))))]
+  | m_s    : IsEvalOnce SKM[((((M S) α) β) γ)]            SKM[(α ~> ((((K (Ty 0))) α) (β ~> ((((K (Ty 0)) β) (γ ~> (((((S (M α)) (M β)) γ) α) β)))))))]
   | m_m_k  : IsEvalOnce SKM[((M M) K)] SKM[Prp]
   | m_m_s  : IsEvalOnce SKM[((M M) S)] SKM[Prp]
   | m_m_m  : IsEvalOnce SKM[((M M) M)] SKM[Prp]
@@ -44,4 +44,4 @@ inductive IsEvalOnce : Ast.Expr → Ast.Expr → Prop
   | left   : IsEvalOnce lhs lhs'
     → IsEvalOnce SKM[(lhs rhs)] SKM[(lhs' rhs)]
 
-def BetaEq := Relation.ReflTransGen (λ x y => Expr.eval_once x = .some y ∨ Expr.eval_once y = .some x)
+def BetaEq := Relation.ReflTransGen (λ x y => IsEvalOnce x y ∨ IsEvalOnce y x)

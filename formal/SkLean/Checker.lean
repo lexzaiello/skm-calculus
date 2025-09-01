@@ -44,8 +44,8 @@ def infer : Ast.Expr → Except (@TypeError Ast.Expr) Ast.Expr
   | SKM[(M #~>)]         => pure SKM[Prp]
   | SKM[Prp]             => pure SKM[Ty 0]
   | SKM[Ty n]            => pure SKM[Ty n.succ]
-  | SKM[((K α) β)]       => pure SKM[(α ~> (((K (Ty 0)) (M β)) (β ~> (((K (M β)) α) β))))]
-  | SKM[(((S α) β) γ)]   => pure SKM[(α ~> ((((K (Ty 0))) (M β)) (β ~> ((((K (Ty 0)) (M γ)) (γ ~> (((((S (M α)) (M β)) γ) α) β)))))))]
+  | SKM[((K α) β)]       => pure SKM[(α ~> (((K (Ty 0)) α) (β ~> (((K (M β)) α) β))))]
+  | SKM[(((S α) β) γ)]   => pure SKM[(α ~> ((((K (Ty 0))) α) (β ~> ((((K (Ty 0)) β) (γ ~> (((((S (M α)) (M β)) γ) α) β)))))))]
   | SKM[(M e)] => do pure SKM[(M #(← infer e))]
   | SKM[(_t_in ~> _t_out)] => pure SKM[Ty 0]
   | SKM[(lhs rhs)]       => do
