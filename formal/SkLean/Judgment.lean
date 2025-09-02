@@ -82,6 +82,8 @@ lemma no_step (h : IsValue e) : ¬ ∃ e', IsEvalOnce e e' := by
   cases h
   repeat cases h_step
   repeat contradiction
+  cases h_step
+  repeat contradiction
 
 end IsValue
 
@@ -125,14 +127,46 @@ lemma all_canonical_norm (h_t : HasType e t) : IsValue t := by
     exact h_val₁.final_is_val
 
 lemma preservation_k (h_t : HasType SKM[((((K α) β) x) y)] t) : HasType x t := by
-  match h_t with
-  | .call (.call (.k _ _) _ (.succ .arr (.succ .k (.val _)))) _ _ =>
-    assumption
-  | .call (.call (.k h_t_α _) _ (.succ .arr (.succ .k (.succ _ _)))) _ _ =>
-    have h := h_t_α.all_canonical_norm.no_step
-    simp_all
-  | _ =>
-    contradiction
+  cases h_t
+  contradiction
+  case call h _ _  =>
+    cases h
+    case call h _ _  =>
+      cases h
+      case k h =>
+        cases h
+        case succ h _ =>
+          cases h
+          case arr h =>
+            cases h
+            case succ h _ =>
+              cases h
+              case k h =>
+                cases h
+                case val h =>
+                  cases h
+                  contradiction
+                  case succ h _ =>
+                    cases h
+                    case arr h =>
+                      cases h
+                      case val h =>
+                        cases h
+                        contradiction
+                      case succ h _ =>
+                        cases h
+                        case k h =>
+                          cases h
+                          assumption
+                          case succ h _ _ _ _ h_step _ =>
+                            have h := h.all_canonical_norm.no_step
+                            simp_all
+                        contradiction
+                    contradiction
+                contradiction
+              contradiction
+          contradiction
+      contradiction
 
 theorem preservation (h_t : HasType e t) (h_eval : IsEvalOnce e e') : HasType e' t := by
   sorry
