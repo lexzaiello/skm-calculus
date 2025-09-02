@@ -5,7 +5,7 @@ namespace Expr
 def eval_once : Ast.Expr → Option Ast.Expr
   | SKM[((((K _α) _β) x) _y)] => pure x
   | SKM[((((((S _α) _β) _γ) x) y) z)] => pure SKM[((x z) (y z))]
-  | SKM[(((M K) α) β)]     => pure SKM[(α ~> (((K (Ty 0)) α) (β ~> (((K (M β)) α) β))))]
+  | SKM[(((M K) α) β)]     => pure SKM[(α !~> β !~> α)]
   | SKM[((((M S) α) β) γ)] => pure SKM[(α ~> ((((K (Ty 0))) α) (β ~> ((((K (Ty 0)) β) (γ ~> (((((S (M α)) (M β)) γ) α) β)))))))]
   | SKM[((M M) K)] => pure SKM[Prp]
   | SKM[((M M) S)] => pure SKM[Prp]

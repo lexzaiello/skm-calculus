@@ -25,6 +25,7 @@ syntax "Ty" term               : skmexpr
 syntax "Typ" num               : skmexpr
 syntax "#~>"                   : skmexpr
 syntax skmexpr "~>" skmexpr    : skmexpr
+syntax skmexpr "!~>" skmexpr   : skmexpr
 syntax "(" skmexpr skmexpr ")" : skmexpr
 syntax ident                   : skmexpr
 syntax "#" term                : skmexpr
@@ -44,6 +45,7 @@ macro_rules
   | `(⟪ Ty $n:term ⟫)                  => `(Expr.ty $n)
   | `(⟪ Typ $n:num ⟫)                  => `(Expr.ty $n)
   | `(⟪ #~> ⟫)                         => `(Expr.arr)
+  | `(⟪ $e₁:skmexpr !~> $e₂:skmexpr ⟫) => `(SKM[$e₁ ~> (((K (Ty 0)) $e₁) $e₂)])
   | `(⟪ $e₁:skmexpr ~> $e₂:skmexpr ⟫)  => `(Expr.call (Expr.call Expr.arr ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
   | `(⟪ $e:ident ⟫)                    => `($e)
   | `(⟪ # $e:term ⟫)                   => `($e)
@@ -84,4 +86,3 @@ def fromExpr (e : Lean.Expr) : Option Expr :=
 end Expr
 
 end Ast
-

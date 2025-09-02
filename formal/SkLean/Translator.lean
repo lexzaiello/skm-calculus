@@ -297,3 +297,4 @@ elab "translate" e:term : term => do
   | .error e => throwError s!"parsing failed: {repr e}"
 
 #eval translate λ (x : Type) (y : x) => y
+
