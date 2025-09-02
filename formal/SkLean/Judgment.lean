@@ -9,8 +9,8 @@ inductive IsComb : Ast.Expr → Prop
 
 inductive IsSingle : Ast.Expr → Prop
   | comb : IsComb e → IsSingle e
-  | prp : IsSingle SKM[Prp]
-  | ty  : IsSingle SKM[Ty n]
+  | prp  : IsSingle SKM[Prp]
+  | ty   : IsSingle SKM[Ty n]
 
 namespace IsComb
 
@@ -33,13 +33,20 @@ inductive IsValue : Ast.Expr → Prop
   | s₅     : IsValue SKM[(((((S α) β) γ) x) y)]
   | arr₁   : IsValue SKM[(#~> _α)]
   | arr    : IsValue SKM[(t_in ~> t_out)]
-  | arr₂   : IsValue SKM[(α ~> β)]
   | m_k₁   : IsValue SKM[((M K) α)]
   | m_s₁   : IsValue SKM[((M S) α)]
   | m_s₂   : IsValue SKM[(((M S) α) β)]
   | m_comb : IsComb e
     → IsValue SKM[(M e)]
 
+inductive IsValueNoArgStep : Ast.Expr → Prop
+  | k    : IsValueNoArgStep SKM[K]
+  | s    : IsValueNoArgStep SKM[S]
+  | arr  : IsValueNoArgStep SKM[#~>]
+  | s₁   : IsValueNoArgStep SKM[(S α)]
+  | arr₁ : IsValueNoArgStep SKM[(#~> _α)]
+  | m_k₁ : IsValueNoArgStep SKM[(M K)]
+  | m_s₁ : IsValueNoArgStep SKM[((M S) α)]
 
 inductive IsValueN : ℕ → Expr → Expr → Prop
   | val  : IsValue e → IsValueN 0 e e
@@ -50,26 +57,23 @@ inductive IsValueN : ℕ → Expr → Expr → Prop
 inductive HasType : Ast.Expr → Ast.Expr → Prop
   | comb  : IsComb e
     → HasType e SKM[(M e)]
-  | k₁    : HasType α t_α
-    → HasType SKM[(K α)] SKM[((M K) α)]
   | k     : HasType α t_α
     → HasType β t_β
-    → HasType SKM[((K α) β)] SKM[(α ~> (((K (Ty 0)) α) (β ~> (((K (M α)) β) α))))]
-  | s₁    : HasType α t_α
-    → HasType SKM[(S α)] SKM[((M S) α)]
-  | s₂    : HasType α t_α
-    → HasType β t_β
-    → HasType SKM[((S α) β)] SKM[(((M S) α) β)]
+    → HasType SKM[((K α) β)] SKM[(α ~> (((K (Ty 0)) α) (β ~> (((K t_α) β) α))))]
   | s     : HasType α t_α
     → HasType β t_β
     → HasType γ t_γ
-    → HasType SKM[(((S α) β) γ)] SKM[(α ~> ((((K (Ty 0))) α) (β ~> ((((K (Ty 0)) β) (γ ~> (((((S (M α)) (M β)) γ) α) β)))))))]
+    → HasType SKM[(((S α) β) γ)] SKM[(α ~> ((((K (Ty 0))) α) (β ~> ((((K (Ty 0)) β) (γ ~> (((((S t_α) t_β) γ) α) β)))))))]
   | m_m   : IsComb e
     → HasType SKM[(M e)] SKM[Prp]
   | prp   : HasType SKM[Prp] SKM[Ty 0]
   | ty    : HasType SKM[Ty n] SKM[Ty n.succ]
   | arr   : HasType SKM[t_in ~> t_out] SKM[Ty 0]
   -- Polymorphic
+  | ccall : HasType lhs t_lhs
+    → HasType rhs t_rhs
+    → IsValueNoArgStep t_lhs
+    → HasType SKM[(lhs rhs)] SKM[(t_lhs rhs)]
   | call  : HasType lhs SKM[t_in ~> t_out]
     → HasType rhs t_in
     → IsValueN n SKM[((t_in ~> t_out) rhs)] t'
@@ -111,20 +115,33 @@ lemma trans (h₁ : IsValueN n₁ e₁ e₂) (h₂ : IsValueN n₂ e₂ e₃) : 
 
 end IsValueN
 
+namespace IsValueNoArgStep
+
+lemma all_arg_val (h : IsValueNoArgStep t) : IsValue SKM[(t arg)] := by
+  cases h
+  apply IsValue.k₁
+  apply IsValue.s₁
+  apply IsValue.arr₁
+  apply IsValue.s₂
+  apply IsValue.arr
+  apply IsValue.m_k₁
+  apply IsValue.m_s₂
+
+end IsValueNoArgStep
+
 namespace HasType
 
 lemma all_canonical_norm (h_t : HasType e t) : IsValue t := by
   induction h_t
   exact IsValue.m_comb (by assumption)
-  exact IsValue.m_k₁
   exact IsValue.arr
-  exact IsValue.m_s₁
-  exact IsValue.m_s₂
   exact IsValue.arr
   exact IsValue.single (IsSingle.prp)
   repeat exact IsValue.single (IsSingle.ty)
   case call lhs t_in t_out rhs n t' h_t_lhs h_t_rhs h_val₁ h_val₂ h_val₃ =>
     exact h_val₁.final_is_val
+  case ccall lhs t_rhs rhs t_rhs h_t_lhs h_t_rhs h_no_step ih₁ ih₂ =>
+    exact @h_no_step.all_arg_val _ rhs
 
 lemma preservation_k (h_t : HasType SKM[((((K α) β) x) y)] t) : HasType x t := by
   cases h_t
@@ -167,6 +184,86 @@ lemma preservation_k (h_t : HasType SKM[((((K α) β) x) y)] t) : HasType x t :=
               contradiction
           contradiction
       contradiction
+      contradiction
+    contradiction
+  case ccall t_lhs t_rhs h_no_step h_t_lhs h_t_rhs =>
+    cases h_t_lhs
+    contradiction
+    case ccall h _ =>
+      cases h
+      repeat contradiction
+      case ccall h _ _ =>
+        cases h
+        repeat contradiction
+      contradiction
+    case call h _ _  =>
+      cases h
+      case k h =>
+        cases h
+        contradiction
+        case succ h _ =>
+          cases h
+          case arr h =>
+            cases h
+            contradiction
+            case succ h _ =>
+              cases h
+              case k h =>
+                cases h
+                contradiction
+                case succ h _ _  =>
+                  cases h
+                  contradiction
+                  contradiction
+              contradiction
+          contradiction
+      repeat contradiction
+
+lemma preservation_s (h_t : HasType SKM[((((((S α) β) γ) x) y) z)] t) : HasType SKM[((x z) (y z))] t := by
+  cases h_t
+  contradiction
+  case call h _ _  =>
+    cases h
+    case call h _ _  =>
+      cases h
+      case call h _ _ =>
+        cases h
+        case s h =>
+          cases h
+          case succ h _ =>
+            cases h
+            case arr h =>
+              cases h
+              case succ h _ =>
+                cases h
+                case k h =>
+                  cases h
+                  case val h =>
+                    cases h
+                    case succ h _ =>
+                      cases h
+                      case arr h =>
+                        cases h
+                        case succ h _ =>
+                          cases h
+                          case k h =>
+                            cases h
+                            case val h =>
+                              cases h
+                              contradiction
+                              case succ h =>
+                                cases h
+                                case val h _ =>
+                                  cases h
+                                  contradiction
+                                  contradiction
+                                case succ h _ _ _ _ =>
+                                  cases h
+                                  case arr h =>
+                                    cases h
+                                    case s h =>
+                                      cases h
+                                      
 
 theorem preservation (h_t : HasType e t) (h_eval : IsEvalOnce e e') : HasType e' t := by
   sorry
