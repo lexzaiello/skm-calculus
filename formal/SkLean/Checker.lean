@@ -1,5 +1,6 @@
 import SkLean.Ast3
 import SkLean.Eval
+import SkLean.SType
 
 inductive TypeError {α : Type} where
   | argument_mismatch (expected actual in_e arg : α) : TypeError

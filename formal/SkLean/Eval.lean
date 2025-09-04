@@ -1,4 +1,5 @@
 import SkLean.Ast3
+import SkLean.SType
 
 namespace Expr
 
@@ -8,35 +9,40 @@ def insert_arrow_arg (in_e e : Ast.Expr) : Ast.Expr :=
     SKM[(t_in ~> #(insert_arrow_arg t_out e))]
   | x => SKM[(x e)]
 
-def eval_once : Ast.Expr → Option Ast.Expr
-  | SKM[(((((K _ _) _α) _β) x) _y)] => pure x
-  | SKM[(((((((S _ _ _) _α) _β) _γ) x) y) z)] => pure SKM[((x z) (y z))]
-  | SKM[(M (K m n))]     => pure $ Ast.Expr.mk_k_type m n
-  | SKM[((((M (S _ _ _ )) α) β) γ)] => pure $ Ast.Expr.mk_s_type SKM[(M α)] α β γ
-  | SKM[(M (lhs rhs))] => pure SKM[((M lhs) rhs)]
-  | SKM[((_t_in ~> t_out) arg)]
-  | SKM[((t_out <~ _t_in) arg)] => SKM[(t_out arg)]
-  | SKM[(((M (<~)) t_out) _)]
-  | SKM[(((M (~>)) _) t_out)] => SKM[(M t_out)]
-  | SKM[(((M (→)) t_in) t_out)]
-  | SKM[(((M (←)) t_out) t_in)]=>
-    let max_u := max t_in.max_universe t_out.max_universe
-
-    SKM[Ty max_u]
-  | SKM[((_t_in → t_out) _)] => t_out
-  | SKM[((t_out ← _t_in) _)] => t_out
-  | SKM[(lhs rhs)] => do SKM[((#(← eval_once lhs)) rhs)]
-  | _ => .none
-
-def eval_n : ℕ → Ast.Expr → Option Ast.Expr
-  | 0, _ => .none
-  | n + 1, e => do
-    let e' ← eval_once e
-    eval_n n e'
+def pop_arrow : Ast.Expr → Ast.Expr
+  | SKM[(_t_in ~> t_out)]
+  | SKM[(_t_in → t_out)]
+  | SKM[(t_out <~ _t_in)]
+  | SKM[(t_out ← _t_in)] => t_out
+  | e => e
 
 partial def eval_unsafe (e : Ast.Expr) : Option Ast.Expr := do
-  let e' ← eval_once e
-  (eval_unsafe e').getD e'
+  let e' : Option Ast.Expr ← match e with
+    | SKM[(((((K _ _) _α) _β) x) _y)] => x
+    | SKM[(((((((S _ _ _) _α) _β) _γ) x) y) z)] => SKM[((x z) (y z))]
+    | SKM[(M (K m n))]     => pure $ Ast.Expr.mk_k_type m n
+    | SKM[((((M (S _ _ _ )) α) β) γ)] => pure $ Ast.Expr.mk_s_type SKM[(M α)] α β γ
+    | SKM[(M (lhs rhs))] => do
+      let t_lhs := (eval_unsafe SKM[((M lhs) rhs)]).getD $ SKM[((M lhs) rhs)]
+      pure (pop_arrow t_lhs)
+    | SKM[((_t_in → t_out) _arg)] => t_out
+    | SKM[((t_out ← _t_in) _arg)] => t_out
+    | SKM[((_t_in ~> t_out) arg)]
+    | SKM[((t_out <~ _t_in) arg)] => SKM[(_t_in ~> #(insert_arrow_arg t_out arg))]
+    | SKM[(((M (<~)) t_out) _arg)]
+    | SKM[(((M (~>)) _t_in) t_out)] => SKM[(M t_out)]
+    | SKM[(((M (→)) t_in) t_out)]
+    | SKM[(((M (←)) t_out) t_in)]=>
+      let max_u := max t_in.max_universe t_out.max_universe
+
+      SKM[Ty max_u]
+    | SKM[(lhs rhs)] => SKM[(((#((eval_unsafe lhs).getD lhs))) rhs)]
+    | _ => .none
+
+  if e' == e then
+    .none
+  else
+    (eval_unsafe e').getD e'
 
 end Expr
 
@@ -48,8 +54,8 @@ inductive IsEvalOnce : Ast.Expr → Ast.Expr → Prop
   | m_call : IsEvalOnce SKM[(M (lhs rhs))] SKM[((M lhs) rhs)]
   | pi     : IsEvalOnce SKM[((_t_in ~> t_out) arg)] SKM[(t_out arg)]
   | pi'    : IsEvalOnce SKM[((t_out <~ _t_in) arg)] SKM[(t_out arg)]
-  | arr    : IsEvalOnce SKM[((_t_in → t_out) _)] t_out
-  | arr'   : IsEvalOnce SKM[((t_out ← _t_in) _)] t_out
+  | arr    : IsEvalOnce SKM[((_t_in → t_out) _arg)] t_out
+  | arr'   : IsEvalOnce SKM[((t_out ← _t_in) _arg)] t_out
   | left   : IsEvalOnce lhs lhs'
     → IsEvalOnce SKM[(lhs rhs)] SKM[(lhs' rhs)]
 
@@ -70,3 +76,4 @@ lemma symm (h : BetaEq a₁ a₂) : BetaEq a₂ a₁ := by
 end BetaEq
 
 
+#eval Expr.eval_unsafe SKM[(((((K 0 0) (M (K 0 0))) (M (K 0 0))) (K 0 0)) (K 0 0))]

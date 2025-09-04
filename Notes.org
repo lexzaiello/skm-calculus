@@ -574,6 +574,22 @@ S : Ty m ~> S (K (~> Ty n)) (S (S (K S) mk_tx) mk_ty)
 S α : Ty n ~> ((S (S (K S) mk_tx) mk_ty) α) = Ty n ~> ((S (mk_tx α) (mk_ty α)))
 S α β = ((m_tx α) β) ((m_ty α) β)
 
+Manually making this S type is going to be a fucking herculean task.
+
+We already know we can make the type of x (α ~> β ~> γ).
+
+Are there any other smart encodings we can come up with?
+
+Really, the most important type is x. We just have to show that the rest are well-typed.
+
+Once we have x as an input, we can test y and z using x,
+since x has the type (α ~> β ~> γ).
+We can probably even form (α ~> β) from it, since α ~> β ~> γ = (~> (~> (~> α) β) γ)
+If we can inject K, we can do it.
+
+
+S : Ty m ~> Ty n ~> Ty o ~> mk_tx ~> 
+
 S : Ty m ~> S (K (~> Ty n)) (S (S (S (K (~> Ty o)) S) mk_tx) mk_ty)
 S α : S (K (~> Ty n)) (S (S (S (K (~> Ty n)) S) mk_tx) mk_ty) α
     = (Ty n ~> (((S (S (S (K (~> Ty n)) S) mk_tx) mk_ty)) α))
@@ -617,3 +633,61 @@ S : Ty m ~> Ty n ~> Ty o ~> S
 We can chain these together by making mk_tx copy its arguments to a callee (golly gee this is getting really complicated though).
 
 
+* When to trigger "substitution" vs popping
+
+- (α ~> β) arg should be treated as substitution
+- ((M e) arg) where (e : α ~> β) should invoke "popping"
+
+This is a nice barrier between head reduction and reduction within the expression.
+
+For example, with the type of K:
+
+#+BEGIN_SRC lean
+K α : Ty n ~> (((((S _m.succ n.succ _m (M (~>))) (M (<~))) Ty _m) (~>)) (←)) α
+K α β : (((((S _m.succ n.succ _m (M (~>))) (M (<~))) Ty _m) (~>)) (←)) α β
+K α β : (~> α) (← α) β = (α ~> (← α)) β = β → α
+#+END_SRC
+
+This would also simplify the typing of S significantly, since we would be able to manipuatel the full type of =S= in multiple passes without losing structure. Note, however, that items will still be popped in that case, since any arguments will necessarily invoke popping.
+
+We gotta fix the K type, since it's discarding one of the α.
+
+S α β γ : (α ~> β ~> γ) ~> whatever
+
+This "no-pop feature" seems really important. Would make the typing for K really really clean.
+
+Would be what I need to make this work.
+
+#+BEGIN_SRC lean
+K : Ty n ~> Ty m ~> S ~> <~
+#+END_SRC
+
+The question is, where do we pop if not in eval for (t_in ~> t_out) arg?
+Most obvious candidate: evaluation, though this is not necessarily true.
+Just type-checking a function call will probably invoke pop.
+So, generalize to all function calls.
+
+Essentially, (((M K) α β) x y) just does substitution, but (M (K α β x y)) does the actual popping.
+
+So, the rule is M (lhs rhs), pop lhs's type.
+
+The question is what to do about →?
+I think the same should hold.
+
+I really don't want to make this retarded like "pop" combinator. 
+Is there a way to represent it?
+
+Essentially taking an expression of the form α ~> β and turning it into β?
+This is represented as ((~> α) β).
+We don't necessarily need a pop combinator. If our left-hand-side type eval's to a ~>, we just pop it.
+
+Popping is separate from substitution now.
+
+Now, we can use this really nice K typing:
+
+#+BEGIN_SRC lean
+K : (Ty n ~> Ty m ~> S ~> <~)
+K α : Ty m ~> (S ~> <~ α)
+K α β : (S ~> <~ α) β
+K α β : (~> α) (<~ α) β = (α ~> (<~ α)) β = α ~> (β ~> α)
+#+END_SRc

@@ -30,7 +30,7 @@ syntax "→"                            : skmexpr
 syntax "←"                            : skmexpr
 syntax "Ty" term                      : skmexpr
 syntax "Prp"                          : skmexpr
-syntax "_"                            : skmexpr
+syntax "?"                            : skmexpr
 syntax skmexpr "~>" skmexpr           : skmexpr
 syntax skmexpr "<~" skmexpr           : skmexpr
 syntax skmexpr "→" skmexpr            : skmexpr
@@ -50,7 +50,7 @@ macro_rules
   | `(⟪ K $m:term $n:term ⟫)            => `(Expr.k $m $n)
   | `(⟪ S $m:term $n:term $o:term ⟫)    => `(Expr.s $m $n $o)
   | `(⟪ M ⟫)                            => `(Expr.m)
-  | `(⟪ _ ⟫)                            => `(Expr.hole)
+  | `(⟪ ? ⟫)                            => `(Expr.hole)
   | `(⟪ Ty $n:term ⟫)                   => `(Expr.ty $n)
   | `(⟪ Prp ⟫)                          => `(Expr.prp)
   | `(⟪ ~> ⟫)                           => `(Expr.pi)
@@ -59,8 +59,8 @@ macro_rules
   | `(⟪ ← ⟫)                            => `(Expr.imp')
   | `(⟪ $e₁:skmexpr ~> $e₂:skmexpr ⟫)   => `(Expr.call (Expr.call Expr.pi ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
   | `(⟪ $e₁:skmexpr <~ $e₂:skmexpr ⟫)   => `(Expr.call (Expr.call Expr.pi' ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
-  | `(⟪ $e₁:skmexpr → $e₂:skmexpr ⟫)    => `(Expr.call (Expr.call Expr.imp ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
-  | `(⟪ $e₁:skmexpr ← $e₂:skmexpr ⟫)    => `(Expr.call (Expr.call Expr.imp' ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
+  | `(⟪ $e₁:skmexpr → $e₂:skmexpr ⟫)    => `(SKM[((→ $e₁) $e₂)])
+  | `(⟪ $e₁:skmexpr ← $e₂:skmexpr ⟫)    => `(SKM[((← $e₁) $e₂)])
   | `(⟪ $e:ident ⟫)                     => `($e)
   | `(⟪ # $e:term ⟫)                    => `($e)
   | `(⟪ ($e:skmexpr) ⟫)                 => `(⟪$e⟫)
@@ -75,7 +75,7 @@ def toStringImpl (e : Expr) : String :=
   | SKM[M]    => "M"
   | SKM[Ty n] => s!"Type {n}"
   | SKM[Prp]  => "Prop"
-  | SKM[_]    => "_"
+  | SKM[?]    => "?"
   | SKM[~>]  => "~>"
   | SKM[<~]  => "<~"
   | SKM[→]  => "→"
@@ -91,7 +91,7 @@ instance : ToString Expr where
 
 def fromExpr (e : Lean.Expr) : Option Expr :=
   match e with
-  | .const `Expr.hole [] => pure SKM[_]
+  | .const `Expr.hole [] => pure SKM[?]
   | (.app
       (.app (.const `Expr.k []) (.lit (.natVal _m)))
       (.lit (.natVal n)))    => pure SKM[K _m n]
@@ -112,11 +112,29 @@ def fromExpr (e : Lean.Expr) : Option Expr :=
     pure SKM[(lhs' rhs')]
   | _ => none
 
-def mk_s_type (t_α α β γ : Ast.Expr) : Ast.Expr :=
-  SKM[_]
-
 def mk_k_type (_m n : ℕ) : Ast.Expr :=
-  SKM[Ty _m ~> Ty n ~> (((((S _m.succ n.succ _m (M (~>))) (M (<~))) Ty _m) (~>)) (←))]
+  SKM[Ty _m ~> Ty n ~> ((((((S _m.succ n.succ _m.succ) (M (~>))) (M (<~))) (Ty _m)) (~>)) (<~))]
+
+/-
+Test:
+
+K α : Ty n ~> (((((S _m.succ n.succ _m (M (~>))) (M (<~))) Ty _m) (~>)) (←)) α
+K α β : (((((S _m.succ n.succ _m (M (~>))) (M (<~))) Ty _m) (~>)) (←)) α β
+K α β : (~> α) (← α) β = (α ~> (← α)) β
+K α β : S (K (α ~>)) (← a) β = α ~> (β → α)
+K α : S (K (α ~>)) (← a)
+K : S (S (K K) ~>) ←
+K α : S (K S) (S (S (K K) ~>) ←) α
+K α : S (K S) (S (S (K K) ~>) ←) α
+K α : S ((S (S (K K) ~>) ←) α)
+
+K : Ty n ~> Ty m ~> S ~> <~
+
+K α β : α ~> (<~ α) β
+K α β : (β ~> α)
+
+(~> α) (← α)
+-/
 
 def max_universe : Expr → ℕ
   | SKM[K _m n] => max _m n
