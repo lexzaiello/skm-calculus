@@ -574,6 +574,28 @@ S : Ty m ~> S (K (~> Ty n)) (S (S (K S) mk_tx) mk_ty)
 S α : Ty n ~> ((S (S (K S) mk_tx) mk_ty) α) = Ty n ~> ((S (mk_tx α) (mk_ty α)))
 S α β = ((m_tx α) β) ((m_ty α) β)
 
+S : Ty m ~> S (K (~> Ty n)) (S (S (S (K (~> Ty o)) S) mk_tx) mk_ty)
+S α : S (K (~> Ty n)) (S (S (S (K (~> Ty n)) S) mk_tx) mk_ty) α
+    = (Ty n ~> (((S (S (S (K (~> Ty n)) S) mk_tx) mk_ty)) α))
+
+S α β : (Ty n ~> (((S (S (S (K (~> Ty n)) S) mk_tx) mk_ty)) α)) β
+    = (((S (S (S (K (~> Ty n)) S) mk_tx) mk_ty)) α) β
+    = (S (S (K (~> Ty n)) S) mk_ty (mk_tx mk_ty) α β
+    = ((S (K (~> Ty n)) mk_ty) (S mk_ty) (mk_tx mk_ty) α β
+    = ((K (~> Ty n) (S mk_ty)) (mk_ty (S mk_ty)) (mk_tx mk_ty) α β
+    = ((mk_ty (S mk_ty)) (mk_tx mk_ty)) α β
+
+S with 3 fanouts:
+S : Ty m ~> S (K (~> Ty n)) (S (S (S (K S) mk_tx) mk_ty) mk_tz)
+S α : Ty n ~> ((S (S (S (K S) mk_tx) mk_ty) mk_tz) α)
+S α β : (((S (S (S (K S) mk_tx) mk_ty) mk_tz) α) β)
+        = ((S (S (K S) mk_tx) mk_ty) α) (mk_tz α) β
+        = ((S (K S) mk_tx) α) (mk_ty α) (mk_tz α) β
+        = ((K S) α) (mk_tx α) (mk_ty α) (mk_tz α) β
+        = S (mk_tx α) (mk_ty α) (mk_tz α) β
+        
+        
+
 S α : S mk_tx mk_ty α = (mk_tx α) (mk_ty α)
 For S α β, we just do S (mk_tx α) (mk_ty α) β instead
 Then same for S α β γ

@@ -113,10 +113,10 @@ def fromExpr (e : Lean.Expr) : Option Expr :=
   | _ => none
 
 def mk_s_type (t_α α β γ : Ast.Expr) : Ast.Expr :=
-  sorry
+  SKM[_]
 
-def mk_k_type (m n : ℕ) : Ast.Expr :=
-  SKM[Ty m ~> Ty n ~> (((((S m.succ n.succ m (M (~>))) (M (<~))) Ty m) (~>)) (←))]
+def mk_k_type (_m n : ℕ) : Ast.Expr :=
+  SKM[Ty _m ~> Ty n ~> (((((S _m.succ n.succ _m (M (~>))) (M (<~))) Ty _m) (~>)) (←))]
 
 def max_universe : Expr → ℕ
   | SKM[K _m n] => max _m n

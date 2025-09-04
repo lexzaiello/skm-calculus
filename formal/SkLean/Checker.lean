@@ -20,48 +20,45 @@ def all_m : Ast.Expr → Bool
   | _ => false
 
 def is_typed_comb : Ast.Expr → Bool
-  | SKM[K]
+  | SKM[K _ _]
   | SKM[M]
-  | SKM[S]
-  | SKM[(K _α)]
-  | SKM[(S _α)]
-  | SKM[((S _α) _β)]
-  | SKM[#~>]
-  | SKM[(#~> _t_in)] => true
+  | SKM[S _ _ _]
+  | SKM[(K _ _ _α)]
+  | SKM[(S _ _ _ _α)]
+  | SKM[((S _ _ _ _α) _β)]
+  | SKM[~>]
+  | SKM[(~> _t_in)] => true
   | SKM[(m_e e)] => all_m m_e ∧ is_typed_comb e
   | _ => false
 
 def add_m : Ast.Expr → Ast.Expr
-  | SKM[M]    => SKM[(M M)]
-  | SKM[_]    => SKM[(M _)]
-  | SKM[K]    => SKM[(M K)]
-  | SKM[S]    => SKM[(M S)]
-  | SKM[#~>]  => SKM[(M #~>)]
   | SKM[(lhs rhs)] => SKM[((#(add_m lhs)) rhs)]
+  | e => SKM[(M e)]
 
 partial def infer_unsafe : Ast.Expr → Except (@TypeError Ast.Expr) Ast.Expr
-  | SKM[K]               => pure SKM[(M K)]
-  | SKM[S]               => pure SKM[(M S)]
+  | SKM[K _m n]          => pure $ Ast.Expr.mk_k_type _m n
+  | SKM[S _m n o]        => pure SKM[_]
   | SKM[M]               => pure SKM[(M M)]
-  | SKM[#~>]             => pure SKM[(M #~>)]
-  | SKM[(M K)]           => pure SKM[((M M) K)]
-  | SKM[(M S)]           => pure SKM[((M M) S)]
-  | SKM[(M M)]           => pure SKM[((M M) M)]
-  | SKM[(M #~>)]         => pure SKM[((M M) #~>)]
+  | SKM[~>]              => pure SKM[(M (~>))]
+  | SKM[<~]              => pure SKM[(M (<~))]
+  | SKM[→]              => pure SKM[(M (→))]
+  | SKM[←]              => pure SKM[(M (←))]
   | SKM[_]               => .error $ .no_type_not_comb SKM[_]
-  | SKM[((K α) β)]       => pure SKM[α !~> β !~> α]
-  | SKM[(((K _) β) x)]   => do
+  | SKM[((K _ _ α) β)]       => pure SKM[α → β → α]
+  | SKM[(((K _ _ _) β) x)]   => do
     let α ← infer_unsafe x
-    pure SKM[α !~> β !~> α]
-  | SKM[(((S α) β) γ)]   => do
+    pure SKM[α → β → α]
+  | SKM[((((S _m n o) α) β) γ)]   => do
     let t_α ← infer_unsafe α
     pure $ Ast.Expr.mk_s_type t_α α β γ
-  | SKM[(((((S α) _) γ) _x) y)]   => do
+  | SKM[((((((S _ _ _) α) _) γ) _x) y)]   => do
     let β ← infer_unsafe y
     let t_α ← infer_unsafe α
     pure $ Ast.Expr.mk_s_type t_α α β γ
   | SKM[(M e)] => do pure SKM[(M #(← infer_unsafe e))]
-  | SKM[(t_in ~> t_out)] => pure SKM[(((M #~>) t_in) t_out)]
+  | SKM[(t_in ~> t_out)] => infer_unsafe t_out
+  | SKM[Prp] => pure SKM[Ty 0]
+  | SKM[Ty n] => pure SKM[Ty n.succ]
   | SKM[(lhs rhs)]       => do
     let t_lhs ← infer_unsafe lhs
     let t_lhs' := (eval_unsafe t_lhs).getD t_lhs
@@ -91,7 +88,6 @@ lemma valid_rhs (_h_t : infer_unsafe SKM[(lhs rhs)] = .ok t) : ∃ t_rhs, infer_
 
 end Expr
 
-#eval Expr.infer_unsafe SKM[((((K (M K)) (M K)) K) K)]
 
-#eval Expr.infer_unsafe SKM[((((((S ((M M) !~> ((M M) !~> (M M)) !~> (M M))) ((M M) !~> (M M) !~> (M M))) (M M)) ((K (M M)) ((M M) !~> (M M)))) ((K (M M)) (M M))) M)]
+
 
