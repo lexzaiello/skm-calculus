@@ -76,7 +76,7 @@ def fromExpr (e : Lean.Expr) : Option Expr :=
   | _ => none
 
 def mk_s_type (t_α α β γ : Ast.Expr) : Ast.Expr :=
-  SKM[(α !~> β ~> (((((S _) _) β) (((K ((M #~>) γ)) β) (#~> γ))) ((((S t_α) β) γ) α)))]
+  SKM[(α !~> β ~> (((((S (β !~> ((M #~>) γ))) ((((((M S) t_α) β) γ) α))) β) (((K ((M #~>) γ)) β) (#~> γ))) ((((S t_α) β) γ) α)))]
 
 end Expr
 

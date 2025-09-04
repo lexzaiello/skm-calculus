@@ -7,11 +7,6 @@ inductive IsComb : Ast.Expr → Prop
   | m   : IsComb SKM[M]
   | arr : IsComb SKM[#~>]
 
-inductive IsSingle : Ast.Expr → Prop
-  | comb : IsComb e → IsSingle e
-  | prp  : IsSingle SKM[Prp]
-  | ty   : IsSingle SKM[Ty n]
-
 namespace IsComb
 
 @[simp]
@@ -21,8 +16,31 @@ lemma no_step (h : IsComb e) : ¬ ∃ e', Expr.eval_once e = .some e' := by
 
 end IsComb
 
+inductive AllM : Ast.Expr → Prop
+  | m    : AllM SKM[M]
+  | m_m  : AllM SKM[(M M)]
+  | call : AllM lhs
+    → AllM SKM[(lhs M)]
+
+namespace AllM
+
+lemma no_step (h : AllM e) : ¬ ∃ e', IsEvalOnce e e' := by
+  induction h
+  intro ⟨e', h⟩
+  cases h
+  intro ⟨e', h⟩
+  cases h
+  repeat contradiction
+  intro ⟨e', h⟩
+  cases h
+  repeat contradiction
+  simp_all
+
+end AllM
+
 inductive IsValue : Ast.Expr → Prop
-  | single : IsSingle e → IsValue e
+  | comb   : IsComb e
+    → IsValue e
   | k₁     : IsValue SKM[(K α)]
   | k₂     : IsValue SKM[((K α) β)]
   | k₃     : IsValue SKM[(((K α) β) x)]
@@ -33,11 +51,19 @@ inductive IsValue : Ast.Expr → Prop
   | s₅     : IsValue SKM[(((((S α) β) γ) x) y)]
   | arr₁   : IsValue SKM[(#~> _α)]
   | arr    : IsValue SKM[(t_in ~> t_out)]
-  | m_k₁   : IsValue SKM[((M K) α)]
-  | m_s₁   : IsValue SKM[((M S) α)]
-  | m_s₂   : IsValue SKM[(((M S) α) β)]
+  | m_arr₁ : AllM m_e
+    → IsValue SKM[((m_e #~>) t_in)]
+  | m_arr  : AllM m_e
+    → IsValue SKM[(((m_e #~>) t_in) t_out)]
+  | m_k₁   : AllM m_e
+    → IsValue SKM[((m_e K) α)]
+  | m_s₁   : AllM m_e
+    → IsValue SKM[((m_e S) α)]
+  | m_s₂   : AllM m_e
+    → IsValue SKM[(((m_e S) α) β)]
   | m_comb : IsComb e
-    → IsValue SKM[(M e)]
+    → AllM m_e
+    → IsValue SKM[(m_e e)]
 
 inductive IsValueNoArgStep : Ast.Expr → Prop
   | k    : IsValueNoArgStep SKM[K]
@@ -45,8 +71,12 @@ inductive IsValueNoArgStep : Ast.Expr → Prop
   | arr  : IsValueNoArgStep SKM[#~>]
   | s₁   : IsValueNoArgStep SKM[(S α)]
   | arr₁ : IsValueNoArgStep SKM[(#~> _α)]
-  | m_k₁ : IsValueNoArgStep SKM[(M K)]
-  | m_s₁ : IsValueNoArgStep SKM[((M S) α)]
+  | m_k  : AllM m_e
+    → IsValueNoArgStep SKM[(m_e K)]
+  | m_s₁ : AllM m_e
+    → IsValueNoArgStep SKM[((m_e S) α)]
+  | m_s  : AllM m_e
+    → IsValueNoArgStep SKM[(m_e S)]
 
 inductive IsValueN : ℕ → Expr → Expr → Prop
   | val  : IsValue e → IsValueN 0 e e
@@ -65,10 +95,8 @@ inductive HasType : Ast.Expr → Ast.Expr → Prop
     → HasType γ t_γ
     → HasType SKM[(((S α) β) γ)] (Ast.Expr.mk_s_type t_α α β γ)
   | m_m   : IsComb e
-    → HasType SKM[(M e)] SKM[Prp]
-  | prp   : HasType SKM[Prp] SKM[Ty 0]
-  | ty    : HasType SKM[Ty n] SKM[Ty n.succ]
-  | arr   : HasType SKM[t_in ~> t_out] SKM[Ty 0]
+    → HasType SKM[(M e)] SKM[((M M) e)]
+  | arr   : HasType SKM[t_in ~> t_out] SKM[(((M #~>) t_in) t_out)]
   -- Polymorphic
   | ccall : HasType lhs t_lhs
     → HasType rhs t_rhs
@@ -79,22 +107,6 @@ inductive HasType : Ast.Expr → Ast.Expr → Prop
     → IsValueN n SKM[((t_in ~> t_out) rhs)] t'
     → HasType SKM[(lhs rhs)] t'
 
-/-
-What we want: S α β γ x y z : α z (y z)
-We need to duplicate z and move around y
-S α β γ : (α ~> ((((K (Ty 0))) α) (β ~> ((((K (Ty 0)) β) (γ ~> (((((S t_α) t_β) γ) α) β)))))))
-S α β γ x : S (K #~> γ) ((((S t_α) β) γ) α)
-S α β γ x y : ((K #~> γ) y) (((((S t_α) β) γ) α) y)
-S α β γ x : S ? ? (K #~> γ) ((((S t_α) β) γ) α)
-S α β γ x y : (K #~> γ y) (((((S t_α) β) γ) α) y)
-S α β γ x y : γ ~> (((((S t_α) β) γ) α) y)
-S α β γ x : S (K #~> γ) ((((S t_α) β) γ) α)
-S α β γ x : (S (K (M (#~> γ)) γ (#~> γ))) ((((S t_α) β) γ) α)
-
-Using new !~> notation
-S α β γ x : S (γ !~> (M #~> γ)) (γ !~> )(((K (M #~> γ)) γ) (#~> γ)) ((((S t_α) β) γ) α)
--/
-
 namespace IsValue
 
 lemma no_step (h : IsValue e) : ¬ ∃ e', IsEvalOnce e e' := by
@@ -104,6 +116,50 @@ lemma no_step (h : IsValue e) : ¬ ∃ e', IsEvalOnce e e' := by
   repeat contradiction
   cases h_step
   repeat contradiction
+  have h := AllM.no_step (by assumption)
+  simp_all
+  case m_arr₁.left h₁ =>
+    cases h₁
+    repeat contradiction
+    simp_all
+  cases h_step
+  repeat contradiction
+  case m_arr.left h =>
+    cases h
+    repeat contradiction
+    case left h =>
+      cases h
+      repeat contradiction
+      have h := AllM.no_step (by assumption)
+      simp_all
+  cases h_step
+  repeat contradiction
+  case m_k₁.left h =>
+    cases h
+    repeat contradiction
+    have h := AllM.no_step (by assumption)
+    simp_all
+  cases h_step
+  repeat contradiction
+  case m_s₁.left h =>
+    cases h
+    repeat contradiction
+    have h := AllM.no_step (by assumption)
+    simp_all
+  cases h_step
+  repeat contradiction
+  case m_s₂.left h =>
+    cases h
+    repeat contradiction
+    case left h =>
+      cases h
+      repeat contradiction
+      have h := AllM.no_step (by assumption)
+      simp_all
+  cases h_step
+  repeat contradiction
+  have h := AllM.no_step (by assumption)
+  simp_all
 
 end IsValue
 
@@ -135,13 +191,14 @@ namespace IsValueNoArgStep
 
 lemma all_arg_val (h : IsValueNoArgStep t) : IsValue SKM[(t arg)] := by
   cases h
-  apply IsValue.k₁
-  apply IsValue.s₁
-  apply IsValue.arr₁
-  apply IsValue.s₂
-  apply IsValue.arr
-  apply IsValue.m_k₁
-  apply IsValue.m_s₂
+  exact IsValue.k₁
+  exact IsValue.s₁
+  exact IsValue.arr₁
+  exact IsValue.s₂
+  exact IsValue.arr
+  exact IsValue.m_k₁ $ by assumption
+  exact IsValue.m_s₂ $ by assumption
+  exact IsValue.m_s₁ $ by assumption
 
 end IsValueNoArgStep
 
@@ -149,15 +206,17 @@ namespace HasType
 
 lemma all_canonical_norm (h_t : HasType e t) : IsValue t := by
   induction h_t
-  exact IsValue.m_comb (by assumption)
+  exact IsValue.m_comb (by assumption) AllM.m
   exact IsValue.arr
   exact IsValue.arr
-  exact IsValue.single (IsSingle.prp)
-  repeat exact IsValue.single (IsSingle.ty)
   case call lhs t_in t_out rhs n t' h_t_lhs h_t_rhs h_val₁ h_val₂ h_val₃ =>
     exact h_val₁.final_is_val
   case ccall lhs t_rhs rhs t_rhs h_t_lhs h_t_rhs h_no_step ih₁ ih₂ =>
     exact @h_no_step.all_arg_val _ rhs
+  apply IsValue.m_comb
+  assumption
+  exact AllM.m_m
+  exact IsValue.m_arr AllM.m
 
 lemma preservation_k (h_t : HasType SKM[((((K α) β) x) y)] t) : HasType x t := by
   cases h_t
@@ -185,7 +244,7 @@ lemma preservation_k (h_t : HasType SKM[((((K α) β) x) y)] t) : HasType x t :=
                       cases h
                       case val h =>
                         cases h
-                        contradiction
+                        repeat contradiction
                       case succ h _ =>
                         cases h
                         case k h =>
@@ -262,25 +321,29 @@ lemma preservation_s (h_t : HasType SKM[((((((S α) β) γ) x) y) z)] t) : HasTy
                         cases h
                         case succ h _ =>
                           cases h
-                          case k h =>
+                          case s h =>
                             cases h
-                            case val h =>
+                            case succ h _ =>
                               cases h
-                              contradiction
-                              case succ h =>
+                              case left h _ =>
                                 cases h
-                                case val h _ =>
+                                case k h =>
                                   cases h
-                                  contradiction
-                                  contradiction
-                                case succ h _ _ _ _ =>
-                                  cases h
-                                  case arr h =>
+                                  case val h =>
                                     cases h
-                                    case s h =>
+                                    contradiction
+                                    case succ h _ =>
                                       cases h
-                                      case val h =>
-                                        
+                                      case arr h =>
+                                        cases h
+                                        case val h =>
+                                          cases h
+                                          repeat contradiction
+                                        case succ h _ =>
+                                          cases h
+                                          case s h =>
+                                            cases h
+                                            
 
 theorem preservation (h_t : HasType e t) (h_eval : IsEvalOnce e e') : HasType e' t := by
   sorry
