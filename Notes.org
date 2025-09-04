@@ -564,14 +564,27 @@ Other approach, type by type
 We can copy α here. We need to copy it three times.
 
 S : Ty m ~> S (<~# <~# Ty n) (S ~> ~>)
+S : Ty m ~> S (K (~> Ty n)) (S mk_tx mk_ty)
+S α : S (K (~> Ty n)) (S mk_tx mk_ty) α = (~> Ty n) ((mk_tx α) (mk_ty α))
 
-S : Ty m ~> S (Ty n ~>) (S ~> ~>)
-S α : (Ty n ~> α) (α ~> (~> α))
-S α : (Ty n ~> α) (α ~> (~> α)) = 
+                                                                 ^ here
+We want to add another layer for copying β in. We just need to insert an S
+
+S : Ty m ~> S (K (~> Ty n)) (S (S (K S) mk_tx) mk_ty)
+S α : Ty n ~> ((S (S (K S) mk_tx) mk_ty) α) = Ty n ~> ((S (mk_tx α) (mk_ty α)))
+S α β = ((m_tx α) β) ((m_ty α) β)
+
+S α : S mk_tx mk_ty α = (mk_tx α) (mk_ty α)
+For S α β, we just do S (mk_tx α) (mk_ty α) β instead
+Then same for S α β γ
 
 I really feel like we ought to decouple substitution from popping.
 If we just do (α ~> β) arg, we should just get (α ~> (β arg)),
 but if we do M of a call, then we trigger popping.
+
+Well, we're in a type, so we should trigger popping.
+There's also another possibility which is that we introduce yet another arrow.
+But I don't like this.
 
 S α : (Ty n ~> α (α ~> (~> α))) 
 
