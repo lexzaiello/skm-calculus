@@ -26,7 +26,6 @@ M (M e) = M e t if e is well-typed
 
 This is the holy grail. Adding a first-class arrow combinator.
 
-
 * Arrow combinator functionality
 
 We would like to have evaluation rules for ~> that behave similarly to \forall. We can do this if we derive the ~> expression via evaluation rules

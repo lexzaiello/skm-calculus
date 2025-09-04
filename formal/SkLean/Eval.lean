@@ -3,10 +3,10 @@ import SkLean.Ast3
 namespace Expr
 
 def eval_once : Ast.Expr → Option Ast.Expr
-  | SKM[((((K _α) _β) x) _y)] => pure x
-  | SKM[((((((S _α) _β) _γ) x) y) z)] => pure SKM[((x z) (y z))]
-  | SKM[(((M K) α) β)]     => pure SKM[(α !~> β !~> α)]
-  | SKM[((((M S) α) β) γ)] => pure $ Ast.Expr.mk_s_type SKM[(M α)] α β γ
+  | SKM[(((((K _ _) _α) _β) x) _y)] => pure x
+  | SKM[(((((((S _ _ _) _α) _β) _γ) x) y) z)] => pure SKM[((x z) (y z))]
+  | SKM[(M (K m n))]     => pure $ Ast.Expr.mk_k_type m n
+  | SKM[((((M (S _ _ _ )) α) β) γ)] => pure $ Ast.Expr.mk_s_type SKM[(M α)] α β γ
   | SKM[(M (lhs rhs))] => pure SKM[((M lhs) rhs)]
   | SKM[((_t_in ~> t_out) arg)] => SKM[(t_out arg)]
   | SKM[(lhs rhs)] => do SKM[((#(← eval_once lhs)) rhs)]
@@ -25,10 +25,10 @@ partial def eval_unsafe (e : Ast.Expr) : Option Ast.Expr := do
 end Expr
 
 inductive IsEvalOnce : Ast.Expr → Ast.Expr → Prop
-  | k      : IsEvalOnce SKM[((((K _α) _β) x) y)]          x
-  | s      : IsEvalOnce SKM[((((((S _α) _β) _γ) x) y) z)] SKM[((x z) (y z))]
-  | m_k    : IsEvalOnce SKM[(((M K) α) β)]                SKM[(α !~> β !~> α)]
-  | m_s    : IsEvalOnce SKM[((((M S) α) β) γ)]            (Ast.Expr.mk_s_type SKM[(M α)] α β γ)
+  | k      : IsEvalOnce SKM[(((((K _ _) _α) _β) x) y)]          x
+  | s      : IsEvalOnce SKM[(((((((S _ _ _) _α) _β) _γ) x) y) z)] SKM[((x z) (y z))]
+  | m_k    : IsEvalOnce SKM[(M (K _m n))]                        (Ast.Expr.mk_k_type _m n)
+  | m_s    : IsEvalOnce SKM[((((M (S _ _ _)) α) β) γ)]            (Ast.Expr.mk_s_type SKM[(M α)] α β γ)
   | m_call : IsEvalOnce SKM[(M (lhs rhs))] SKM[((M lhs) rhs)]
   | arr    : IsEvalOnce SKM[((_t_in ~> t_out) arg)] SKM[(t_out arg)]
   | left   : IsEvalOnce lhs lhs'
