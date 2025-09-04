@@ -343,7 +343,9 @@ lemma preservation_s (h_t : HasType SKM[((((((S α) β) γ) x) y) z)] t) : HasTy
                                           cases h
                                           case s h =>
                                             cases h
-                                            
+                                            case val h_t_x _ _ _ _ _  =>
+                                              cases h_t_x
+                                              
 
 theorem preservation (h_t : HasType e t) (h_eval : IsEvalOnce e e') : HasType e' t := by
   sorry

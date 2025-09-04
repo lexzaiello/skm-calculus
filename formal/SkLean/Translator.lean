@@ -34,7 +34,7 @@ def toStringImpl : IntermediateExpr → String
   | .prp => "Prop"
   | .call lhs rhs => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
   | .lam t body => s!"λ :{t.toStringImpl} => {body.toStringImpl}"
-  | .var n => ".var {n}"
+  | .var n => s!".var {n}"
   | .intr e => s!"{e.toStringImpl}"
   | .skm e => s!"{e}"
   | .forE t body => s!"∀ :{t.toStringImpl}, {body.toStringImpl}"
@@ -120,9 +120,7 @@ def all_sk (e : IntermediateExpr) : Except IntermediateExpr Ast.Expr :=
   | SKM`[S]         => pure SKM[S]
   | SKM`[K]         => pure SKM[K]
   | SKM`[M]         => pure SKM[M]
-  | SKM`[Prp]       => pure SKM[Prp]
   | SKM`[_]         => pure SKM[_]
-  | SKM`[Ty n]      => pure SKM[Ty n]
   | SKM`[(lhs rhs)] => do
     let lhs' ← lhs.all_sk
     let rhs' ← rhs.all_sk
@@ -260,21 +258,41 @@ partial def abstract : AbstractMode → List IntermediateExpr → ℕ → Interm
       pure SKM`[!(((pre ty) t) #(.var (if i > j then i.pred else i)))]
   | mode, c@(t::_), j, e@SKM`[(lhs rhs)]
   | mode, c@(t::_), j, e@SKM`[!(lhs rhs)] => do
-    if e.all_human_sk then
-      pure e
-    else
-      let l ← abstract .e c j lhs
-      let r ← abstract .e c j rhs
+    match rhs with
+    | .var i =>
+      if i == j ∧ ¬ (lhs.free_in j) then
+        pure $ lhs.shift_down_from j
+      else
+        if e.all_human_sk then
+          pure e
+        else
+          let l ← abstract .e c j lhs
+          let r ← abstract .e c j rhs
 
-      let t_lhs ← unwrap_check_error (l.infer' c)
-      let t_rhs ← unwrap_check_error (r.infer' c)
+          let t_lhs ← unwrap_check_error (l.infer' c)
+          let t_rhs ← unwrap_check_error (r.infer' c)
 
-      let pre := match mode with
-        | .e => SKM`[!S]
-        | .m => SKM`[!(M S)]
+          let pre := match mode with
+            | .e => SKM`[!S]
+            | .m => SKM`[!(M S)]
 
-      pure SKM`[!(((((pre t_lhs) t_rhs) t) l) r)]
-  | mode, c@(t::_), j, e => do
+          pure SKM`[!(((((pre t_lhs) t_rhs) t) l) r)]
+    | _ =>
+      if e.all_human_sk then
+        pure e
+      else
+        let l ← abstract .e c j lhs
+        let r ← abstract .e c j rhs
+
+        let t_lhs ← unwrap_check_error (l.infer' c)
+        let t_rhs ← unwrap_check_error (r.infer' c)
+
+        let pre := match mode with
+          | .e => SKM`[!S]
+          | .m => SKM`[!(M S)]
+
+        pure SKM`[!(((((pre t_lhs) t_rhs) t) l) r)]
+  | mode, c@(t::_), _j, e => do
     let t_e ← unwrap_check_error $ e.infer' c
 
     if e.all_human_sk then
@@ -312,7 +330,7 @@ def do_translate (ctx : List IntermediateExpr) (e : IntermediateExpr) : MetaM In
       pure $ SKM`[(lhs' rhs')]
     | _, _, e => pure e
 
-def compile (e : IntermediateExpr) : MetaM Ast.Expr := do match (← IntermediateExpr.all_sk <$> do_translate [] e) with
+partial def compile (e : IntermediateExpr) : MetaM Ast.Expr := do match (← IntermediateExpr.all_sk <$> do_translate [] e) with
   | .ok e => pure e
   | .error e => throwError "err: {e}"
 
@@ -324,6 +342,4 @@ elab "translate" e:term : term => do
     | .error e   => throwError "couldn't convert back to Lean: {repr e}"
   | .error e => throwError s!"parsing failed: {repr e}"
 
-#eval Expr.infer_unsafe $ translate ((λ (x : Type 1) => x) (Type 0))
-#eval Expr.infer_unsafe $ translate ((λ (x : Type 1) (y : x) => y) (Type 0 → Type 0) (λ (p : Type 0) => p))
 
