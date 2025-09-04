@@ -7,14 +7,8 @@ def eval_once : Ast.Expr → Option Ast.Expr
   | SKM[((((((S _α) _β) _γ) x) y) z)] => pure SKM[((x z) (y z))]
   | SKM[(((M K) α) β)]     => pure SKM[(α !~> β !~> α)]
   | SKM[((((M S) α) β) γ)] => pure $ Ast.Expr.mk_s_type SKM[(M α)] α β γ
-  | SKM[((M M) K)] => pure SKM[Prp]
-  | SKM[((M M) S)] => pure SKM[Prp]
-  | SKM[((M M) M)] => pure SKM[Prp]
-  | SKM[((M M) #~>)] => pure SKM[Prp]
   | SKM[(M (lhs rhs))] => pure SKM[((M lhs) rhs)]
-  | SKM[(M Ty n)] => SKM[Ty n.succ]
-  | SKM[(M Prp)] => SKM[Ty 0]
-  | SKM[(((M #~>) _t_in) _t_out)] => SKM[Ty 0]
+  | SKM[(((M #~>) _t_in) _t_out)] => SKM[((((M M) #~>) _t_in) _t_out)]
   | SKM[((_t_in ~> t_out) arg)] => SKM[(t_out arg)]
   | SKM[(lhs rhs)] => do SKM[((#(← eval_once lhs)) rhs)]
   | _ => .none
@@ -36,14 +30,8 @@ inductive IsEvalOnce : Ast.Expr → Ast.Expr → Prop
   | s      : IsEvalOnce SKM[((((((S _α) _β) _γ) x) y) z)] SKM[((x z) (y z))]
   | m_k    : IsEvalOnce SKM[(((M K) α) β)]                SKM[(α !~> β !~> α)]
   | m_s    : IsEvalOnce SKM[((((M S) α) β) γ)]            (Ast.Expr.mk_s_type SKM[(M α)] α β γ)
-  | m_m_k  : IsEvalOnce SKM[((M M) K)] SKM[Prp]
-  | m_m_s  : IsEvalOnce SKM[((M M) S)] SKM[Prp]
-  | m_m_m  : IsEvalOnce SKM[((M M) M)] SKM[Prp]
-  | m_m_a  : IsEvalOnce SKM[((M M) #~>)] SKM[Prp]
   | m_call : IsEvalOnce SKM[(M (lhs rhs))] SKM[((M lhs) rhs)]
-  | m_ty   : IsEvalOnce SKM[(M Ty n)] SKM[Ty n.succ]
-  | m_prp  : IsEvalOnce SKM[(M Prp)] SKM[Ty 0]
-  | m_arr  : IsEvalOnce SKM[(((M #~>) _t_in) _t_out)] SKM[Ty 0]
+  | m_arr  : IsEvalOnce SKM[(((M #~>) _t_in) _t_out)] SKM[((((M M) #~>) _t_in) _t_out)] 
   | arr    : IsEvalOnce SKM[((_t_in ~> t_out) arg)] SKM[(t_out arg)]
   | left   : IsEvalOnce lhs lhs'
     → IsEvalOnce SKM[(lhs rhs)] SKM[(lhs' rhs)]

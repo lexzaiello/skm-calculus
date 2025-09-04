@@ -8,9 +8,7 @@ inductive Expr where
   | s    : Expr
   | m    : Expr
   | arr  : Expr
-  | prp  : Expr
   | hole : Expr
-  | ty   : ℕ    → Expr
   | call : Expr → Expr → Expr
 deriving BEq, Repr, Lean.ToExpr
 
@@ -21,9 +19,6 @@ declare_syntax_cat skmexpr
 syntax "K"                     : skmexpr
 syntax "S"                     : skmexpr
 syntax "M"                     : skmexpr
-syntax "Prp"                   : skmexpr
-syntax "Ty" term               : skmexpr
-syntax "Typ" num               : skmexpr
 syntax "#~>"                   : skmexpr
 syntax "_"                     : skmexpr
 syntax skmexpr "~>" skmexpr    : skmexpr
@@ -43,12 +38,9 @@ macro_rules
   | `(⟪ K ⟫)                           => `(Expr.k)
   | `(⟪ S ⟫)                           => `(Expr.s)
   | `(⟪ M ⟫)                           => `(Expr.m)
-  | `(⟪ Prp ⟫)                         => `(Expr.prp)
-  | `(⟪ Ty $n:term ⟫)                  => `(Expr.ty $n)
-  | `(⟪ Typ $n:num ⟫)                  => `(Expr.ty $n)
   | `(⟪ _ ⟫)                           => `(Expr.hole)
   | `(⟪ #~> ⟫)                         => `(Expr.arr)
-  | `(⟪ $e₁:skmexpr !~> $e₂:skmexpr ⟫) => `(SKM[$e₁ ~> (((K (Ty 0)) $e₁) $e₂)])
+  | `(⟪ $e₁:skmexpr !~> $e₂:skmexpr ⟫) => `(SKM[$e₁ ~> (((K $e₂) $e₁) $e₂)])
   | `(⟪ $e₁:skmexpr ~> $e₂:skmexpr ⟫)  => `(Expr.call (Expr.call Expr.arr ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
   | `(⟪ $e:ident ⟫)                    => `($e)
   | `(⟪ # $e:term ⟫)                   => `($e)
@@ -64,13 +56,6 @@ def toStringImpl (e : Expr) : String :=
   | SKM[M]    => "M"
   | SKM[_]    => "_"
   | SKM[#~>]  => "→"
-  | SKM[Ty n] => s!"Type {n}"
-  | SKM[Prp]  => "Prop"
-  | SKM[(t_in ~> (((K (Ty 0)) t_in') t_out))] =>
-    if t_in' == t_in then
-      s!"({t_in.toStringImpl} !→ {t_out.toStringImpl})"
-    else
-      s!"({t_in.toStringImpl} → {t_out.toStringImpl})"
   | SKM[(t_in ~> t_out)] => s!"({t_in.toStringImpl} → {t_out.toStringImpl})"
   | SKM[(lhs rhs)] => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
 
@@ -84,8 +69,6 @@ def fromExpr (e : Lean.Expr) : Option Expr :=
   | .const `Expr.s []    => pure SKM[S]
   | .const `Expr.m []    => pure SKM[M]
   | .const `Expr.arr [] => pure SKM[#~>]
-  | .sort .zero => pure SKM[Prp]
-  | .sort n => pure SKM[Ty n.depth.pred]
   | .app (.app (.const `Expr.call []) lhs) rhs => do
     let lhs' ← fromExpr lhs
     let rhs' ← fromExpr rhs

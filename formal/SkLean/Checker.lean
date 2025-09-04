@@ -4,15 +4,20 @@ import SkLean.Eval
 inductive TypeError {α : Type} where
   | argument_mismatch (expected actual in_e arg : α) : TypeError
   | no_type_not_comb  (at_e : α)                     : TypeError
-  | bad_type_not_comb (at_e t : α)                   : TypeError
+  | bad_type_not_comb (at_e in_e t : α)                   : TypeError
 
 instance (α : Type) [ToString α] : ToString (@TypeError α) where
   toString
-  | .argument_mismatch expected actual in_e arg => s!"Argument type mismatch in function application of {in_e} with {arg}. Expected {expected}, but found {actual}"
-  | .no_type_not_comb at_e => s!"Type inference failed for {at_e}, but not a combinator."
-  | .bad_type_not_comb t at_e => s!"Type inference failed for {at_e}. Expected an arrow, but got {t}, but not a combinator."
+  | .argument_mismatch expected actual in_e arg => s!"Argument type mismatch in function application of {toString in_e} with {toString arg}. Expected {toString expected}, but found {toString actual}"
+  | .no_type_not_comb at_e => s!"Type inference failed for {toString at_e}, but not a combinator."
+  | .bad_type_not_comb at_e in_e t => s!"Type inference failed for {toString at_e} in app {toString in_e}. Expected an arrow, but got {toString t}, but not a combinator."
 
 namespace Expr
+
+def all_m : Ast.Expr → Bool
+  | SKM[M] => true
+  | SKM[(lhs rhs)] => all_m lhs ∧ all_m rhs
+  | _ => false
 
 def is_typed_comb : Ast.Expr → Bool
   | SKM[K]
@@ -23,7 +28,7 @@ def is_typed_comb : Ast.Expr → Bool
   | SKM[((S _α) _β)]
   | SKM[#~>]
   | SKM[(#~> _t_in)] => true
-  | SKM[(M e)] => is_typed_comb e
+  | SKM[(m_e e)] => all_m m_e ∧ is_typed_comb e
   | _ => false
 
 def add_m : Ast.Expr → Ast.Expr
@@ -32,8 +37,6 @@ def add_m : Ast.Expr → Ast.Expr
   | SKM[K]    => SKM[(M K)]
   | SKM[S]    => SKM[(M S)]
   | SKM[#~>]  => SKM[(M #~>)]
-  | SKM[Ty n] => SKM[(M Ty n)]
-  | SKM[Prp]  => SKM[(M Prp)]
   | SKM[(lhs rhs)] => SKM[((#(add_m lhs)) rhs)]
 
 partial def infer_unsafe : Ast.Expr → Except (@TypeError Ast.Expr) Ast.Expr
@@ -41,13 +44,11 @@ partial def infer_unsafe : Ast.Expr → Except (@TypeError Ast.Expr) Ast.Expr
   | SKM[S]               => pure SKM[(M S)]
   | SKM[M]               => pure SKM[(M M)]
   | SKM[#~>]             => pure SKM[(M #~>)]
-  | SKM[(M K)]           => pure SKM[Prp]
-  | SKM[(M S)]           => pure SKM[Prp]
-  | SKM[(M M)]           => pure SKM[Prp]
-  | SKM[(M #~>)]         => pure SKM[Prp]
-  | SKM[Prp]             => pure SKM[Ty 0]
+  | SKM[(M K)]           => pure SKM[((M M) K)]
+  | SKM[(M S)]           => pure SKM[((M M) S)]
+  | SKM[(M M)]           => pure SKM[((M M) M)]
+  | SKM[(M #~>)]         => pure SKM[((M M) #~>)]
   | SKM[_]               => .error $ .no_type_not_comb SKM[_]
-  | SKM[Ty n]            => pure SKM[Ty n.succ]
   | SKM[((K α) β)]       => pure SKM[α !~> β !~> α]
   | SKM[(((K _) β) x)]   => do
     let α ← infer_unsafe x
@@ -60,7 +61,7 @@ partial def infer_unsafe : Ast.Expr → Except (@TypeError Ast.Expr) Ast.Expr
     let t_α ← infer_unsafe α
     pure $ Ast.Expr.mk_s_type t_α α β γ
   | SKM[(M e)] => do pure SKM[(M #(← infer_unsafe e))]
-  | SKM[(_t_in ~> _t_out)] => pure SKM[Ty 0]
+  | SKM[(t_in ~> t_out)] => pure SKM[(((M #~>) t_in) t_out)]
   | SKM[(lhs rhs)]       => do
     let t_lhs ← infer_unsafe lhs
     let t_lhs' := (eval_unsafe t_lhs).getD t_lhs
@@ -78,7 +79,7 @@ partial def infer_unsafe : Ast.Expr → Except (@TypeError Ast.Expr) Ast.Expr
         let with_m := SKM[((#(add_m lhs)) rhs)]
         pure $ (eval_unsafe with_m).getD with_m
       else
-        .error $ .bad_type_not_comb lhs t_lhs'
+        .error $ .bad_type_not_comb lhs SKM[(lhs rhs)] t_lhs'
 
 lemma valid_lhs (_h_t : infer_unsafe SKM[(lhs rhs)] = .ok t) : ∃ t_lhs, infer_unsafe lhs = t_lhs := by
   cases SKM[(lhs rhs)]
@@ -92,4 +93,5 @@ end Expr
 
 #eval Expr.infer_unsafe SKM[((((K (M K)) (M K)) K) K)]
 
-#eval Expr.infer_unsafe SKM[((((((S (Ty 0 !~> (Ty 0 !~> Ty 0) !~> Ty 0)) (Ty 0 !~> Ty 0 !~> Ty 0)) Ty 0) ((K Ty 0) (Ty 0 !~> Ty 0))) ((K Ty 0) Ty 0)) Prp)]
+#eval Expr.infer_unsafe SKM[((((((S ((M M) !~> ((M M) !~> (M M)) !~> (M M))) ((M M) !~> (M M) !~> (M M))) (M M)) ((K (M M)) ((M M) !~> (M M)))) ((K (M M)) (M M))) M)]
+
