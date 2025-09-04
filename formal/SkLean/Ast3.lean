@@ -7,8 +7,10 @@ inductive Expr where
   | k    : ℕ → ℕ → Expr
   | s    : ℕ → ℕ → ℕ → Expr
   | m    : Expr
-  | arr  : Expr
-  | arr' : Expr
+  | pi   : Expr
+  | pi'  : Expr
+  | imp  : Expr
+  | imp' : Expr
   | hole : Expr
   | ty   : ℕ → Expr
   | prp  : Expr
@@ -22,14 +24,17 @@ declare_syntax_cat skmexpr
 syntax "K" term:max term:max          : skmexpr
 syntax "S" term:max term:max term:max : skmexpr
 syntax "M"                            : skmexpr
-syntax "#~>"                          : skmexpr
-syntax "<~#"                          : skmexpr
+syntax "~>"                           : skmexpr
+syntax "<~"                           : skmexpr
+syntax "→"                            : skmexpr
+syntax "←"                            : skmexpr
 syntax "Ty" term                      : skmexpr
 syntax "Prp"                          : skmexpr
 syntax "_"                            : skmexpr
 syntax skmexpr "~>" skmexpr           : skmexpr
 syntax skmexpr "<~" skmexpr           : skmexpr
-syntax skmexpr "!~>" skmexpr          : skmexpr
+syntax skmexpr "→" skmexpr            : skmexpr
+syntax skmexpr "←" skmexpr            : skmexpr
 syntax "(" skmexpr skmexpr ")"        : skmexpr
 syntax ident                          : skmexpr
 syntax "#" term                       : skmexpr
@@ -48,10 +53,14 @@ macro_rules
   | `(⟪ _ ⟫)                            => `(Expr.hole)
   | `(⟪ Ty $n:term ⟫)                   => `(Expr.ty $n)
   | `(⟪ Prp ⟫)                          => `(Expr.prp)
-  | `(⟪ #~> ⟫)                          => `(Expr.arr)
-  | `(⟪ <~# ⟫)                          => `(Expr.arr')
-  | `(⟪ $e₁:skmexpr ~> $e₂:skmexpr ⟫)   => `(Expr.call (Expr.call Expr.arr ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
-  | `(⟪ $e₁:skmexpr <~ $e₂:skmexpr ⟫)   => `(Expr.call (Expr.call Expr.arr' ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
+  | `(⟪ ~> ⟫)                           => `(Expr.pi)
+  | `(⟪ <~ ⟫)                           => `(Expr.pi')
+  | `(⟪ → ⟫)                            => `(Expr.imp)
+  | `(⟪ ← ⟫)                            => `(Expr.imp')
+  | `(⟪ $e₁:skmexpr ~> $e₂:skmexpr ⟫)   => `(Expr.call (Expr.call Expr.pi ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
+  | `(⟪ $e₁:skmexpr <~ $e₂:skmexpr ⟫)   => `(Expr.call (Expr.call Expr.pi' ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
+  | `(⟪ $e₁:skmexpr → $e₂:skmexpr ⟫)    => `(Expr.call (Expr.call Expr.imp ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
+  | `(⟪ $e₁:skmexpr ← $e₂:skmexpr ⟫)    => `(Expr.call (Expr.call Expr.imp' ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
   | `(⟪ $e:ident ⟫)                     => `($e)
   | `(⟪ # $e:term ⟫)                    => `($e)
   | `(⟪ ($e:skmexpr) ⟫)                 => `(⟪$e⟫)
@@ -67,10 +76,14 @@ def toStringImpl (e : Expr) : String :=
   | SKM[Ty n] => s!"Type {n}"
   | SKM[Prp]  => "Prop"
   | SKM[_]    => "_"
-  | SKM[#~>]  => "→"
-  | SKM[<~#]  => "←"
-  | SKM[(t_in ~> t_out)] => s!"({t_in.toStringImpl} → {t_out.toStringImpl})"
-  | SKM[(t_in <~ t_out)] => s!"({t_in.toStringImpl} ← {t_out.toStringImpl})"
+  | SKM[~>]  => "~>"
+  | SKM[<~]  => "<~"
+  | SKM[→]  => "→"
+  | SKM[←]  => "←"
+  | SKM[(t_in ~> t_out)] => s!"({t_in.toStringImpl} ~> {t_out.toStringImpl})"
+  | SKM[(t_in <~ t_out)] => s!"({t_in.toStringImpl} <~ {t_out.toStringImpl})"
+  | SKM[(t_in → t_out)] => s!"({t_in.toStringImpl} → {t_out.toStringImpl})"
+  | SKM[(t_in ← t_out)] => s!"({t_in.toStringImpl} ← {t_out.toStringImpl})"
   | SKM[(lhs rhs)] => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
 
 instance : ToString Expr where
@@ -87,7 +100,10 @@ def fromExpr (e : Lean.Expr) : Option Expr :=
         (.app (.const `Expr.s []) (.lit (.natVal _m)))
         (.lit (.natVal n))) (.lit (.natVal o)))    => pure SKM[S _m n o]
   | .const `Expr.m []    => pure SKM[M]
-  | .const `Expr.arr [] => pure SKM[#~>]
+  | .const `Expr.pi [] => pure SKM[~>]
+  | .const `Expr.pi' [] => pure SKM[<~]
+  | .const `Expr.imp [] => pure SKM[→]
+  | .const `Expr.imp' [] => pure SKM[←]
   | .sort .zero => pure SKM[Prp]
   | .sort n => pure SKM[Ty n.depth.pred]
   | .app (.app (.const `Expr.call []) lhs) rhs => do
@@ -100,7 +116,7 @@ def mk_s_type (t_α α β γ : Ast.Expr) : Ast.Expr :=
   sorry
 
 def mk_k_type (m n : ℕ) : Ast.Expr :=
-  SKM[Ty m ~> Ty n ~> (((((S m.succ n.succ m (M #~>)) (M <~#)) Ty m) #~>) <~#)]
+  SKM[Ty m ~> Ty n ~> (((((S m.succ n.succ m (M (~>))) (M (<~))) Ty m) (~>)) (←))]
 
 end Expr
 

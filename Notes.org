@@ -231,6 +231,46 @@ S \alpha \beta \gamma : \alpha ~> (\beta ~> \gamma)
 
 Now, remember, we will pass x in, and it will be bubbled into \gamma.
 
+"Return" within a ~>:
 
-Now, remember popping?
+- When we're "finished" building a type, we need to "return" the value with K so that further type arguments don't get bubbled down.
+For example, the type of K:
 
+#+BEGIN_SRC lean
+K : Ty m ~> Ty n ~> (((((S m.succ n.succ m (M #~>)) (M <~#)) Ty m) #~>) <~#)
+#+END_SRC
+
+For \alpha \beta, this produces:
+
+K \alpha \beta : (((((S m.succ n.succ m (M #~>)) (M <~#)) Ty m) #~>) <~#) \alpha \beta
+K \alpha \beta : (#~> \alpha) (<~# \alpha) \beta = \alpha ~> (<~# \alpha) \beta = \alpha ~> (\beta ~> \alpha)
+
+For \alpha \beta x y, this produces:
+
+K \alpha \beta x y : \alpha x y
+
+This is not really what we wanted.
+However, we can fix it in our (#~> \alpha) (<~# \alpha). Just replace the second one with (<~# (K \alpha))
+
+However, we could potentially change the evaluation rules to handle this. Obviously, we should bubble if:
+
+(t_in ~> t_out) arg
+
+But theoretically, the output type might want to do something with the argument anyway. So we need to bring back !~>.
+
+K \alpha \beta : (#~> \alpha) (<~# (K \alpha)) \beta
+K : Ty m ~> Ty n ~> (((((S m.succ n.succ m (M #~>)) (M <~#)) Ty m) #~>) (S (K <~#)) K))
+K \alpha : Ty n ~> (\alpha ~> (<~# (K \alpha)))
+K \alpha \beta :  (\alpha ~> (\beta ~> (K \alpha)))
+K \alpha \beta x : \beta ~> (K \alpha x)
+K \alpha \beta x y : (K \alpha x) y
+
+K : Ty m ~> Ty n ~> (((((S m.succ n.succ m (M #~>)) (M <~#)) Ty m) #~>) (S (K <~#)) (S (K K) K)))
+
+K \alpha : Ty n ~> (\alpha ~> ((S (K <~#)) (S (K K) K)) \alpha))
+K \alpha : Ty n ~> (\alpha ~> (<~# (K (K \alpha))))
+K \alpha \beta : \alpha ~> (\beta ~> (K (K \alpha)))
+K \alpha \beta x : \beta ~> K \alpha
+K \alpha \beta x y : K \alpha y = \alpha
+
+We need another K.
