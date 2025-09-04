@@ -1,0 +1,237 @@
+* Sk plan
+
+Limitations of old approaches:
+- Can't extract a "truth value" from M
+  - Can't distinguish well-typed M from ill-typed
+  - *New approach: constructive proof - you cannot produce M e t if e is not well-typed, since M e t will not type-check otherwise*
+- Typings of K and S are complex
+- Typings of K and S are the same as K and S
+- M e t is the term representing "e is well-typed with type t"
+
+M (M e) = M e t if e is well-typed
+
+* Arrow abstraction / interpretation
+
+- The only "base" types we have are M K, M S, and M M
+- These don't actually reduce to anything
+- We can interpret M (K \alpha \beta) as \alpha \rightarrow \alpha \rightarrow \beta
+- We can interpret S similarly
+- What is K \alpha, though?
+  - We can just say this is SKM[((M K) \alpha)]
+- But how do we unify arrows and just regular shit?
+  - Do we even have to?
+- How do we handle the beta-equivalent case?
+
+* Arrow combinator
+
+This is the holy grail. Adding a first-class arrow combinator.
+
+
+* Arrow combinator functionality
+
+We would like to have evaluation rules for ~> that behave similarly to \forall. We can do this if we derive the ~> expression via evaluation rules
+We can do this the pure combinator way now, but I don't like this.
+Point-free M K is nice.
+
+* Fully dependent S and K, no partial M
+
+K : #~>
+
+K : #~>
+
+K α : #~>
+
+K α β : α ~> β
+K α β x : α ~> 
+
+K α β : #~> α β
+
+K : S #~> #~>
+
+K : #~>
+
+K α : #~> α
+
+K α : #~> α (#~> α)
+
+K α β : #~> α (α β)
+
+New S type just dropped?
+There's this nice elimination we can do for this case
+S : (#~> #~>) #~>
+S α : α ~> (#~> #~>)
+S α β : β ~> #~>
+S α β γ : 
+
+This is literally substitution.
+We can just change the evaluation rule for ~>
+such that ~> doens't pop the body. It just passes the argument through the type.
+
+Wait ayo. We only pop the body of the ~> when a function call happens. When there's an eval step.
+
+(t_in ~> t_out) arg = t_in ~> (t_out arg)
+
+So S : (#~> #~>) #~>
+
+K : #~> #~>
+K α : (#~> #~>) α
+K \alpha : #~> ~> \alpha
+K \alpha \beta : #~> ~> \alpha \beta
+
+Now when we evaluate K \alpha \beta x, lhs type becomes
+~> \alpha \beta
+
+Well, technically K \alpha \beta x is not an "eval step", whatever that means.
+
+(t_in ~> t_out) arg = = t_in ~> (t_out arg)
+(t_out <~ t_in) arg = = t_in ~> (t_out arg)
+
+I think this is fine. But when do we pop to just t_out arg?
+Intuitively, whenever we have a reduction.
+
+*OR, we pop when there are no #~> left to fill.*
+^^ I like this one.
+
+This should actually be defined the same for K and S.
+
+K : Ty 0 ~> Ty 0 ~> (S #~> #~>)
+K \alpha : Ty 0 ~> Ty 0 ~> (\alpha ~> ((#~> \alpha))
+K \alpha \beta : Ty 0 ~> Ty 0 ~> (\alpha ~> (\alpha ~> \beta))
+K \alpha \beta x : Ty 0 ~> (\alpha ~> (\alpha ~> \beta))
+
+Why can't we keep popping per-arg?
+
+K : Ty 0 ~> Ty 0 ~> (S #~> #~>)
+K \alpha : Ty 0 ~> S #~> #~> \alpha
+K \alpha \beta : \alpha ~> (\alpha ~> \beta)
+
+There's some incongruency here causing this.
+But popping per-arg is fine.
+
+We would just like to flip ~> in this type.
+We could theoretically just add a <~ combinator.
+Or we can just rework this expression somehow.
+
+With <~, it's really clean though.
+
+K : Ty 0 ~> Ty 0 ~> (S #~> <~#)
+K \alpha : Ty 0 ~> \alpha ~> (<~# \alpha)
+K \alpha \beta : \alpha ~> (\beta ~> \alpha)
+
+We need to actually return \alpha though and discard our argument, since when we add x as an argument, it gets fed in.
+K \alpha \beta x : \alpha ~> (\beta ~> \alpha x)
+
+This is fine, I think.
+For ergonomics we may want to remove the weird K thing we have to do at the end.
+
+So the eval rule for ~> is
+(\alpha ~> \beta) x = \alpha ~> (\beta x)
+
+Except we don't know when \beta is a normal value.
+So we do actually need K in the type of K.
+
+K \alpha : Ty 0 ~> \alpha ~> (<~# (K \alpha)))
+K : Ty 0 ~> Ty 0 ~> (S #~> (S <~# 
+
+K \alpha : Ty 0 ~> \alpha ~> (<~# \alpha)
+
+Mwah. Chef's kiss.
+
+K : S #~> #~>
+K \alpha : \alpha ~> (#~> \alpha)
+K \alpha \beta : 
+
+Why don't we just pop the types eagerly?
+Like whenever you supply an argument, you pop the type?
+This makes things a lot more complicated.
+Perhaps have both?
+
+ALTHOUGH. We could just not pop anything at all, but define the type of M recursively so that it does the popping then.
+
+Ok so what about S?
+We can do this nice type instantiation now with our arguments.
+
+The question is, do we choose:
+S (\alpha \beta \gamma : Type) : (\alpha \rightarrow \beta \rightarrow \gamma) \rightarrow (\alpha \rightarrow \beta) \rightarrow (\alpha \rightarrow \gamma)
+
+or
+
+S (\alpha \beta \gamma : Type) : \alpha \rightarrow \beta \rightarrow \gamma
+
+
+This is lowkey ass because we have ZERO type information about the next step of evaluation.
+But if we capture that somehow...
+
+S (\alpha \beta \gamma : Type) : 
+
+ALthough now that I think about it, now that we have arrows for our K and S, we don't need to split this up. We can just use the canonical one.
+
+We need to control the order these are filled in.
+We need to copy \alpha in one step.
+
+Now this one is unironically nontrivial. Lol.
+
+Fun fact though, \alpha ~> \beta ~> (\alpha ~> \gamma) = S (#~> (#~> \beta)) (<~# \gamma) \alpha = ((\alpha ~> (#~> \beta))) (\alpha ~> \gamma)
+Fun fact though, \alpha ~> \beta ~> (\alpha ~> \gamma) = S (#~> \beta) (<~# \gamma) \alpha = (\alpha ~> \beta) (\alpha ~> \gamma)
+Perhaps we can somehow join all these things up with ~> at the end.
+
+So, for example, S (\alpha ~> \beta ~> \gamma) (\alpha ~> \beta) <~# (\alpha ~> \gamma) = <~# (\alpha ~> \beta ~> \gamma) (<~# (\alpha ~> \beta))
+
+S \alpha : Ty 0 ~> Ty 0 ~> 
+
+S : Ty 0 ~> Ty 0 ~> Ty 0 ~> 
+
+S : Ty ~> Ty ~> Ty ~> S Ty Ty Ty 
+S \alpha : Ty ~> Ty ~> S Ty Ty Ty \alpha
+S \alpha \beta : Ty ~> S Ty Ty Ty \alpha \beta
+S \alpha \beta \gamma : (\alpha \gamma) (\beta \gamma)
+
+S : Ty ~> Ty ~> Ty ~> S (S #~> #~>) #~>
+S \alpha : Ty ~> Ty ~> ((S #~> #~>) \alpha) (#~> \alpha)
+S \alpha : Ty ~> Ty ~> (\alpha ~> (#~> \alpha)) (#~> \alpha)
+
+We can potentially build the types incrementally.
+So instead of copying \alpha into the fully type at once, we build it out in each step.
+We really just need to know the "next input type." Not ALL the input types.
+
+S \alpha \beta \gamma : (\alpha ~> \beta ~> \gamma) ~> 
+X type has to match
+S \alpha \beta \gamma x : #~> x
+We need to "re-extract \alpha and \beta" from x. This is possible.
+If we call x with some argument, the argument will be passed as a parameter to \gamma.
+
+Ok, another strategy. We can build the type inside out.
+We can build \alpha ~> \beta ~> \gamma out of y and (z : \alpha).
+y : \alpha ~> \beta and z : \alpha 
+So, theoretically, (M y) (<~# \gamma) = \alpha ~> \beta ~> \gamma
+
+However, this is not predictive.
+There is no specific reason why we can't have the types of S in reverse:
+S : \alpha \beta \gamma, \alpha ~> (\alpha ~> \beta) ~> (\alpha ~> \beta ~> \gamma)
+S \alpha \beta \gamma z y x = (x z) (y z)
+However we're being extremely cheeky here, sine we haven't even constructed the types from the input type arguments.
+We need to predict the ENTIRE type via the type arguments, then decompose.
+We can add a new combinator for this if we want to. But I would prefer not to.
+
+HOWEVER, like I said, we can build the type one argument at a time.
+We just need to construct \alpha ~> \beta ~> \gamma first.
+
+S \alpha \beta \gamma : \alpha ~> (\beta ~> \gamma) = ((#~> \alpha) (#~> \beta \gamma) = #~> #~>
+S : <~# <~#
+S \alpha = <~# <~# \alpha = \alpha #~> <#~
+S \alpha \beta = \alpha #~> (<#~ \beta)
+S \alpha \beta \gamma = \alpha ~> (\beta ~> \gamma)
+
+So we know how to construt (\alpha ~> (\beta ~> \gamma)) now.
+Getting (\alpha ~> \beta) is just popping the deepest nested \gamma, but we don't have an operation for that.
+
+Creating \alpha ~> (\beta ~> \gamma) is pretty simple though. It's just <~# <~#.
+So, logically, we can just copy \alpha and \beta when we do this.
+
+S \alpha \beta \gamma : \alpha ~> (\beta ~> \gamma)
+
+Now, remember, we will pass x in, and it will be bubbled into \gamma.
+
+
+Now, remember popping?
+
