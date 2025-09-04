@@ -2,14 +2,20 @@ import SkLean.Ast3
 
 namespace Expr
 
+def insert_arrow_arg (in_e e : Ast.Expr) : Ast.Expr :=
+  match in_e with
+  | SKM[(t_in ~> t_out)] =>
+    SKM[(t_in ~> #(insert_arrow_arg t_out e))]
+  | x => SKM[(x e)]
+
 def eval_once : Ast.Expr → Option Ast.Expr
   | SKM[(((((K _ _) _α) _β) x) _y)] => pure x
   | SKM[(((((((S _ _ _) _α) _β) _γ) x) y) z)] => pure SKM[((x z) (y z))]
   | SKM[(M (K m n))]     => pure $ Ast.Expr.mk_k_type m n
   | SKM[((((M (S _ _ _ )) α) β) γ)] => pure $ Ast.Expr.mk_s_type SKM[(M α)] α β γ
   | SKM[(M (lhs rhs))] => pure SKM[((M lhs) rhs)]
-  | SKM[((_t_in ~> t_out) arg)]
-  | SKM[((t_out <~ _t_in) arg)] => SKM[(t_out arg)]
+  | SKM[((t_in ~> t_out) arg)]
+  | SKM[((t_out <~ t_in) arg)] => SKM[t_in ~> #(insert_arrow_arg t_out arg)]
   | SKM[(((M (<~)) t_out) _)]
   | SKM[(((M (~>)) _) t_out)] => SKM[(M t_out)]
   | SKM[(((M (→)) t_in) t_out)]

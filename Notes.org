@@ -273,7 +273,7 @@ K \alpha \beta : \alpha ~> (\beta ~> (K (K \alpha)))
 K \alpha \beta x : \beta ~> K \alpha
 K \alpha \beta x y : K \alpha y = \alpha
 
-We need another K.
+We need another K. 
 
 ** Dependent S Typing
 
@@ -377,7 +377,7 @@ So, in ((M x) z) (y z),
 (x_out : (y_out α)
 
 Is polymoprhic S actually polymorphic?
-
+f
 S α β γ : (α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ
 
 There doesn't appear to be any dependency on terms in these types. Ngl.
@@ -450,3 +450,135 @@ mk_ty_z α β γ := TYpe m ~> Type n ~> Type o ~> (#~> →)
 ^^ This works.
 
 mk_ty_z α β γ = (~> →) α β γ = (→ ~> α) β γ = ~> α γ = α ~> γ
+
+Ideally, we can compose these functions together to make the segments of the type.
+
+We just need to duplicate α β γ each into each.
+Let's make a α β γ "map" - this is just the functions we made
+
+
+Catalogue: mk_t_x - (α ~> β ~> γ), mk_ty - (α ~> β), mk_tz - (α ~> γ)
+Each of these accept α β γ as inputs.
+
+To copy α, for example:
+S mk_tx mk_ty α = (mk_tx α) (mk_ty α)
+This is not particularly useful.
+
+Simple algorithm: S already takes α β γ. We can use a fixpoint to duplicate in a way.
+
+S : Ty m ~> Ty n ~> Ty o ~> mk_tx
+S α β γ = (α ~> β ~> γ) ~> 
+
+Oh this is actually super simple.
+
+Remember that (t_in ~> t_out) arg just pops one t_in, produces t_out arg
+But we shouldn't just recurse like this forever.
+
+S : Ty m ~> Ty n ~> Ty o ~> mk_tx ~> mk_ty ~> mk_tz
+S α : ~> Ty m (~> Ty n (~> Ty o (~> mk_tx (~> mk_ty mk_tz)
+
+Evaluation here, α pops off the Ty m, we get (~> Ty n (~> Ty o (~> mk_tx (~> mk_ty mk_tz) α.
+We don't want this to recurse forever. Our eval rule for (t_in ~> t_out) arg is broken. Really, it should be:
+(t_in ~> t_out) arg = (t_in ~> t_out arg)
+However, we should be able to use ((((M K) α β) x) y) and receive α
+
+Quick recap of K type:
+
+#+BEGIN_SRC lean
+K : SKM[Ty m ~> Ty n ~> (((((S m.succ n.succ m (M (~>))) (M (<~))) Ty m) (~>)) (←))]
+#+END_SRC
+
+Same shit here, eval_once will work. K α : (Ty n ~> ...) α, but if we continue eval'ing this, we will pop ALL of the arguments.
+We only want to pop once.
+
+What happens if we fully evaluate K α?
+
+#+BEGIN_SRC lean
+K α : (((((S m.succ n.succ m (M (~>))) (M (<~))) Ty m) (~>)) (←)) α
+K α : (~> α) (← α)
+#+END_SRC
+
+We can just insert Ty n deeper in here. We want Ty n ~> α (← α), such that
+K α β : (α → α) α - this is wrong.
+
+We could actually change the eval rues. We can just extend (t_in ~> t_out) arg := t_out arg to
+
+t₁ ~> (t₂ ~> t₃) arg := (t₂ ~> (t₃ arg))
+This is fine, ish, since now we're only ever obliviating one type.
+Say we have t₁ ~> (t₂ ~> (t₃ ~> t₄)))), though
+
+(t₁ ~> (t₂ ~> (t₃ ~> t₄))))) arg = (t₂ ~> ((t₃ ~> t₄) arg))
+
+Ok, eval rules are fixed.
+
+We could just algorithmically insert arg.
+
+So, now, back to copying α β γ into our type constructors.
+
+S (mk_tx mk_ty α = 
+
+S : Ty m ~> Ty n ~> Ty o ~> 
+
+S : (α ~> β ~> γ) ~> (α ~> β) ~> (α ~> γ)
+S : Ty m ~> Ty n ~> Ty o ~> S (S mk_tx mk_ty) mk_tz
+
+(S (S mk_tx mk_ty) mk_tz)  α β = (mk_tx α) (mk_ty α) (mk_tz α)
+
+How do we do multiple variables tho...
+S (S (mk_tx α) (mk_ty α)) (mk_tz α) β ..
+this is the pattern.
+
+How do we produce it?
+
+(S (S (S mk_tx mk_ty)) mk_tz) α β = ((S (S mk_tx mk_ty)) α) (mk_tz α) = (S mk_tx mk_ty) (mk_tz α) (α (mk_tz α))
+
+((S (S mk_t_x mk_t_y) mk_t_z) α) = ((S mk_t_x mk_t_y) α) (mk_t\z α) = ((mk_tx α) (mk_ty α)) (mk_t\z α)
+
+S α : Ty n ~> Ty o ~> S (mk_tx α) (mk_ty α)
+S α β : Ty o ~> S ((mk_tx α) β) ((mk_ty α) β)
+S α β γ : (((mk_tx α) β) γ) (((mk_ty α) β) γ))
+
+This is promising.
+
+
+
+Other technique: we don't have to bbuild the type all at once. Do it in layers.
+
+Or, hypothetically, we could extend our mk_twhatever with the ability to chain them together?
+
+S α β γ : mk_t_x α β γ 
+
+S (S (mk_t_x α β γ) (mk_t_y α β γ)) (mk_t_z α β γ) α β γ = (S (mk_t_x α β γ) (mk_t_y α β γ)) α (mk_t_z α β γ) α β γ
+= (mk_t_x α) (mk_t_y α) (mk_t_z α) β γ
+
+S (S (mk_t_x mk_t_y) (mk_t_z) α β γ
+
+S (S mk_t_x mk_t_y) mk_t_z α β γ =
+  (S mk_t_x mk_t_y) α (mk_tz α) β γ
+= (mk_tx α) (mk_ty α) (mk_tz α) β γ
+
+S (
+
+Other approach, type by type
+
+We can copy α here. We need to copy it three times.
+
+S : Ty m ~> S (<~# <~# Ty n) (S ~> ~>)
+
+S : Ty m ~> S (Ty n ~>) (S ~> ~>)
+S α : (Ty n ~> α) (α ~> (~> α))
+S α : (Ty n ~> α) (α ~> (~> α)) = 
+
+I really feel like we ought to decouple substitution from popping.
+If we just do (α ~> β) arg, we should just get (α ~> (β arg)),
+but if we do M of a call, then we trigger popping.
+
+S α : (Ty n ~> α (α ~> (~> α))) 
+
+
+
+S : Ty m ~> Ty n ~> Ty o ~> S 
+
+We can chain these together by making mk_tx copy its arguments to a callee (golly gee this is getting really complicated though).
+
+
