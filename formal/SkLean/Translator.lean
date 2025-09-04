@@ -11,6 +11,7 @@ inductive IntermediateExpr where
   | s    : IntermediateExpr
   | m    : IntermediateExpr
   | arr  : IntermediateExpr
+  | hole : IntermediateExpr
   | ty   : ℕ → IntermediateExpr
   | prp  : IntermediateExpr
   | call : IntermediateExpr → IntermediateExpr → IntermediateExpr
@@ -44,7 +45,9 @@ syntax "Prp"                      : skmexpr'
 syntax "Ty" term                  : skmexpr'
 syntax "Typ" num                  : skmexpr'
 syntax "#~>"                      : skmexpr'
+syntax "?"                        : skmexpr'
 syntax skmexpr' "~>" skmexpr'     : skmexpr'
+syntax skmexpr' "!~>" skmexpr'    : skmexpr'
 syntax "(" skmexpr' skmexpr' ")"  : skmexpr'
 syntax ident                      : skmexpr'
 syntax "#" term                   : skmexpr'
@@ -64,6 +67,7 @@ macro_rules
   | `({{ K }})                               => `(IntermediateExpr.k)
   | `({{ S }})                               => `(IntermediateExpr.s)
   | `({{ M }})                               => `(IntermediateExpr.m)
+  | `({{ ? }})                               => `(IntermediateExpr.hole)
   | `({{ Ty $n:term }})                      => `(IntermediateExpr.ty $n)
   | `({{ Typ $n:num }})                      => `(IntermediateExpr.ty $n)
   | `({{ Prp }})                             => `(IntermediateExpr.prp)
@@ -71,6 +75,7 @@ macro_rules
   | `({{ ∀ $t:skmexpr', $body:skmexpr' }})   => `(IntermediateExpr.forE {{$t}} {{$body}})
   | `({{ #~> }})                             => `(IntermediateExpr.arr)
   | `({{ $e₁:skmexpr' ~> $e₂:skmexpr' }})    => `(IntermediateExpr.call (IntermediateExpr.call IntermediateExpr.arr {{ $e₁ }}) {{ $e₂ }})
+  | `({{ $e₁:skmexpr' !~> $e₂:skmexpr' }})   => `(SKM`[$e₁ ~> (((K (Ty 0)) $e₁) $e₂)])
   | `({{ $e:ident }})                        => `($e)
   | `({{ # $e:term }})                       => `($e)
   | `({{ ($e:skmexpr') }})                   => `({{$e}})
@@ -86,6 +91,7 @@ def all_human_sk (e : IntermediateExpr) : Bool :=
   | SKM`[(lhs rhs)] => all_human_sk lhs ∧ all_human_sk rhs
   | SKM`[#~>]       => true
   | SKM`[Prp]       => true
+  | SKM`[?]         => true
   | SKM`[Ty _]      => true
   | _               => false
 
@@ -96,6 +102,7 @@ def all_sk (e : IntermediateExpr) : Except IntermediateExpr Ast.Expr :=
   | SKM`[K]         => pure SKM[K]
   | SKM`[M]         => pure SKM[M]
   | SKM`[Prp]       => pure SKM[Prp]
+  | SKM`[?]         => pure SKM[?]
   | SKM`[Ty n]      => pure SKM[Ty n]
   | SKM`[(lhs rhs)] => do
     let lhs' ← lhs.all_sk
@@ -131,6 +138,7 @@ def from_expr : Lean.Expr → Except Lean.Expr IntermediateExpr
   | .const `IntermediateExpr.s []     => pure .s
   | .const `IntermediateExpr.m []     => pure .m
   | .const `IntermediateExpr.arr []   => pure .arr
+  | .const `IntermediateExpr.hole []  => pure .hole
   | .app
     (.const `IntermediateExpr.ty [])
     (.lit (.natVal n)) => pure $ .ty n
@@ -224,7 +232,7 @@ def abstract : AbstractMode → List IntermediateExpr → ℕ → IntermediateEx
       let pre := match mode with
         | .e => SKM`[!S]
         | .m => SKM`[!(M S)]
-      pure SKM`[!(((((pre (ty ~> ((((K Ty 0) ty) (ty ~> ty)) ~> ty))) (ty ~> ty ~> ty)) ty) ((K ty) (ty ~> ty))) ((K ty) ty))]
+      pure SKM`[!(((((pre (ty !~> (ty !~> ty) !~> ty)) (ty !~> ty !~> ty)) ty) ((K ty) (ty !~> ty))) ((K ty) ty))]
     else
       let pre := match mode with
         | .e => SKM`[K]
@@ -296,5 +304,5 @@ elab "translate" e:term : term => do
     | .error e   => throwError "couldn't convert back to Lean: {repr e}"
   | .error e => throwError s!"parsing failed: {repr e}"
 
-#eval translate λ (x : Type) (y : x) => y
+#eval Expr.infer $ translate ((λ (x : Type 1) => x) (Type 0))
 

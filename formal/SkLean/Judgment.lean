@@ -63,7 +63,7 @@ inductive HasType : Ast.Expr → Ast.Expr → Prop
   | s     : HasType α t_α
     → HasType β t_β
     → HasType γ t_γ
-    → HasType SKM[(((S α) β) γ)] SKM[(α !~> ((β ~> ((((K (Ty 0)) β) (γ ~> (((((S t_α) t_β) γ) α) β)))))))]
+    → HasType SKM[(((S α) β) γ)] (Ast.Expr.mk_s_type t_α α β γ)
   | m_m   : IsComb e
     → HasType SKM[(M e)] SKM[Prp]
   | prp   : HasType SKM[Prp] SKM[Ty 0]
@@ -84,13 +84,15 @@ What we want: S α β γ x y z : α z (y z)
 We need to duplicate z and move around y
 S α β γ : (α ~> ((((K (Ty 0))) α) (β ~> ((((K (Ty 0)) β) (γ ~> (((((S t_α) t_β) γ) α) β)))))))
 S α β γ x : S (K #~> γ) ((((S t_α) β) γ) α)
+S α β γ x y : ((K #~> γ) y) (((((S t_α) β) γ) α) y)
+S α β γ x : S ? ? (K #~> γ) ((((S t_α) β) γ) α)
 S α β γ x y : (K #~> γ y) (((((S t_α) β) γ) α) y)
 S α β γ x y : γ ~> (((((S t_α) β) γ) α) y)
 S α β γ x : S (K #~> γ) ((((S t_α) β) γ) α)
 S α β γ x : (S (K (M (#~> γ)) γ (#~> γ))) ((((S t_α) β) γ) α)
 
 Using new !~> notation
-S α β γ x : S (γ !~> Ty 0) (γ !~> )(((K (M #~> γ)) γ) (#~> γ)) ((((S t_α) β) γ) α)
+S α β γ x : S (γ !~> (M #~> γ)) (γ !~> )(((K (M #~> γ)) γ) (#~> γ)) ((((S t_α) β) γ) α)
 -/
 
 namespace IsValue

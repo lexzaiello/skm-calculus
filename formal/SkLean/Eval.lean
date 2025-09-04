@@ -6,7 +6,7 @@ def eval_once : Ast.Expr → Option Ast.Expr
   | SKM[((((K _α) _β) x) _y)] => pure x
   | SKM[((((((S _α) _β) _γ) x) y) z)] => pure SKM[((x z) (y z))]
   | SKM[(((M K) α) β)]     => pure SKM[(α !~> β !~> α)]
-  | SKM[((((M S) α) β) γ)] => pure SKM[(α ~> ((((K (Ty 0))) α) (β ~> ((((K (Ty 0)) β) (γ ~> (((((S (M α)) (M β)) γ) α) β)))))))]
+  | SKM[((((M S) α) β) γ)] => pure $ Ast.Expr.mk_s_type SKM[(M α)] α β γ
   | SKM[((M M) K)] => pure SKM[Prp]
   | SKM[((M M) S)] => pure SKM[Prp]
   | SKM[((M M) M)] => pure SKM[Prp]
@@ -25,13 +25,17 @@ def eval_n : ℕ → Ast.Expr → Option Ast.Expr
     let e' ← eval_once e
     eval_n n e'
 
+partial def eval_unsafe (e : Ast.Expr) : Option Ast.Expr := do
+  let e' ← eval_once e
+  (eval_unsafe e').getD e'
+
 end Expr
 
 inductive IsEvalOnce : Ast.Expr → Ast.Expr → Prop
   | k      : IsEvalOnce SKM[((((K _α) _β) x) y)]          x
   | s      : IsEvalOnce SKM[((((((S _α) _β) _γ) x) y) z)] SKM[((x z) (y z))]
-  | m_k    : IsEvalOnce SKM[(((M K) α) β)]                SKM[(α ~> (((K (Ty 0)) α) (β ~> (((K (M β)) α) β))))]
-  | m_s    : IsEvalOnce SKM[((((M S) α) β) γ)]            SKM[(α ~> ((((K (Ty 0))) α) (β ~> ((((K (Ty 0)) β) (γ ~> (((((S (M α)) (M β)) γ) α) β)))))))]
+  | m_k    : IsEvalOnce SKM[(((M K) α) β)]                SKM[(α !~> β !~> α)]
+  | m_s    : IsEvalOnce SKM[((((M S) α) β) γ)]            (Ast.Expr.mk_s_type SKM[(M α)] α β γ)
   | m_m_k  : IsEvalOnce SKM[((M M) K)] SKM[Prp]
   | m_m_s  : IsEvalOnce SKM[((M M) S)] SKM[Prp]
   | m_m_m  : IsEvalOnce SKM[((M M) M)] SKM[Prp]
@@ -59,3 +63,5 @@ lemma symm (h : BetaEq a₁ a₂) : BetaEq a₂ a₁ := by
   repeat simp_all
 
 end BetaEq
+
+
