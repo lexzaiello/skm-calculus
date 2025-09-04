@@ -397,3 +397,56 @@ S α β γ :  (α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ
 S α β γ x y z : ((M x) z) (y z)
 S α β γ x y z : ((α ~> β ~> γ) z) (y z)
 S α β γ x y z : (γ z) (y z)
+
+On to actually making the S type.
+
+**** S is dependent, but how do we construct its type?
+
+We can construct a type of the form α ~> β ~> γ pretty easily.
+
+S : Type m ~> Type n ~> Type o ~> (<~# <~#)
+S \alpha : Type n ~> Type o ~> (#~> #~>) \alpha
+S \alpha : Type n ~> Type o ~> \alpha ~> (#~>)
+S \alpha \beta : Type o ~> \alpha ~> (#~> \beta)
+S \alpha \beta \gamma : \alpha ~> (\beta ~> \gamma)
+
+we'll say
+
+def mk_t_x := Type m ~> Type n ~> Type o ~> (<~# <~#)
+
+This makes α ~> (β ~> γ)
+
+We can also make α ~> β. This is extremely simple. I'll use the same order of arguments, α β γ
+
+def mk_ty := Type m ~> Type n ~> Type o ~> ~> ~>
+
+mk_ty α β γ = ~> ~> α β γ = (~> ~> α) β γ = → ~> (α β) γ = (α β)
+
+def mk_ty := Type m ~> Type n ~> Type o ~> ~> ~>
+
+First with just α and β
+
+def mk_ty_simple := Type m ~> Type n ~> ~>
+mk_tysimple α β = α ~> β
+
+Now we just discard γ.
+def mk_ty := Type m ~> Type n ~> Type o ~> (<~# K)
+
+^ Done.
+
+mk_ty α β γ = (<~# K α β γ) = (α ~> K) β γ = (α ~> (K β)) γ = (α ~> β)
+
+
+So, now we can construct (α ~> (β ~> γ)) and (α ~> β)
+
+The rest of the type is literally just copiny γ and α.
+
+Or, if we want, we can make a similar method to make this part of the call.
+
+If we had something to "flip" K, that would be nice.
+Or, alternatively, we can use →.
+mk_ty_z α β γ := TYpe m ~> Type n ~> Type o ~> (#~> →)
+
+^^ This works.
+
+mk_ty_z α β γ = (~> →) α β γ = (→ ~> α) β γ = ~> α γ = α ~> γ
