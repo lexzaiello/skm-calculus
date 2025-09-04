@@ -118,6 +118,13 @@ def mk_s_type (t_α α β γ : Ast.Expr) : Ast.Expr :=
 def mk_k_type (m n : ℕ) : Ast.Expr :=
   SKM[Ty m ~> Ty n ~> (((((S m.succ n.succ m (M (~>))) (M (<~))) Ty m) (~>)) (←))]
 
+def max_universe : Expr → ℕ
+  | SKM[K _m n] => max _m n
+  | SKM[S _m n o] => max (max _m n) o
+  | SKM[Ty n] => n
+  | SKM[(lhs rhs)] => max lhs.max_universe rhs.max_universe
+  | _ => 0
+
 end Expr
 
 end Ast

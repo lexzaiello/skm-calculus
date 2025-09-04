@@ -8,8 +8,15 @@ def eval_once : Ast.Expr → Option Ast.Expr
   | SKM[(M (K m n))]     => pure $ Ast.Expr.mk_k_type m n
   | SKM[((((M (S _ _ _ )) α) β) γ)] => pure $ Ast.Expr.mk_s_type SKM[(M α)] α β γ
   | SKM[(M (lhs rhs))] => pure SKM[((M lhs) rhs)]
-  | SKM[((_t_in ~> t_out) arg)] => SKM[(t_out arg)]
+  | SKM[((_t_in ~> t_out) arg)]
   | SKM[((t_out <~ _t_in) arg)] => SKM[(t_out arg)]
+  | SKM[(((M (<~)) t_out) _)]
+  | SKM[(((M (~>)) _) t_out)] => SKM[(M t_out)]
+  | SKM[(((M (→)) t_in) t_out)]
+  | SKM[(((M (←)) t_out) t_in)]=>
+    let max_u := max t_in.max_universe t_out.max_universe
+
+    SKM[Ty max_u]
   | SKM[((_t_in → t_out) _)] => t_out
   | SKM[((t_out ← _t_in) _)] => t_out
   | SKM[(lhs rhs)] => do SKM[((#(← eval_once lhs)) rhs)]

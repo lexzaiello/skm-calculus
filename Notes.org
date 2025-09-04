@@ -313,3 +313,87 @@ The question is, do we even want this? We would like to be able to instantiate d
 (x z) (y z)
 
 This typing appears to be just polymorphic.
+
+We want:
+
+S α β γ x y z : (((M x) z) (y z))
+
+But we want to restrict inputs in some way.
+S α β : (α ~> x_out) ~> (α ~> y_out) ~> S α 
+S :  Ty 0 ~> Ty 0 ~> Ty 0 ~> (S Ty 0 Ty 0 Ty0)
+S α β γ : (α γ) (β γ)
+
+Really what we want is:
+S α β γ x y z : (((M x) z) (y z))
+
+This is not hard to achieve, but we need to restrict our inputs such that (x : α ~> ((M y) z))
+
+But, we can't instantiate y and z, since we don't know what they are yet.
+
+There isn't really a reason why we can't upgrade the type of S like such:
+
+We can only really restrict types predictively.
+We can't post-hoc restrict a type further. Or can we?
+Really, I would like as minimal arguments to the function as possible.
+
+What we want is:
+
+S α β γ x y z : (α z) (y z)
+
+Imagine they're popped off:
+
+Ayo we're calling α here. Wtf.
+This is possible if α is an arrow expression, because then it has type Ty.
+
+- α z creates a new type
+- y z creates a new term
+- we can know the type of this already
+- α z new type should expect ((M y) z) as an input
+- So it's not clear what the type of x is immediately, since it expects y z as an input
+- (y z) could be used to instantiate the type
+
+- We can make assertions about x_out, though
+- We may not be able to assert that the full type of x is α ~> β ~> γ,
+but we can say that it expects α as an input, produces some output,
+
+We can do type inference for S really easy:
+M (S _ _ _ x y z) = ((M x) z) (y z)
+
+Looking at this type, we can see x : M x, M x = α
+We can see that α : γ 
+
+S α β γ x y z : (α  ~> x_out) ~> (α ~> y_out) ~> α ~> (α z) (y z)
+
+Also, another thing. Our typing judgment for α ~> β is kind of funky.
+We really ought to separate the typing for ~> (pi) and →.
+α → β is Ty whatever
+while α ~> β is actually (M β). TODO
+
+So, in ((M x) z) (y z),
+(M x : α ~> 
+(y : α ~> y_out)
+(z : α)
+(M x) : α ~> x_out
+(x_out : (y_out α)
+
+Is polymoprhic S actually polymorphic?
+
+S α β γ : (α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ
+
+There doesn't appear to be any dependency on terms in these types. Ngl.
+Is this equivalent to ((M x) z) (y z)?
+
+S α β γ x y z : (α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ ~> ((M x) z) (y z)
+
+y : α ~> β
+x : α ~> (β α) ~> γ
+z : α
+
+S α β γ y_out : (α ~> (y_out α) ~> γ α)
+
+"Polymorphic" S actually is dependent, since it's not actually polymorphic. ~> does all the heavy lifting.
+
+S α β γ :  (α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ
+S α β γ x y z : ((M x) z) (y z)
+S α β γ x y z : ((α ~> β ~> γ) z) (y z)
+S α β γ x y z : (γ z) (y z)
