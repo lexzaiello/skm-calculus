@@ -274,3 +274,42 @@ K \alpha \beta x : \beta ~> K \alpha
 K \alpha \beta x y : K \alpha y = \alpha
 
 We need another K.
+
+** Dependent S Typing
+
+We know how to produce (\alpha ~> \beta ~> \gamma):
+
+#+BEGIN_SRC lean
+S : Type m ~> Type n ~> Type o ~> (<~# <~#)
+S \alpha : Type n ~> Type o ~> (#~> #~>) \alpha
+S \alpha : Type n ~> Type o ~> \alpha ~> (#~>)
+S \alpha \beta : Type o ~> \alpha ~> (#~> \beta)
+S \alpha \beta \gamma : \alpha ~> (\beta ~> \gamma)
+#+END_SRC
+
+We can produce \alpha ~> (\beta ~> \gamma) easily.
+We can also produce \alpha ~> \beta easily. But, producing all 3 is very difficult.
+A possible strategy for (\alpha ~> \beta) ~> (\alpha ~> \gamma):
+
+Note that \alpha is duplicated, while \beta and \gamma aren't.
+
+This is in essence: S (<~ \beta) (<~ \gamma) \alpha = (\alpha ~> \beta) (\alpha ~> \gamma)
+
+But what about the ~> in between? This would seem complicated, but we can construct (\alpha ~> \beta) ~> (\alpha ~> \gamma) by #~> (\alpha ~> \beta) ~> (\alpha ~> \gamma).
+
+#+BEGIN_SRC
+So, (S (K ~>) (S (<~ \beta) (<~ \gamma))) α = (~>)
+#+END_SRC
+
+However, this does not have the parenthesization we want.
+
+
+S (<~ \beta) (<~ \gamma) \alpha
+
+S α β γ : (α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ
+
+The question is, do we even want this? We would like to be able to instantiate dependent types in shit like
+
+(x z) (y z)
+
+This typing appears to be just polymorphic.
