@@ -75,5 +75,4 @@ lemma symm (h : BetaEq a₁ a₂) : BetaEq a₂ a₁ := by
 
 end BetaEq
 
-
 #eval Expr.eval_unsafe SKM[(((((K 0 0) (M (K 0 0))) (M (K 0 0))) (K 0 0)) (K 0 0))]

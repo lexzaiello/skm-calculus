@@ -691,3 +691,65 @@ K α : Ty m ~> (S ~> <~ α)
 K α β : (S ~> <~ α) β
 K α β : (~> α) (<~ α) β = (α ~> (<~ α)) β = α ~> (β ~> α)
 #+END_SRc
+
+* Potential improvements to S type with new "substitution" vs "popping" mechanism
+
+Now that substitution is separated from "popping" (not sure what to call this lol), defining the type of S may be simpler, since we may be able to "backtrack."
+
+S \alpha \beta \gamma : (\alpha ~> \beta ~> \gamma) ~> (\alpha ~> \beta) ~> (\alpha ~> \gamma)
+
+Now that we seperate substitution, we may be able to leverage the type of x to define the type of y and z.
+
+We still have access to our mk_tx function defined above.
+
+S : Ty m ~> Ty n ~> Ty o ~> mk_tx
+
+S \alpha \beta \gamma : Ty m ~> Ty n ~> Ty o ~> (\alpha ~> \beta ~> \gamma)
+
+S \alpha \beta \gamma x : Ty m ~> Ty n ~> Ty o ~> ((\alpha ~> \beta ~> \gamma) x)
+S \alpha \beta \gamma x : Ty m ~> Ty n ~> Ty o ~> ((\alpha ~> \beta ~> \gamma) x)
+
+It would be really cool if we had some primitive to manipulate types. That is, if we could just drop the ~> \gamma from the type of x, we can easily make the type of y.
+
+S \alpha \beta \gamma x : Ty m ~> Ty n ~> Ty o ~> (\alpha ~> \beta ~> \gamma) ~> (some transformation to remove \gamma (M x))
+
+A potential way to remove \gamma from (M x): we can bubble down a K into its type.
+
+This doesn't get us anywhere, since the evaluation rule for ~> puts our argument after the type.
+
+S α β γ x : Ty m ~> Ty n ~> Ty o ~> (α ~> β ~> γ) ~> (M x)
+
+I don't want to just add random evaluation rules to fix this issue.
+
+Theoretically we could change the order of the arguments.
+If we put z first (HIGHLY UNORTHODOX), we can build the type of x out of y and z.
+BUT, this is suboptimal, since it isn't true to SK.
+
+Just run with it though.
+
+S' α β γ : Ty m ~> Ty n ~> Ty o ~> α ~> (α ~> β) ~> γ
+
+Here, we're not really doing any crazy duplication. We can just form the type α ~> β ~> γ from the arguments we have.
+
+If we have α, we can easily make α ~> β.
+
+Going back to our mk_tx, mk_ty, mk_tz, we can probably copy all of our arguments into these. 
+
+We can probably alter our little type maker combinators to not require all 3 arguments.
+
+mk_tx just takes in α β and γ.
+mk_ty just takes in α and β
+mk_tz just takes in α and γ
+
+Really, the only thing we need to copy three times is α.
+
+Here, we copy α 3 times.
+S : Ty m ~> Ty n ~> Ty o ~> S (S ~> ~>) ~>
+
+S α : Ty m ~> Ty n ~> Ty o ~> ((α ~>) (α ~>)) (α ~>)
+
+This is exsactly the structure we need.
+
+So, what to do with β?
+
+S α β γ : Ty m ~> Ty n ~> Ty o ~> 
