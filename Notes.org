@@ -632,7 +632,6 @@ S : Ty m ~> Ty n ~> Ty o ~> S
 
 We can chain these together by making mk_tx copy its arguments to a callee (golly gee this is getting really complicated though).
 
-
 * When to trigger "substitution" vs popping
 
 - (α ~> β) arg should be treated as substitution
@@ -1206,3 +1205,28 @@ We need to stick another S (K S) before the child stuff inside
 S (S (K S) (S (S (K (S (K S))) (S (K (S (K S))) mk_tx)) mk_ty)) mk_tz
 
 Testing it out.
+
+(((((mk_ty ((S₀ (K₀ (S₀ (K₀ S₀)))) mk_ty)) mk_tz) α) (((mk_x mk_ty) mk_z) α)) β)
+
+What the hell.
+
+* Representing S type with a well-defined fixpoint
+
+One potential approach to make the type of S uses tuples.
+Using α β γ, we can form (α, (β, γ))
+
+Then, we can easily form α ~> (β ~> γ):
+
+Assume we have access to fst and snd for projection:
+fst (α, β) = α
+
+We can just recursively prepend fst in each tuple with ~>
+
+types := (α, (β, γ))
+
+S (S (K ~>) fst) (S snd (K ~>)
+S (S (K ~>) fst) (S snd (K ~>) (α, (β, γ))
+= (~> α) ((β, γ) ~>) = ~> α (~> β γ) = α ~> β ~> γ
+
+
+
