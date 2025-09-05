@@ -54,14 +54,14 @@ partial def eval_untyped_unsafe (cfg : ReductionMode) (e : Ast.Expr) : Option As
   else
     (eval_untyped_unsafe cfg e').getD e'
 
-partial def eval_unsafe (e : Ast.Expr) : Option Ast.Expr := do
+partial def eval_unsafe (cfg : ReductionMode) (e : Ast.Expr) : Option Ast.Expr := do
   let e' : Option Ast.Expr ← match e with
     | SKM[(((((K _ _) _α) _β) x) _y)] => x
     | SKM[(((((((S _ _ _) _α) _β) _γ) x) y) z)] => SKM[((x z) (y z))]
     | SKM[(M (K m n))]     => pure $ Ast.Expr.mk_k_type m n
     | SKM[((((M (S _ _ _ )) α) β) γ)] => pure $ Ast.Expr.mk_s_type SKM[(M α)] α β γ
     | SKM[(M (lhs rhs))] => do
-      let t_lhs := (eval_unsafe SKM[((M lhs) rhs)]).getD $ SKM[((M lhs) rhs)]
+      let t_lhs := (eval_unsafe cfg SKM[((M lhs) rhs)]).getD $ SKM[((M lhs) rhs)]
       pure (pop_arrow t_lhs)
     | SKM[((_t_in → t_out) _arg)] => t_out
     | SKM[((t_out ← _t_in) _arg)] => t_out
@@ -74,13 +74,17 @@ partial def eval_unsafe (e : Ast.Expr) : Option Ast.Expr := do
       let max_u := max t_in.max_universe t_out.max_universe
 
       SKM[Ty max_u]
-    | SKM[(lhs rhs)] => SKM[(((#((eval_unsafe lhs).getD lhs))) rhs)]
+    | SKM[(lhs rhs)] =>
+      match cfg with
+      | .cbv => SKM[(((#((eval_unsafe cfg lhs).getD lhs))) (#(eval_unsafe cfg rhs).getD rhs))]
+      | .cbn =>
+        SKM[(((#((eval_unsafe cfg lhs).getD lhs))) rhs)]
     | _ => .none
 
   if e' == e then
     .none
   else
-    (eval_unsafe e').getD e'
+    (eval_unsafe cfg e').getD e'
 
 end Expr
 
@@ -146,4 +150,46 @@ end BetaEq
 
 #eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[((((((((S₀ ((S₀ (K₀ S₀)) ((S₀ (K₀ K₀)) ((S₀ (K₀ (~>))) K₀)))) (K₀ (~>)))) ~> ((S₀ ((S₀ (K₀ S₀)) ((S₀ (K₀ K₀)) ((S₀ (K₀ (~>))) K₀)))) (K₀ K₀)) ~> ((S₀ (K₀ K₀)) (~>))) Ty 1) Ty 2) Ty 3))]
 
-def raw_s_type := SKM[((((((S₀ ((S₀ (K₀ S₀)) ((S₀ (K₀ K₀)) ((S₀ (K₀ (~>))) K₀)))) (K₀ (~>))) Ty 1) Ty 2) Ty 3)) ~> (((((S₀ ((S₀ (K₀ S₀)) ((S₀ (K₀ K₀)) ((S₀ (K₀ (~>))) K₀)))) (K₀ K₀)) Ty 1) Ty 2) Ty 3) ~> 
+def raw_s_type := SKM[((((S₀ ((S₀ (K₀ S₀)) ((S₀ (K₀ K₀)) ((S₀ (K₀ (~>))) K₀)))) (K₀ (~>)))) ~> ((S₀ ((S₀ (K₀ S₀)) ((S₀ (K₀ K₀)) ((S₀ (K₀ (~>))) K₀)))) (K₀ K₀)) ~> ((S₀ (K₀ K₀)) (~>)))]
+
+#eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[(((#(raw_s_type) Ty 1) Ty 2) Ty 3)]
+
+#eval toString <$> Expr.eval_unsafe .cbv SKM[((#(Ast.Expr.mk_k_type 0 1) Ty 0) Ty 1)]
+
+def placeholder_s_type := SKM[(((((((S₀ ?) ?) ?) (((((S₀ ?) ?) ?) (((K₀ ?) ?) (((S₀ ?) ?) ?))) (((((S₀ ?) ?) ?) (((K₀ ?) ?) ((K₀ ?) ?))) (((((S₀ ?) ?) ?) (((K₀ ?) ?) (~>))) ((K₀ ?) ?))))) (((K₀ ?) ?) (~>)))) ~> ((((S₀ ?) ?) (((((S₀ ?) ?) ?) (((K₀ ?) ?) (((S₀ ?) ?) ?))) (((((S₀ ?) ?) ?) ((((K₀ ?) ?) ?) ((K₀ ?) ?))) (((((S₀ ?) ?) ?) (((K₀ ?) ?) (~>))) ((K₀ ?) ?))))) (((K₀ ?) ?) ((K₀ ?) ?))) ~> (((((S₀ ?) ?) ?) (((K₀ ?) ?) ((K₀ ?) ?))) (~>)))]
+
+def fill_holes_eval_unsafe (e : Ast.Expr) : Ast.Expr := do
+  let e' ← match e with
+  | SKM[(((((K _ _) ?) ?) x) _y)] =>
+    let u_x := x.max_universe
+    let u_y := x.max_universe
+
+    let x' := fill_holes_eval_unsafe x
+    let y' := fill_holes_eval_unsafe y
+
+    let t_x 
+  | SKM[(((((((S _ _ _) ?) ?) ?) x) y) z)] => SKM[((x z) (y z))]
+  | SKM[(M (K m n))]     => pure $ Ast.Expr.mk_k_type m n
+  | SKM[((((M (S _ _ _ )) α) β) γ)] => pure $ Ast.Expr.mk_s_type SKM[(M α)] α β γ
+  | SKM[(M (lhs rhs))] => do
+    let t_lhs := (eval_untyped_unsafe cfg SKM[((M lhs) rhs)]).getD $ SKM[((M lhs) rhs)]
+    pure (pop_arrow t_lhs)
+  | SKM[((_t_in → t_out) _arg)] => t_out
+  | SKM[((t_out ← _t_in) _arg)] => t_out
+  | SKM[((_t_in ~> t_out) arg)]
+  | SKM[((t_out <~ _t_in) arg)] => SKM[(#(insert_arrow_arg _t_in arg) ~> #(insert_arrow_arg t_out arg))]
+  | SKM[(((M (<~)) t_out) _arg)]
+  | SKM[(((M (~>)) _t_in) t_out)] => SKM[(M t_out)]
+  | SKM[(((M (→)) t_in) t_out)]
+  | SKM[(((M (←)) t_out) t_in)]=>
+    let max_u := max t_in.max_universe t_out.max_universe
+
+    SKM[Ty max_u]
+  | SKM[(lhs rhs)] =>
+    match cfg with
+    | .cbv =>
+      SKM[(((#((eval_untyped_unsafe cfg lhs).getD lhs))) #((eval_untyped_unsafe cfg rhs).getD rhs))]
+    | .cbn =>
+      SKM[(((#((eval_untyped_unsafe cfg lhs).getD lhs))) rhs)]
+  | _ => .none
+

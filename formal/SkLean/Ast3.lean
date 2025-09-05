@@ -3,16 +3,18 @@ import Lean
 
 namespace Ast
 
+abbrev Universe := ℕ
+
 inductive Expr where
-  | k    : ℕ → ℕ → Expr
-  | s    : ℕ → ℕ → ℕ → Expr
+  | k    : Universe → Universe → Expr
+  | s    : Universe → Universe → Universe → Expr
   | m    : Expr
   | pi   : Expr
   | pi'  : Expr
   | imp  : Expr
   | imp' : Expr
   | hole : Expr
-  | ty   : ℕ → Expr
+  | ty   : Universe → Expr
   | prp  : Expr
   | call : Expr → Expr → Expr
 deriving BEq, Repr, Lean.ToExpr
@@ -118,31 +120,10 @@ def fromExpr (e : Lean.Expr) : Option Expr :=
     pure SKM[(lhs' rhs')]
   | _ => none
 
-def mk_k_type (_m n : ℕ) : Ast.Expr :=
-  SKM[Ty _m ~> Ty n ~> ((((((S _m.succ n.succ _m.succ) (M (~>))) (M (<~))) (Ty _m)) (~>)) (<~))]
+def mk_k_type (_m n : Universe) : Ast.Expr :=
+  SKM[Ty _m ~> Ty n ~> ((((K _m n) Ty _m) Ty n) ~> <~)]
 
-/-
-Test:
-
-K α : Ty n ~> (((((S _m.succ n.succ _m (M (~>))) (M (<~))) Ty _m) (~>)) (←)) α
-K α β : (((((S _m.succ n.succ _m (M (~>))) (M (<~))) Ty _m) (~>)) (←)) α β
-K α β : (~> α) (← α) β = (α ~> (← α)) β
-K α β : S (K (α ~>)) (← a) β = α ~> (β → α)
-K α : S (K (α ~>)) (← a)
-K : S (S (K K) ~>) ←
-K α : S (K S) (S (S (K K) ~>) ←) α
-K α : S (K S) (S (S (K K) ~>) ←) α
-K α : S ((S (S (K K) ~>) ←) α)
-
-K : Ty n ~> Ty m ~> S ~> <~
-
-K α β : α ~> (<~ α) β
-K α β : (β ~> α)
-
-(~> α) (← α)
--/
-
-def max_universe : Expr → ℕ
+def max_universe : Expr → Universe
   | SKM[K _m n] => max _m n
   | SKM[S _m n o] => max (max _m n) o
   | SKM[Ty n] => n
