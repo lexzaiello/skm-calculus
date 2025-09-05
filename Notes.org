@@ -1302,10 +1302,56 @@ For the x type: S (K (<~# ~>)) (S (K K) K)
 For the y type: S (K ~>) K
 
 Need to reject β
-Need to produce
-For the z type: S (K ~>) K
+Need to produce (K (~> (K α))
 
-S : ... ~> (S (K (<~# ~>)) (S (K K) K)) ~> (S (K ~>) K) ~> (S (K ~>) K)
-S α : ... ~> ((<~# ~>) (K (K α))) ~> (~> (K α)) ~> (~> (K α))
-S α β : ... ~> ((K α) ~> (~> β)) ~> ((K α) ~> β) ~> ((K α) )
+For the z type: S (K K) (S (K ~>) K)
 
+S : ... ~> (S (K (<~# ~>)) (S (K K) K)) ~> (S (K ~>) K) ~> (S (K K) (S (K ~>) K))
+S α : ... ~> ((<~# ~>) (K (K α))) ~> (~> (K α)) ~> (K (~> (K α))
+S α : ... ~> ((K (K α)) ~> ~>) ~> (~> (K α)) ~> (K (~> (K α))
+S α β : ... ~> ((K α) ~> β) ~> ((K α) ~> β) ~> ((~> (K α))
+S α β γ : ... ~> (α ~> (β γ)) ~> (α ~> (β γ)) ~> (α ~> γ)
+
+Checkpoint: need to put a ~> in x for γ and reject γ in y.
+
+y type fix.
+current: (S (K ~>) K)
+for α β, this produces α ~> β.
+We want α ~> (K β)
+current: (S (K ~>) K)
+(S (K ~>) K) α = ~> (K α)
+Extend this to S (K (~> (K α))) (S (K ~>) K)
+
+So, y type := S (S (K S) (S (K K) (S (K ~>) K)) (K K)
+
+S : ... ~> (S (K (<~# ~>)) (S (K K) K)) ~> (S (K ~>) K) ~> (S (K K) (S (K ~>) K))
+
+S : ... ~> (S (K (<~# ~>)) (S (K K) K)) ~> (S (S (K S) (S (K K) (S (K ~>) K)) (K K)) ~> (S (K K) (S (K ~>) K))
+
+Checkpoint: y type with α β now produces (K α) ~> (K β). This is correct, and will reject γ. Note that we still need a ~> for (K β).
+
+Now, for the x type.
+
+Current: S (K (<~# ~>)) (S (K K) K)
+S (K (<~# ~>)) (S (K K) K) α β = (K α) ~> β
+
+We need to put a K around β
+This is very similar to what we did with x.
+
+In fact, this is very similar to the type for x. I think it might be:
+S (S (K S) (S (K K) (S (K ~>) K)) (K K)
+
+We might not actually need the K here
+y type is just this but with an extra ~>
+
+This is the x type
+x type := S (S (K S) (S (K K) (S (K ~>) K)) (~>)
+
+y type := S (S (K S) (S (K K) (S (K ~>) K)) (K K)
+
+z type already established := S (K K) (S (K ~>) K)
+
+S : Ty m ~> Ty n ~> Ty o ~> (S (S (K S) (S (K K) (S (K ~>) K)) (~>)) ~> (S (S (K S) (S (K K) (S (K ~>) K)) (K K)) ~> (S (K K) (S (K ~>) K))
+
+For z type, seems like we don't need the K around \alpha.
+z type already established := S (K K) ~>

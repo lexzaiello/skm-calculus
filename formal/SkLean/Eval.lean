@@ -126,3 +126,17 @@ end BetaEq
 #eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[((((S₀ ((S₀ (K₀ S₀)) (((S₀ ((S₀ (K₀ S₀)) Ty 0)) Ty 1)))) Ty 2) Ty 3) Ty 4)]
 
 
+-- This will reject γ, giving α ~> β
+#eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[((((S₀ ((S₀ (K₀ S₀)) ((S₀ (K₀ K₀)) ((S₀ (K₀ (~>))) K₀)))) (K₀ K₀)) Ty 1) Ty 2)]
+
+-- (K α) ~> (~> β)
+#eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[((((S₀ ((S₀ (K₀ S₀)) ((S₀ (K₀ K₀)) ((S₀ (K₀ (~>))) K₀)))) (K₀ (~>))) Ty 1) Ty 2)]
+
+-- α ~> β ~> γ
+#eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[(((((S₀ ((S₀ (K₀ S₀)) ((S₀ (K₀ K₀)) ((S₀ (K₀ (~>))) K₀)))) (K₀ (~>))) Ty 1) Ty 2) Ty 3)]
+
+-- α ~> β
+#eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[(((((S₀ ((S₀ (K₀ S₀)) ((S₀ (K₀ K₀)) ((S₀ (K₀ (~>))) K₀)))) (K₀ K₀)) Ty 1) Ty 2) Ty 3)]
+
+-- α ~> γ
+#eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[(((((S₀ (K₀ K₀)) (~>)) Ty 1) Ty 2) Ty 3)]
