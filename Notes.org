@@ -1257,3 +1257,55 @@ K α : (Ty m) α ~> (Ty n α) ~> (α ~> (<~# α))
 No.
 
 K Typing still works.
+
+This is nice.
+
+However, this doesn't really fix anything.
+We can use I for this.
+
+S : Ty m ~> Ty n ~> Ty o ~> (I ~> I ~> I)
+S α : Ty m ~> Ty n ~> Ty o ~> (α ~> α ~> α)
+S : Ty m ~> Ty n ~> Ty o ~> ((~>) ~> (~>) ~> I)
+S α β : Ty m ~> Ty n ~> Ty o ~> ((α ~> β) ~> (α ~> β) ~> (α β))
+
+This is so nice.
+
+S : Ty m ~> Ty n ~> Ty o ~> ((<~# ~>) ~> (~>) ~> I)
+something should give us
+S α : ... ~> ((K (K α) ~> ~>) ~> (~> (K α)) ~> α)
+We need a K before 
+
+Generally, we need 3 k's before α
+
+S (K K) K α = K (K α)
+
+S α : .. ~> S (type goes here) S (K K) K
+S α : .. ~> S (K ((<~# ~>) ~> (~>) I)) S (K K) K
+S α : ... ~> (<~# ~> (K (K α))
+S α : ... ~> ((K (K α) ~> ~>) ~> (~> ((K (K a)))) ~> ((K (K a)))
+S α β : ... ~> ((K α) ~> (~> β)) ~> (~> ((K (K a)))) ~> ((K (K a)))
+
+We actually only need 2 K's in the first one, only 1 in the other two.
+
+S α β : ... ~> ((K α) ~> (~> β)) ~> (((K (K a))) ~> β) ~> ((K (K a)))
+
+S α β : ... ~> ((K α) ~> (~> β)) ~> (((K (K a))) ~> β) ~> ((K (K a)))
+
+Need to add a K for β as well, but we only need 1 K for the middle one.
+
+To add the two K's we do
+
+S (K K) K
+
+For the x type: S (K (<~# ~>)) (S (K K) K)
+
+For the y type: S (K ~>) K
+
+Need to reject β
+Need to produce
+For the z type: S (K ~>) K
+
+S : ... ~> (S (K (<~# ~>)) (S (K K) K)) ~> (S (K ~>) K) ~> (S (K ~>) K)
+S α : ... ~> ((<~# ~>) (K (K α))) ~> (~> (K α)) ~> (~> (K α))
+S α β : ... ~> ((K α) ~> (~> β)) ~> ((K α) ~> β) ~> ((K α) )
+
