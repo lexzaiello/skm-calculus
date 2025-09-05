@@ -1064,3 +1064,94 @@ S (K S (K Pair)) Pair α = (S (K Pair)) (Pair α)
 S (K S (K Pair)) Pair α β = Pair (Pair α β)
 
 S (K S (K Pair)) Pair - this is what we need to make ((α, β), γ)
+
+((α, β), γ) (S (K ~>) ~>) = (S (K ~>) ~>) (α, β) γ
+= ~> ((α, β) ~>) γ
+
+We probably want (α, (β, γ)) instead
+
+
+Pair (Pair α β)
+
+S (K S (K Pair)) Pair α β = Pair (Pair α β)
+
+Thsi is a ridiculous amount of abstraction.
+
+Our mk_tx, mk_ty, mk_tz are pretty simple.
+None of them have S.
+
+We will need S somewhere.
+
+We will probably need to use mk_tx, mk_ty, mk_tz.
+
+However, we don't need to have all arguments for all of them.
+
+mk_tx stays the same
+mk_ty := ~>
+mk_tz := <~#
+
+Copying α to all 3 is easy
+
+S (S mk_tx mk_ty) mk_z
+
+Low-key copying is easy in general. We can keep the old arguments version if we want.
+
+def mk_t_x := Type m ~> Type n ~> Type o ~> (<~# <~#)
+
+Gives us (α ~> β)
+def mk_ty := Type m ~> Type n ~> Type o ~> (<~# K)
+
+Gives us α ~> γ
+def mk_ty_z α β γ := TYpe m ~> Type n ~> Type o ~> (#~> →)
+
+S (S mk_tx mk_ty) mk_tz
+
+We just need to stick another S in front after, so like..
+
+S (S (K S) (S mk_tx mk_ty)) mk_tz
+
+So, this with α β =
+S (S (K S) (S mk_tx mk_ty)) mk_tz α = S (mk_tx α mk_ty α) (mk_tz α)
+
+Excellente. we need another S on the inside tho.
+S (S (K S) (S mk_tx mk_ty)) mk_tz
+S (S (K S) (S (K S) (S mk_tx mk_ty))) mk_tz
+
+S (S (K S) (S (K S) (S mk_tx mk_ty))) mk_tz α = S (S ((mk_tx α) (mk_ty α)) (mk_tz α)
+
+bruh.
+This is NOT what we want. We want:
+S (S (mk_tx α) (mk_ty α) (mk_tz α)
+
+
+S (S (K S) (S mk_tx mk_ty)) mk_tz α = S (mk_tx α mk_ty α) (mk_tz α)
+
+Im not even gonna lie man, writing out the types for this shit finna be insane.
+
+S (S (K S) (S (S mk_tx) mk_ty)) mk_tz
+S (S (K S) (S (S (K S) mk_tx) mk_ty)) mk_tz α = S (mk_tz α)
+
+Checkpoint  1.
+
+S (S (K S) (S mk_tx mk_ty)) mk_tz
+
+((((mk_tx α) (mk_ty α)) β) ((mk_tz α) β))
+
+Need to stick an S in the middle, like I said, but at least we know this one's working.
+
+Sticking the S inside: checkpoint 2.
+
+We want:
+((((S (mk_tx α)) (mk_ty α)) β) ((mk_tz α) β))
+
+This happens when we copy α.
+Something like S (K S) mk_tx α = S (mk_tx α)
+
+S (S (K S) (S (S (K S) mk_tx) mk_ty)) mk_tz
+
+with args, gives us:
+
+((((mk_tx α) β) ((mk_ty α) β)) ((mk_tz α) β))
+
+Checkpoint 2. Fanout with β works with all 3.
+
