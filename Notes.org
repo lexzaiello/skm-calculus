@@ -1155,3 +1155,54 @@ with args, gives us:
 
 Checkpoint 2. Fanout with β works with all 3.
 
+Now we just repeat the process one more time.
+
+(S ((S ((mk_tx α) β)) ((mk_ty α) β)) ((mk_tz α) β))
+
+This allows us to stick the S in front of mk_tx, but we need an outer one somewhere.
+S (S (K S) (S (S (K S) (S (K S) mk_tx)) mk_ty)) mk_tz
+
+Probably around the inner and mk_ty
+S (S (K S) (S (S (K S) (S (S (K S) mk_tx)) mk_ty))) mk_tz
+
+Gives us:
+
+Where did \alpha go? Lol.
+
+((((mk_tx γ) ((mk_ty β) γ)) ((β γ) ((mk_ty β) \gamma))) ((mk_tyz \beta) \gamma))
+
+This copies \gamma to mk_tx and mk_ty
+We need to copy at the outer layer, too.
+S (S (K S) (S (S (K S) (S (K S) mk_tx)) mk_ty)) mk_tz
+
+S (S (K S) (S (S (K S) mk_tx) mk_ty)) mk_tz
+S (S (K S) (S (S (K S) mk_tx) mk_ty)) mk_tz α
+ = (((S (K S) (S (S (K S) mk_tx) mk_ty))) α) (mk_tz α)
+= (S ((S (S (K S) mk_tx) mk_ty) α)) (mk_tz α)
+= (S (((S (K S) mk_tx) α) (mk_ty α))) (mk_tz α)
+
+At this step, we need to do what we did on the first step
+? = (S (((S (mk_tx α) (mk_ty α))) (mk_tz α)
+
+We need the α step to produce
+S (S (K S) (S (S (K S) (mk_tx α)) (mk_ty α))) (mk_tz α)
+
+α step currently produces this:
+= (S (((S (K S) mk_tx) α) (mk_ty α))) (mk_tz α)
+= (S ((S (mk_tx α)) (mk_ty α)) (mk_tz α)
+
+We want:
+S (S (K S) (S (S (K S) (S (K S) (mk_tx α))) (mk_ty α))) (mk_tz α)
+
+We can change the original expression to:
+S (S (K S) (S (S (K (S (K S))) mk_tx) mk_ty)) mk_tz
+This adds the K S before (mk_tx α)
+? = (S (((S (K S)) (mk_tx α)) (mk_ty α)) (mk_tz α)
+S (S (K S) (S (S (K (S (K S))) mk_tx) mk_ty)) mk_tz
+
+We need to stick another S (K S) before the child stuff inside
+        ↓ this is where we stick the outer S in
+        ↓        ↓ here, we stick the middle S (K S)
+S (S (K S) (S (S (K (S (K S))) (S (K (S (K S))) mk_tx)) mk_ty)) mk_tz
+
+Testing it out.

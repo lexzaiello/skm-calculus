@@ -120,4 +120,5 @@ end BetaEq
 -- Checkpoint 2. Fanout with β works with all 3.
 #eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[((((S₀ ((S₀ (K₀ S₀)) (((S₀ ((S₀ (K₀ S₀)) Ty 0)) Ty 1)))) Ty 2) Ty 3) Ty 4)]
 
+#eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[((((S₀ ((S₀ (K₀ S₀)) (((S₀ ((S₀ (K₀ S₀)) Ty 0)) Ty 1)))) Ty 2) Ty 3) Ty 4)]
 
