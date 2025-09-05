@@ -22,7 +22,9 @@ inductive ExprBox (e : Ast.Expr) where
 
 declare_syntax_cat skmexpr
 syntax "K" term:max term:max          : skmexpr
+syntax "K₀"                           : skmexpr
 syntax "S" term:max term:max term:max : skmexpr
+syntax "S₀"                           : skmexpr
 syntax "M"                            : skmexpr
 syntax "~>"                           : skmexpr
 syntax "<~"                           : skmexpr
@@ -49,6 +51,8 @@ macro_rules
 macro_rules
   | `(⟪ K $m:term $n:term ⟫)            => `(Expr.k $m $n)
   | `(⟪ S $m:term $n:term $o:term ⟫)    => `(Expr.s $m $n $o)
+  | `(⟪ K₀ ⟫)                           => `(Expr.k 0 0)
+  | `(⟪ S₀ ⟫)                           => `(Expr.s 0 0 0)
   | `(⟪ M ⟫)                            => `(Expr.m)
   | `(⟪ ? ⟫)                            => `(Expr.hole)
   | `(⟪ Ty $n:term ⟫)                   => `(Expr.ty $n)
@@ -70,6 +74,8 @@ namespace Expr
 
 def toStringImpl (e : Expr) : String :=
   match e with
+  | SKM[S 0 0 0]   => "S₀"
+  | SKM[K 0 0]   => "K₀"
   | SKM[S _m n o]  => s!"S.{_m},{n},{o}"
   | SKM[K _m n]    => s!"K.{_m},{n}"
   | SKM[M]    => "M"

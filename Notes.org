@@ -796,21 +796,271 @@ We also need to "accept" γ in the left α ~> β by turning α ~> β into α ~> 
 
 S (α ~> ~>) (S (α ~> K) (K (α ~>))) β = (α ~> (~> β)) ((α ~> (K β)) (α ~>))
 
-Now, we can copy in γ.
+#7 Now, we can copy in γ.
 
 S (S (α ~> (~> β)) ((α ~> (K β))) (α ~>) γ = (((α ~> (~> β)) γ) ((α ~> (K β)) γ) (α ~> γ) = (((α ~> β ~> γ) (α ~> β) (α ~> γ))
 
-These are all the components we need. We can merge them with ~> by:
+Technically, there is a reduction that can be done here.
+
+(((α ~> β ~> γ) (α ~> β) (α ~> γ)) = (α ~> β ~> γ (α ~> β)) (α ~> γ)) = (α ~> β ~> γ (α ~> β) (α ~> γ)).
+
+The only missing step is we need to append ~> in x and y.
+
+Note, however, that we want these to be parnthesized correctly.
+
+(α ~> β ~> γ (α ~> β) (α ~> γ)). = ~> α (~> β (~> γ (~> α β) (α ~> γ)
+
+This is not really what we want. We want α ~> β ~> γ in parenthesis.
+
+So really what we want is:
+
+(~> α (~> β γ))
+
+To recap:
+
+1. Clone α 3 times
 
 S : Ty m ~> Ty n ~> Ty o ~> S (S ~> ~>) ~>
+S α : Ty m ~> Ty n ~> Ty o ~> (~> α) (~> α) (~> α)
 
-Here,                                    ^ this is x
+This is perfect.
 
-So, we can just change ~> in that position
+2. Rejection / accepting
 
-S : Ty m ~> Ty n ~> Ty o ~> S (S ~> ~>) ~>
+We need to set up the first ~> α to accept β and γ, the second to reject γ, and the last to reject β.
 
-obviously.
+Since β is the next argument, we must add the rejection logic in z and the type constructor logic in x and y.
 
-How does this fit into what we've done so far?
+We don't actually need "accept" logic in y. We just need to discard further arguments. K suffices.
 
+S α : Ty m ~> Ty n ~> Ty o ~> (~> α (~>)) (~> α K) (~> α)
+
+S : Ty m ~> Ty n ~> Ty o ~> S (S (<~# ~>) ~>) ~>
+S α : Ty m ~> Ty n ~> Ty o ~> (α ~> (~>))  (~> α) (~> α)
+
+Scratch:
+S (<~# <~#) ~> α = (<~# ~> α) (~> α) = (α ~> (~>))  (~> α)
+
+3. β accept x y
+
+Using our new type, we can copy β. However, to copy β, we will need to nest the above expression in S.
+
+Ideal:
+S α β : Ty m ~> Ty n ~> Ty o ~> ((α ~> (~>)) β) ((~> α) β) (~> α)
+
+We don't necessarily need to explicitly encode "rejection" of β in z.
+
+
+S : Ty m ~> Ty n ~> Ty o ~> S (S (K S) (S (<~# ~>) ~>)) ~>
+S α : Ty m ~> Ty n ~> Ty o ~> ((S (K S) (S (<~# ~>) ~>)) α) (~> α)
+S α : Ty m ~> Ty n ~> Ty o ~> ((S (S (<~# ~>) ~> α) (~> α)
+S α : Ty m ~> Ty n ~> Ty o ~> ((S (S (<~# ~>) ~> α) (~> α)
+S α β : Ty m ~> Ty n ~> Ty o ~> ((S (S (<~# ~>) ~> α) (~> α)
+
+Our S is nested at the wrong level. We want to copy β. What's this extra S for again?
+
+
+S : Ty m ~> Ty n ~> Ty o ~> S ((S (<~# ~>) ~>)) ~>
+S α : Ty m ~> Ty n ~> Ty o ~> (((S (<~# ~>) ~>)) α) (~> α)
+S α : Ty m ~> Ty n ~> Ty o ~> ((((<~# ~>) α) (~> α))) (~> α)
+S α : Ty m ~> Ty n ~> Ty o ~> ((((α ~> (~>)) (~> α))) (~> α)
+
+This is looking pretty good. We want to be able to clone β once it gets passed through.
+
+Note again the reduction here.
+S α : Ty m ~> Ty n ~> Ty o ~> ((((α ~> (~>)) (~> α))) (~> α)
+S α : Ty m ~> Ty n ~> Ty o ~> ((((α ~> (~> ~> α (~> α)))))
+
+Idk what the hell is going on here. It clearlly is wrong. Lol.
+
+
+Note that even in step #1, there is still a possible reduction
+S α : Ty m ~> Ty n ~> Ty o ~> (~> α) (~> α) (~> α)
+S α : Ty m ~> Ty n ~> Ty o ~> (~> (α (~> α (~> α)))
+Very obviously not what we want. We need to separate these babys.
+
+S α : Ty m ~> Ty n ~> Ty o ~> (~> α) ~> (~> α) ~> (~> α)
+
+Something like this. Note, however, that if we do this, copying will be way harder. I think the best approach is:
+
+S α : Ty m ~> Ty n ~> Ty o ~> S (S (~> α) (~> α)) (~> α)
+S α β : Ty m ~> Ty n ~> Ty o ~> (α ~> β) (α ~> β) (α ~> β)
+
+This is a general skeleton for how we do this.
+
+Just note that this step, too, should produce some S expression.
+Also note that z should reject β.
+
+Rejecting:
+
+(S (K K) ~>) α = K (~> α), all β will be rejected
+
+S : Ty m ~> Ty n ~> Ty o ~> S (S ~> ~>) (S (K K) ~>)
+
+We can see here that β would be rejected from z, but γ would be accepted.
+
+Fan out:
+
+S : Ty m ~> Ty n ~> Ty o ~> S (S (K S) (S ~> ~>)) (S (K K) ~>)
+S α : Ty m ~> Ty n ~> Ty o ~> ((S (K S) (S ~> ~>)) α) ((S (K K) ~>) α)
+S α : Ty m ~> Ty n ~> Ty o ~> ((S (K S) (S ~> ~>)) α) (K (~> α))
+S α : Ty m ~> Ty n ~> Ty o ~> (((S ((S ~> ~>) α)) (K (~> α))
+S α : Ty m ~> Ty n ~> Ty o ~> (((S ((~> α) (~> α)) (K (~> α))
+S α β : Ty m ~> Ty n ~> Ty o ~> (((S ((~> α) (~> α)) (K (~> α))
+We need another S inside.
+S α β : Ty m ~> Ty n ~> Ty o ~> (((~> α) (~> α) β) ((~> α))
+
+S : Ty m ~> Ty n ~> Ty o ~> S (S (K S) (S (K S) (S ~> ~>))) (S (K K) ~>)
+S α : Ty m ~> Ty n ~> Ty o ~> ((S (K S) (S (K S) (S ~> ~>))) α) (K (~> α))
+S α : Ty m ~> Ty n ~> Ty o ~> ((S (S (α ~> (~> α))) (K (~> α))
+S α β : Ty m ~> Ty n ~> Ty o ~> ((S (α ~> (~> α))) β) (~> α)
+S α β : Ty m ~> Ty n ~> Ty o ~> ((S (α ~> (~> α))) β) (~> α)
+
+I think the S is in the wrong place. It should be INSIDE the (α ~> ...) parenthesis.
+
+S : Ty m ~> Ty n ~> Ty o ~> S (S ~> ~>) (S (K K) ~>)
+S α : Ty m ~> Ty n ~> Ty o ~> ((S ~> ~>) α) (K (~> α))
+No, it's supposed to bbe like S (~> α) (~> α)
+
+S : Ty m ~> Ty n ~> Ty o ~> S (S ~> ~>) (S (K K) ~>)
+S : Ty m ~> Ty n ~> Ty o ~> S (S ~> ~>) (S (K K) ~>)
+S (M K) (M S) : ((Type 0 ~> (Type 1 ~> (Type 2 ~> (((S₀ ((S₀ ~>) ~>)) ((S₀ (K₀ K₀)) ~>)) (M K₀))))) (M S₀))
+
+S (M K) (M S) (M M) : (((Type 0 ~> (Type 1 ~> (Type 2 ~> (((S₀ ((S₀ ~>) ~>)) ((S₀ (K₀ K₀)) ~>)) (M K₀))))) (M S₀)) (M M))
+
+When we substitute, we should(?) reduce?
+If we were to pop, we would reduce.
+We should be lazy.
+
+S (M K) (M S) (M M) : Type m ~> Type o ~> Type n ~> ((((((S₀ ~>) ~>) (M K₀)) (((S₀ (K₀ K₀)) ~>) (M K₀))) (M S₀)) (M M))
+
+S (M K) (M S) (M M) : ((M K₀) ~> ((M K₀) ~> (((((S₀ (K₀ K₀)) ~>) (M K₀)) (M S₀)) (M M))))
+
+We should be reducing here as well, idk why we're not.
+
+S ? ? ? : (Type 0 ~> (Type 1 ~> (Type 2 ~> (? ~> (? ~> (? ~> ?))))))
+
+S Ty 10 Ty 11 Ty 20 : (Type 0 ~> (Type 1 ~> (Type 2 ~> (Type 10 ~> (Type 10 ~> (Type 10 ~> Type 20))))))
+
+Key idea:
+- Fan out α β γ
+- For each, "reject" or "accept"
+- We already have utilities for this: mk_tx, mk_ty, and mk_tz
+
+S α β γ : (α ~> β ~> γ) ~> (α ~> β) ~> (α ~> γ)
+Technically this is actually just:
+(α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ
+
+Order of arguments is the same for all three. We just need to reject γ in y, and reject β in (α ~> γ)
+
+We need to design 3 functions that take α β γ and produce their types. We already have this.
+
+Gives us α ~> β ~> γ
+def mk_t_x := Type m ~> Type n ~> Type o ~> (<~# <~#)
+
+Gives us (α ~> β)
+def mk_ty := Type m ~> Type n ~> Type o ~> (<~# K)
+
+Gives us α ~> γ
+def mk_ty_z α β γ := TYpe m ~> Type n ~> Type o ~> (#~> →)
+
+To "compose these", we just need to put ~> around mk_tx, and ~> around mk_ty and mk_tyz
+~> (mk_tx α β γ) ((~> mk_ty α β γ) (mk_tyz α β γ))
+
+This gives our full type.
+To combine these expressions, make a def.
+
+def combine := ~>
+combine left right = left ~> right
+
+To combine all three given x y z,
+~> ~>
+~> ~> x y z = (~> ~> x) y z = (~> ~> (x y)) z
+So we need
+~> <~# x y z = (~> <~# x) y z = (<~# ~> x) y z = (x ~> ~>) y z = (x ~> (~> y)) z = (x ~> (y ~> x))
+
+Exactly.
+
+-- Combines x y z with ~>
+Combine := ~> ~>
+
+mk_tx, mk_ty, mk_z
+
+
+Now, we need to "fan out" α β γ to each.
+S (S mk_tx mk_ty) mk_tz
+This will fan out α to all 3. But we want to fan out β and γ as well.
+
+-- This is "fan out"
+S (S (K S) (S (K S) (S (K K) S))) (K (S K K))
+
+But, I don't really like this.
+
+S (S mk_tx mk_ty) mk_tz α = (mk_tx α) (mk_ty α) (mk_tz α)
+
+All of our type "maker" functions are combinators.
+None of them individually use S.
+
+We can modify mk_tx to prepend S inside mk_tx
+
+Really, it would be great if we could avoid S altogether, but that's not happening.
+
+This fan out shit is hella ugly, ngl.
+We can embed S inside mk_tx and it may be nicer.
+
+mk_tx α β γ = (α ~> β ~> γ)
+
+mk_tx α = (<~# α) (<~# α)
+
+Really, we don't need to actually fan out everything.
+
+S : (α ~> β ~> γ) ~> (α ~> β) ~> (γ ~> α)
+
+We definitely need to fan out α,
+but we only need to fan out β and γ once.
+
+We can actually change the type signatures of all three so they only take their proper arguments.
+
+mk_ty := ~>
+mk_tz := <~#
+
+So now we can fan out α
+
+S : S (S mk_tx mk_ty) mk_z
+S α : (mk_tx α) (mk_ty α) (mk_z α)
+
+Now we only have to fan out β and γ once.
+Note that we have our nice ~> operator.
+
+(t_in ~> t_out) arg = t_out arg, under type-checking, otherwise it's just (t_in ~> (t_out arg))
+
+We can kinda separate our concerns by "pipelining" (mk_tx α) (mk_ty α) (mk_z α) with ~>
+Type o ~> S (S mk_tx mk_ty) mk_z
+
+This copies α into all three.
+If we do our "combine" first, we can probably fix shit up.
+
+(mk_tx α) ~> (mk_ty α) ~> (mk_tz α)
+
+Passing in another value will ONLY put it into mk_tz α
+~> kinda behaves like λ lowkey
+
+We can change our type signature a bit. Instead of creating the whole type at once,
+we can create (α ~> β ~> γ), but copy α β γ WHILE inside, and put that shit after ~>
+
+S α β γ : Ty m ~> Ty o ~> Ty n ~> mk_tx
+
+Pair := S (K (S I)) K
+
+So,
+(Pair (Pair mk_tx mk_ty) mk_tz) 
+
+OHHHHH we can make a pair out of α β γ
+
+S : Type 0 ~> Type 1 ~> Type 2 ~> Pair Pair Pair
+Pair α β Pair = Pair α β
+Pair (Pair α β) = S (K Pair) Pair 
+S (K S (K Pair)) Pair α = (S (K Pair)) (Pair α)
+S (K S (K Pair)) Pair α β = Pair (Pair α β)
+
+S (K S (K Pair)) Pair - this is what we need to make ((α, β), γ)
