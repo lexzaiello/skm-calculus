@@ -137,13 +137,16 @@ def all_sk (e : IntermediateExpr) : Except IntermediateExpr Ast.Expr :=
   | SKM`[S _m n o]         => pure SKM[S _m n o]
   | SKM`[K _m n]         => pure SKM[K _m n]
   | SKM`[M]         => pure SKM[M]
-  | SKM`[_]         => pure SKM[_]
+  | SKM`[_]         => pure SKM[?]
   | SKM`[(lhs rhs)] => do
     let lhs' ← lhs.all_sk
     let rhs' ← rhs.all_sk
 
     pure SKM[(lhs' rhs')]
   | SKM`[~>] => pure SKM[~>]
+  | SKM`[<~] => pure SKM[~>]
+  | SKM`[←] => pure SKM[←]
+  | SKM`[→] => pure SKM[→]
   | .intr e => e.all_sk
   | e => .error e
 
@@ -388,5 +391,5 @@ elab "translate" e:term : term => do
     | .error e   => throwError "couldn't convert back to Lean: {repr e}"
   | .error e => throwError s!"parsing failed: {repr e}"
 
-#eval compile SKM`[(λ (M K 0 0) => λ (M K 0 0) => λ (M K 0 0) => (#(.var 2) ~> #(.var 1) ~> #(.var 0)) ~> (#(.var 2) ~> #(.var 1)) ~> (#(.var 2) ~> #(.var 0)))] .untyped
+
 

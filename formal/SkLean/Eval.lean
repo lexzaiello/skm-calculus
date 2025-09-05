@@ -10,7 +10,7 @@ namespace Expr
 def insert_arrow_arg (in_e e : Ast.Expr) : Ast.Expr :=
   match in_e with
   | SKM[(t_in ~> t_out)] =>
-    SKM[(t_in ~> #(insert_arrow_arg t_out e))]
+    SKM[(#(insert_arrow_arg t_in e) ~> #(insert_arrow_arg t_out e))]
   | x => SKM[(x e)]
 
 def pop_arrow : Ast.Expr → Ast.Expr
@@ -33,7 +33,7 @@ partial def eval_untyped_unsafe (cfg : ReductionMode) (e : Ast.Expr) : Option As
   | SKM[((_t_in → t_out) _arg)] => t_out
   | SKM[((t_out ← _t_in) _arg)] => t_out
   | SKM[((_t_in ~> t_out) arg)]
-  | SKM[((t_out <~ _t_in) arg)] => SKM[(_t_in ~> #(insert_arrow_arg t_out arg))]
+  | SKM[((t_out <~ _t_in) arg)] => SKM[(#(insert_arrow_arg _t_in arg) ~> #(insert_arrow_arg t_out arg))]
   | SKM[(((M (<~)) t_out) _arg)]
   | SKM[(((M (~>)) _t_in) t_out)] => SKM[(M t_out)]
   | SKM[(((M (→)) t_in) t_out)]
@@ -124,3 +124,5 @@ end BetaEq
 
 
 #eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[((((S₀ ((S₀ (K₀ S₀)) (((S₀ ((S₀ (K₀ S₀)) Ty 0)) Ty 1)))) Ty 2) Ty 3) Ty 4)]
+
+

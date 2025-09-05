@@ -1208,25 +1208,52 @@ Testing it out.
 
 (((((mk_ty ((S₀ (K₀ (S₀ (K₀ S₀)))) mk_ty)) mk_tz) α) (((mk_x mk_ty) mk_z) α)) β)
 
-What the hell.
+Going back to checkpoint.
 
-* Representing S type with a well-defined fixpoint
+S (S (K S) (S (S (K S) mk_tx) mk_ty)) mk_tz
 
-One potential approach to make the type of S uses tuples.
-Using α β γ, we can form (α, (β, γ))
+with args, gives us:
 
-Then, we can easily form α ~> (β ~> γ):
+((((mk_tx α) β) ((mk_ty α) β)) ((mk_tz α) β))
 
-Assume we have access to fst and snd for projection:
-fst (α, β) = α
+Shouldn't be hard to add γ.
+We just need:
 
-We can just recursively prepend fst in each tuple with ~>
+(S (S ((mk_tx α) β) ((mk_ty α) β)) ((mk_tz α) β))
 
-types := (α, (β, γ))
+S (S (K S) (S (S (K S) mk_tx) mk_ty)) mk_tz
 
-S (S (K ~>) fst) (S snd (K ~>)
-S (S (K ~>) fst) (S snd (K ~>) (α, (β, γ))
-= (~> α) ((β, γ) ~>) = ~> α (~> β γ) = α ~> β ~> γ
+Is there a smarter way of doing this?
 
+Just copy α like: (~> α) (~> α) (~> α)
 
+Then propogate β and reject from the last one:
 
+ (α ~> ~>) (α ~> K) (K (~> α))
+
+Need to copy tho.
+
+In an expression like:
+(~>) ~> (~>), it would be cool if in one pass you could copy the argument to all arrows
+
+Basically every arrow that doesn't have an entry gets one.
+
+This is only different from our current system in that we'd go down the left tree as well.
+
+This shouldn't really be a problem, since types should be popped anyway.
+
+Let's take an example:
+
+S : Ty m ~> Ty o ~> Ty n ~> (~> ~>)
+S α : (Ty m α) ~> (Ty o α) ~> (Ty n α) ~> ((~> α) (~> α))
+
+This is low-key cracked.
+Does this break our current K typing?
+
+K : Ty m ~> Ty n ~> (S (~>) (<~#))
+K α : (Ty m) α ~> (Ty n α) ~> (S (~>) (<~#) α)
+K α : (Ty m) α ~> (Ty n α) ~> (α ~> (<~# α))
+
+No.
+
+K Typing still works.

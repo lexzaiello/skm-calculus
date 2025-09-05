@@ -38,21 +38,21 @@ def add_m : Ast.Expr → Ast.Expr
 
 partial def infer_unsafe : Ast.Expr → Except (@TypeError Ast.Expr) Ast.Expr
   | SKM[K _m n]          => pure $ Ast.Expr.mk_k_type _m n
-  | SKM[S _m n o]        => pure SKM[_]
+  | SKM[S _m n o]        => pure SKM[?]
   | SKM[M]               => pure SKM[(M M)]
   | SKM[~>]              => pure SKM[(M (~>))]
   | SKM[<~]              => pure SKM[(M (<~))]
   | SKM[→]              => pure SKM[(M (→))]
   | SKM[←]              => pure SKM[(M (←))]
-  | SKM[_]               => .error $ .no_type_not_comb SKM[_]
+  | SKM[?]               => .error $ .no_type_not_comb SKM[?]
   | SKM[((K _ _ α) β)]       => pure SKM[α → β → α]
-  | SKM[(((K _ _ _) β) x)]   => do
+  | SKM[(((K _ _ ?) β) x)]   => do
     let α ← infer_unsafe x
     pure SKM[α → β → α]
   | SKM[((((S _m n o) α) β) γ)]   => do
     let t_α ← infer_unsafe α
     pure $ Ast.Expr.mk_s_type t_α α β γ
-  | SKM[((((((S _ _ _) α) _) γ) _x) y)]   => do
+  | SKM[((((((S _ _ _) α) ?) γ) _x) y)]   => do
     let β ← infer_unsafe y
     let t_α ← infer_unsafe α
     pure $ Ast.Expr.mk_s_type t_α α β γ
