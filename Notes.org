@@ -746,10 +746,71 @@ Really, the only thing we need to copy three times is α.
 Here, we copy α 3 times.
 S : Ty m ~> Ty n ~> Ty o ~> S (S ~> ~>) ~>
 
-S α : Ty m ~> Ty n ~> Ty o ~> ((α ~>) (α ~>)) (α ~>)
+S α : Ty m ~> Ty n ~> Ty o ~> ((α ~>) (α ~>)) (α ~>) = (α ~> (α ~>)) (α ~>)
 
-This is exsactly the structure we need.
+Recall that there is actually an evaluation rule here we need to do, since we're passing an argument to α ~> (α ~>)
 
-So, what to do with β?
+(α ~> (α ~>)) (α ~>) = α ~> (α ~> (α ~>))
 
-S α β γ : Ty m ~> Ty n ~> Ty o ~> 
+This is actually fine. We can copy β now. Would have to be something like:
+
+S (~> α) (~> α) β = (α ~> β) (α ~> β)
+
+And then from here, we can embed logic into the left and right α ~> β to reject or accept γ.
+
+(α ~> (~> β)) (α ~> (K β))
+
+If we pass in γ, we get:
+
+S (α ~> (~> β)) (α ~> (K β)) γ = (α ~> (β ~> γ)) (α ~> β)
+
+This is exactly what we want.
+
+So, going back to this step, how do we wrap it all together?
+
+S : Ty m ~> Ty n ~> Ty o ~> S (S ~> ~>) ~>
+
+This step allows us to get α ~> (α ~> (α ~>))
+
+Howver, note that associativity gives us:
+
+(α ~>) (α ~> (α ~>))
+
+This is fine.
+
+We just need to put a placeholder in the third α ~> spot so we can fill it with β.
+
+Something like:
+
+(α ~>) (S (α ~> ) (K (α ~>)))
+
+If we feed β into this we get:
+
+S (α ~>) (S (α ~> ) (K (α ~>))) β = (α ~> β) ((α ~> β) (α ~>))
+
+Now, since we're going to be copying in γ next, we just need to reject γ from the middle α ~> β
+
+S (α ~>) (S (α ~> K) (K (α ~>))) β = (α ~> β) ((α ~> (K β)) (α ~>))
+
+We also need to "accept" γ in the left α ~> β by turning α ~> β into α ~> (~> β). This is pretty easy.
+
+S (α ~> ~>) (S (α ~> K) (K (α ~>))) β = (α ~> (~> β)) ((α ~> (K β)) (α ~>))
+
+Now, we can copy in γ.
+
+S (S (α ~> (~> β)) ((α ~> (K β))) (α ~>) γ = (((α ~> (~> β)) γ) ((α ~> (K β)) γ) (α ~> γ) = (((α ~> β ~> γ) (α ~> β) (α ~> γ))
+
+These are all the components we need. We can merge them with ~> by:
+
+S : Ty m ~> Ty n ~> Ty o ~> S (S ~> ~>) ~>
+
+Here,                                    ^ this is x
+
+So, we can just change ~> in that position
+
+S : Ty m ~> Ty n ~> Ty o ~> S (S ~> ~>) ~>
+
+obviously.
+
+How does this fit into what we've done so far?
+
