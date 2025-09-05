@@ -1351,7 +1351,10 @@ y type := S (S (K S) (S (K K) (S (K ~>) K)) (K K)
 
 z type already established := S (K K) (S (K ~>) K)
 
-S : Ty m ~> Ty n ~> Ty o ~> (S (S (K S) (S (K K) (S (K ~>) K)) (~>)) ~> (S (S (K S) (S (K K) (S (K ~>) K)) (K K)) ~> (S (K K) (S (K ~>) K))
+S : Ty m ~> Ty n ~> Ty o ~> (S (S (K S) (S (K K) (S (K ~>) K)) (~>)) ~> (S (S (K S) (S (K K) (S (K ~>) K)) (K K)) ~> (S (K K) ~>))
 
 For z type, seems like we don't need the K around \alpha.
 z type already established := S (K K) ~>
+
+In theory, we should just be able to combine these suckers.
+
