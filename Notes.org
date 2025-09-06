@@ -1358,3 +1358,32 @@ z type already established := S (K K) ~>
 
 In theory, we should just be able to combine these suckers.
 
+* ~> cannot actually type-check in some cases because
+
+~> copies to left and right hand side of ~> tree.
+
+For example:
+K \alpha \beta x : \beta x -> ...
+
+What happens if \alpha = (M K) and we supply x and y to it?
+
+We get
+x ~> (y ~> x)
+
+Thsi is kind of bizarre, but kind of cool.
+Does this affect type-checking? Not really.
+This simplifies our typing a typing a little bit.
+Except, note that \beta also receives x.
+
+Assume \beta = (M K)
+
+We get
+x ~> (y ~> x)
+
+This is again, kind of cool. It's like \forall substitution.
+However, if we input K, we should get the type, not the value.
+
+This as it is would produce x ~> (y ~> x) as the type
+
+\alpha shouldn't really be instantiated, since this is nondependent.
+This is good news for S though.

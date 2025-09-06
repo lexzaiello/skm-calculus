@@ -7,19 +7,6 @@ inductive ReductionMode where
 
 namespace Expr
 
-def insert_arrow_arg (in_e e : Ast.Expr) : Ast.Expr :=
-  match in_e with
-  | SKM[(t_in ~> t_out)] =>
-    SKM[(#(insert_arrow_arg t_in e) ~> #(insert_arrow_arg t_out e))]
-  | x => SKM[(x e)]
-
-def pop_arrow : Ast.Expr → Ast.Expr
-  | SKM[(_t_in ~> t_out)]
-  | SKM[(_t_in → t_out)]
-  | SKM[(t_out <~ _t_in)]
-  | SKM[(t_out ← _t_in)] => t_out
-  | e => e
-
 -- Same as normal eval, just no type arguments for K
 partial def eval_untyped_unsafe (cfg : ReductionMode) (e : Ast.Expr) : Option Ast.Expr := do
   let e' ← match e with
@@ -155,6 +142,7 @@ def raw_s_type := SKM[((((S₀ ((S₀ (K₀ S₀)) ((S₀ (K₀ K₀)) ((S₀ (K
 #eval toString <$> Expr.eval_untyped_unsafe .cbv SKM[(((#(raw_s_type) Ty 1) Ty 2) Ty 3)]
 
 #eval toString <$> Expr.eval_unsafe .cbv SKM[((#(Ast.Expr.mk_k_type 0 1) Ty 0) Ty 1)]
+#eval toString <$> Expr.eval_unsafe .cbv SKM[(M ((((K₀ Ty 1) Ty 1) Ty 0) Ty 0))]
 
 def placeholder_s_type := SKM[(((((((S₀ ?) ?) ?) (((((S₀ ?) ?) ?) (((K₀ ?) ?) (((S₀ ?) ?) ?))) (((((S₀ ?) ?) ?) (((K₀ ?) ?) ((K₀ ?) ?))) (((((S₀ ?) ?) ?) (((K₀ ?) ?) (~>))) ((K₀ ?) ?))))) (((K₀ ?) ?) (~>)))) ~> ((((S₀ ?) ?) (((((S₀ ?) ?) ?) (((K₀ ?) ?) (((S₀ ?) ?) ?))) (((((S₀ ?) ?) ?) ((((K₀ ?) ?) ?) ((K₀ ?) ?))) (((((S₀ ?) ?) ?) (((K₀ ?) ?) (~>))) ((K₀ ?) ?))))) (((K₀ ?) ?) ((K₀ ?) ?))) ~> (((((S₀ ?) ?) ?) (((K₀ ?) ?) ((K₀ ?) ?))) (~>)))]
 

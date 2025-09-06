@@ -1,5 +1,6 @@
 import Mathlib.Tactic
 import Lean
+import Lean.Elab.Term
 
 namespace Ast
 
@@ -19,30 +20,39 @@ inductive Expr where
   | call : Expr → Expr → Expr
 deriving BEq, Repr, Lean.ToExpr
 
+def max_universe : Expr → Universe
+  | .k _m n => max _m n
+  | .s _m n o => max (max _m n) o
+  | .ty n => n
+  | .call lhs rhs => max (max_universe lhs) (max_universe rhs)
+  | _ => 0
+
 inductive ExprBox (e : Ast.Expr) where
   | mk : ExprBox e
 
 declare_syntax_cat skmexpr
-syntax "K" term:max term:max          : skmexpr
-syntax "K₀"                           : skmexpr
-syntax "S" term:max term:max term:max : skmexpr
-syntax "S₀"                           : skmexpr
-syntax "M"                            : skmexpr
-syntax "~>"                           : skmexpr
-syntax "<~"                           : skmexpr
-syntax "→"                            : skmexpr
-syntax "←"                            : skmexpr
-syntax "Ty" term                      : skmexpr
-syntax "Prp"                          : skmexpr
-syntax "?"                            : skmexpr
-syntax skmexpr "~>" skmexpr           : skmexpr
-syntax skmexpr "<~" skmexpr           : skmexpr
-syntax skmexpr "→" skmexpr            : skmexpr
-syntax skmexpr "←" skmexpr            : skmexpr
-syntax "(" skmexpr skmexpr ")"        : skmexpr
-syntax ident                          : skmexpr
-syntax "#" term                       : skmexpr
-syntax "(" skmexpr ")"                : skmexpr
+syntax "K" term:max term:max                           : skmexpr
+syntax "K₀"                                            : skmexpr
+syntax "S" term:max term:max term:max                  : skmexpr
+syntax "I" skmexpr                                     : skmexpr
+syntax "S₀"                                            : skmexpr
+syntax "M"                                             : skmexpr
+syntax "~>"                                            : skmexpr
+syntax "<~"                                            : skmexpr
+syntax "→"                                             : skmexpr
+syntax "←"                                             : skmexpr
+syntax "Ty" term                                       : skmexpr
+syntax "Prp"                                           : skmexpr
+syntax "?"                                             : skmexpr
+syntax skmexpr "~>" skmexpr                            : skmexpr
+syntax "→:" skmexpr "(" skmexpr ":" skmexpr ")" "∘" "(" skmexpr ":" skmexpr ")" : skmexpr
+syntax skmexpr "<~" skmexpr                            : skmexpr
+syntax skmexpr "→" skmexpr                             : skmexpr
+syntax skmexpr "←" skmexpr                             : skmexpr
+syntax "(" skmexpr skmexpr ")"                         : skmexpr
+syntax ident                                           : skmexpr
+syntax "#" term                                        : skmexpr
+syntax "(" skmexpr ")"                                 : skmexpr
 
 syntax "⟪" skmexpr "⟫"      : term
 syntax "SKM[" skmexpr "]"   : term
@@ -71,6 +81,59 @@ macro_rules
   | `(⟪ # $e:term ⟫)                    => `($e)
   | `(⟪ ($e:skmexpr) ⟫)                 => `(⟪$e⟫)
   | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)    => `(Expr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
+
+namespace Expr
+
+def insert_arrow_arg (in_e e : Ast.Expr) : Ast.Expr :=
+  match in_e with
+  | SKM[(t_in ~> t_out)] =>
+    SKM[(#(insert_arrow_arg t_in e) ~> #(insert_arrow_arg t_out e))]
+  | x => SKM[(x e)]
+
+def pop_arrow : Ast.Expr → Ast.Expr
+  | SKM[(_t_in ~> t_out)]
+  | SKM[(_t_in → t_out)]
+  | SKM[(t_out <~ _t_in)]
+  | SKM[(t_out ← _t_in)] => t_out
+  | e => e
+
+end Expr
+
+def mk_k_type_eta (α β : Expr) : Expr :=
+  let α_u := max_universe α
+  let β_u := max_universe α
+
+  let inner_k := SKM[((((K α_u β_u) (M α)) (M β)) α)]
+
+  SKM[(α ~> (β ~> ((((K (max α_u β_u).succ α_u) (M inner_k)) α) inner_k)))]
+
+def i (t : Expr) : Expr :=
+  let u := max_universe t
+  let t_k_right := mk_k_type_eta t t
+
+  let k_right := SKM[(((K u u) t) t)]
+  let k_left := SKM[(((K u (max_universe k_right)) t) #(t_k_right))]
+
+  SKM[((((((S u u.succ u.succ) t) (t ~> t)) t) k_left) k_right)]
+
+syntax "I" skmexpr : skmexpr
+
+macro_rules
+  | `(⟪ I $e:skmexpr ⟫) => `(SKM[#(i ⟪$e⟫)])
+
+def mk_k_type (_m n : Universe) : Ast.Expr :=
+  SKM[Ty _m ~> Ty n ~> (((((K _m n) Ty _m) Ty n) (~>)) (<~))]
+
+/-
+Using new ~> eval rule, can we eliminate need for combinators in K type?
+No. Not really.
+~> has this weird functionality that isn't convenient for K.
+The obvious solution is to use →
+
+K : Type m ~> Type n ~> → ~> ←
+K α : Type m ~> Type n ~> (α →) ~> (← α)
+K α β : Type m ~> Type n ~> 
+-/
 
 namespace Expr
 
@@ -120,15 +183,12 @@ def fromExpr (e : Lean.Expr) : Option Expr :=
     pure SKM[(lhs' rhs')]
   | _ => none
 
-def mk_k_type (_m n : Universe) : Ast.Expr :=
-  SKM[Ty _m ~> Ty n ~> ((((K _m n) Ty _m) Ty n) ~> <~)]
+/-
+K type with dependent arrow:
 
-def max_universe : Expr → Universe
-  | SKM[K _m n] => max _m n
-  | SKM[S _m n o] => max (max _m n) o
-  | SKM[Ty n] => n
-  | SKM[(lhs rhs)] => max lhs.max_universe rhs.max_universe
-  | _ => 0
+K α : (K α) ~> (~> α)
+K : S (K ~>) (S K ~>)
+-/
 
 end Expr
 
