@@ -1387,3 +1387,31 @@ This as it is would produce x ~> (y ~> x) as the type
 
 \alpha shouldn't really be instantiated, since this is nondependent.
 This is good news for S though.
+
+* Mechanics of ~> substitution
+
+~> substitutes arguments into input types and output types. This mirrors the calculus of constructions.
+→ does not substitute, and (α → β) x = β, similarly to → in the CoC.
+
+A nice abstraction could b ea "return" operator so that we can do stuff ~> return b
+
+This is pretty much just K ? α β
+We can fill this in fully. Almost.
+We need to know the input type, which is a minor limitation.
+If we're immediately on the right hand side of a ~>, we can infer it.
+
+(α ~> return β) x = α x ~> return α
+
+This is syntax sugar for K ? α β
+
+We can even do this point-free. Well, we can't actually.
+No we can't.
+
+return is nice syntax sugar
+
+α ~> return 
+
+Maybe call it "always" instead
+
+Obviously, always only works for the current ~>
+
