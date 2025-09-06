@@ -39,15 +39,14 @@ syntax "S₀"                                            : skmexpr
 syntax "M"                                             : skmexpr
 syntax "~>"                                            : skmexpr
 syntax "<~"                                            : skmexpr
-syntax "→"                                             : skmexpr
-syntax "←"                                             : skmexpr
+syntax "→" skmexpr skmexpr                             : skmexpr
+syntax "←" skmexpr skmexpr                             : skmexpr
 syntax "Ty" term                                       : skmexpr
 syntax "Prp"                                           : skmexpr
 syntax "?"                                             : skmexpr
 syntax skmexpr "~>" skmexpr                            : skmexpr
-syntax "→:" skmexpr "(" skmexpr ":" skmexpr ")" "∘" "(" skmexpr ":" skmexpr ")" : skmexpr
 syntax skmexpr "<~" skmexpr                            : skmexpr
-syntax skmexpr "→" skmexpr                             : skmexpr
+syntax "(" skmexpr ":" skmexpr ")" "→" "(" skmexpr ":" skmexpr ")" : skmexpr
 syntax skmexpr "←" skmexpr                             : skmexpr
 syntax "(" skmexpr skmexpr ")"                         : skmexpr
 syntax ident                                           : skmexpr
@@ -60,6 +59,15 @@ syntax "SKM[" skmexpr "]"   : term
 macro_rules
   | `(SKM[ $e:skmexpr ])  => `(⟪ $e ⟫)
 
+/-
+Can we define the type of K without ~>?
+
+Also, idea. We can just specify type universes for →.
+
+→ Ty m Ty n α β = K Ty m Ty n → K Ty m Ty n
+Yes, we can derive →
+-/
+
 macro_rules
   | `(⟪ K $m:term $n:term ⟫)            => `(Expr.k $m $n)
   | `(⟪ S $m:term $n:term $o:term ⟫)    => `(Expr.s $m $n $o)
@@ -71,11 +79,11 @@ macro_rules
   | `(⟪ Prp ⟫)                          => `(Expr.prp)
   | `(⟪ ~> ⟫)                           => `(Expr.pi)
   | `(⟪ <~ ⟫)                           => `(Expr.pi')
-  | `(⟪ → ⟫)                            => `(Expr.imp)
-  | `(⟪ ← ⟫)                            => `(Expr.imp')
+  | `(⟪ → $t₁ $t₂ ⟫)                    => `(Expr.imp)
+  | `(⟪ ← $t₁ $t₂ ⟫)                    => `(Expr.imp')
   | `(⟪ $e₁:skmexpr ~> $e₂:skmexpr ⟫)   => `(Expr.call (Expr.call Expr.pi ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
   | `(⟪ $e₁:skmexpr <~ $e₂:skmexpr ⟫)   => `(Expr.call (Expr.call Expr.pi' ⟪ $e₁ ⟫) ⟪ $e₂ ⟫)
-  | `(⟪ $e₁:skmexpr → $e₂:skmexpr ⟫)    => `(SKM[((→ $e₁) $e₂)])
+  | `(⟪ ($e₁:skmexpr : $t₁:skmexpr) → ($e₂:skmexpr : $t₂:skmexpr) ⟫) => `(SKM[((((→ $t₁) $t₂) $e₁) $e₂)])
   | `(⟪ $e₁:skmexpr ← $e₂:skmexpr ⟫)    => `(SKM[((← $e₁) $e₂)])
   | `(⟪ $e:ident ⟫)                     => `($e)
   | `(⟪ # $e:term ⟫)                    => `($e)
@@ -119,21 +127,10 @@ def i (t : Expr) : Expr :=
 syntax "I" skmexpr : skmexpr
 
 macro_rules
-  | `(⟪ I $e:skmexpr ⟫) => `(SKM[#(i ⟪$e⟫)])
+  | `(⟪ I $t:skmexpr ⟫) => `(SKM[#(i ⟪$t⟫)])
 
 def mk_k_type (_m n : Universe) : Ast.Expr :=
   SKM[Ty _m ~> Ty n ~> (((((K _m n) Ty _m) Ty n) (~>)) (<~))]
-
-/-
-Using new ~> eval rule, can we eliminate need for combinators in K type?
-No. Not really.
-~> has this weird functionality that isn't convenient for K.
-The obvious solution is to use →
-
-K : Type m ~> Type n ~> → ~> ←
-K α : Type m ~> Type n ~> (α →) ~> (← α)
-K α β : Type m ~> Type n ~> 
--/
 
 namespace Expr
 
