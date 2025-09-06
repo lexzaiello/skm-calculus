@@ -1415,3 +1415,218 @@ Maybe call it "always" instead
 
 Obviously, always only works for the current ~>
 
+* TODO Todos
+
+** Type of S must be S : (K (M Ty m) Ty m Ty m) ~> (K Ty n) ~> (K Ty o) ~> ...
+
+Manually filling in types is very cumbersome.
+We can probably write something to "fill in" types.
+
+We can generalize the algorithm for ?
+
+Type inference is impossible for now, since we don't even have the types of K and S stabilized.
+
+Can we define the type of K without ~>?
+
+Also, idea. We can just specify type universes for →.
+
+→ Ty m Ty n α β = K Ty m Ty n ~> K Ty m Ty n
+Yes, we can derive →
+→ = K ~> K
+
+Need to flip the left side.
+S K I
+
+Wait, this is eta expanded.
+This is slightly more complicated than I thought, but it's fine.
+
+→ Ty m Ty n α β = Ty m
+
+-- This gives us α on the left at the end
+-- We want β on the right hand side
+-- This use of id is wrong
+S (K K) I Ty m = K (I Ty m)
+K (I Ty m) α = (I Ty m)
+(I Ty m ) β = β
+
+Yeah. what? This is all wrong.
+We need to also reject the argument.
+
+Wait oh shit!!!
+
+→ = ~>
+
+→ α β = α ~> β
+
+So we can probably do some shit like:
+
+→ α β = K α ~> K β
+
+This is kind of hairy to fill the type arguments of. Ngl.
+
+→ α β = K Ty m α α ~> K Ty n α β
+
+We can already fill in Ty m and Ty n with eta expansion.
+
+→ Ty m Ty n = K Ty m ~> K Ty n
+Now when we apply α we get
+→ Ty m Ty n α = K Ty m α ~> K Ty n α
+This is exactly right
+
+Just for the β case, we need some magic
+→ Ty m Ty n α β = K Ty m α β ~> K Ty n α β
+
+We need to switch β here.
+
+→ Ty m Ty n α β = K (K Ty m α α) β ~> K Ty n α β
+
+left hand side:
+
+S (K Ty m) (I Ty m) α = K Ty m α α
+S (M (K Ty m)) (M (I Ty m))
+
+Sot this is for the right side actually.
+
+rhs α β x = α
+
+We can only use always in macro form unfortunately.
+
+→ Ty m Ty n α β = K α ~> K β
+
+This is really simple except for the damn type arguments
+
+We could make a little "dumb" inference method.
+Fill types or something.
+
+Fill types would be very useful in general.
+Fills in placeholders.
+
+→ Ty m Ty n α β = K Ty m α α ~> K Ty n α β
+
+So we just need to copy α into the K's
+
+(K Ty m ~> K Ty n) α = K Ty m α ~> K Ty n α
+
+This is fine for the right hand side.
+
+Rhs = K Ty n
+Lhs needs to copy α.
+
+lhs = S (K Ty m) (I Ty m)
+lhs α = K Ty m α α
+
+type arguments for S
+
+HMPH. We need α here.
+
+Remember the typing rules for S.
+Our stuff gets instantiated.
+
+Syntax sugar for "self":
+
+self α = K α α
+
+S Ty m Ty m
+
+S (K Ty m) (I Ty m)
+
+S Ty m Ty m ( (K Ty m) (I Ty m)
+
+Is it really this hard?
+
+→ Ty m Ty n = _ ~> K Ty n
+
+One cheeky thing we can do
+
+→ = ~>
+α ~> β
+
+(α → β) x = α → β
+
+We don't need this extra logic. We just pop when we call an argument.
+Really all we need is
+α → β = self α ~> K Ty n
+
+Oh this is dank
+
+We can't do → = self ~> K Ty n tho
+since self will receive α and β
+Also, self isn't even point-free
+
+Can we encode self point-free?
+
+self e := (K (M e) e e)
+
+There are a lot of e's here.
+Like I said, we can't instantiate things with just M.
+
+Potentially use S instantiation?
+Our S type is all wrong ngl.
+
+We're going to have to redo S type.
+
+New S type:
+
+S α β γ x y z = (M x) (y z)
+
+x : α ~> β ~> γ
+y : α ~> β
+z : α
+
+x gets instantiated
+
+(α ~> β ~> γ) x y z
+This is also wrong.
+This turns into
+(α x y z ~> β x y z ~> γ x y z)
+
+Can we make a mapping from ∀ x, whatever?
+
+
+We really need to clean up the ergonomics of ~>.
+
+~> should be smart.
+~> shouldn't try to call something that isn't a function.
+
+But this requires type inference.
+
+Really, if we're mirroring CoC, we just need to substitute actual variables.
+
+We can reintroduce placeholders. I like that idea.
+This does feel like cheating a bit, but it would clean up literally everything.
+
+New eval rule for ~>.
+
+(_ ~> _) arg = arg ~> arg
+
+(K ~> K) arg = K ~> K
+
+This seems kind of sus, because now we can't really compute in here.
+
+This cleans up a lot though.
+
+New type for K using this:
+
+We can really easily make → now.
+
+Can we make ∀ x, P x?
+
+How do we mimick ∀ as much as possible?
+
+e.g.,
+∀ x, B
+
+x ~> B
+
+~> x B  = ∀ x, B
+
+But we need to handle substitution.
+Like. We need that.
+
+Let's keep ~> the way it was.
+
+So, how do we make implication?
+
+We can make → a meta-combinator actually.
+
+→ a b = K (M a) a a ~> K (M b) a b

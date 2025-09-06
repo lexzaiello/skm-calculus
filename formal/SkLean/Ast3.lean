@@ -46,6 +46,7 @@ syntax "←" skmexpr skmexpr                             : skmexpr
 syntax "always" skmexpr                                : skmexpr
 syntax "Ty" term                                       : skmexpr
 syntax "Prp"                                           : skmexpr
+syntax "self" skmexpr                                  : skmexpr
 syntax "?"                                             : skmexpr
 syntax skmexpr "~>" skmexpr                            : skmexpr
 syntax skmexpr "<~" skmexpr                            : skmexpr
@@ -84,6 +85,8 @@ macro_rules
   | `(⟪ # $e:term ⟫)                    => `($e)
   | `(⟪ ($e:skmexpr) ⟫)                 => `(⟪$e⟫)
   | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)    => `(Expr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
+  -- Accepts an expression of type e, returning type e
+  | `(⟪ self $e:skmexpr ⟫)              => `(SKM[(K (M $e) $e $e)])
 
 namespace Expr
 
@@ -106,100 +109,6 @@ def mk_k_type_eta (α β : Expr) : Expr :=
   SKM[(α ~> (β ~> ((K ? α) inner_k)))]
 
 syntax "I" skmexpr : skmexpr
-
-/-
-Can we define the type of K without ~>?
-
-Also, idea. We can just specify type universes for →.
-
-→ Ty m Ty n α β = K Ty m Ty n ~> K Ty m Ty n
-Yes, we can derive →
-→ = K ~> K
-
-Need to flip the left side.
-S K I
-
-Wait, this is eta expanded.
-This is slightly more complicated than I thought, but it's fine.
-
-→ Ty m Ty n α β = Ty m
-
--- This gives us α on the left at the end
--- We want β on the right hand side
--- This use of id is wrong
-S (K K) I Ty m = K (I Ty m)
-K (I Ty m) α = (I Ty m)
-(I Ty m ) β = β
-
-Yeah. what? This is all wrong.
-We need to also reject the argument.
-
-Wait oh shit!!!
-
-→ = ~>
-
-→ α β = α ~> β
-
-So we can probably do some shit like:
-
-→ α β = K α ~> K β
-
-This is kind of hairy to fill the type arguments of. Ngl.
-
-→ α β = K Ty m α α ~> K Ty n α β
-
-We can already fill in Ty m and Ty n with eta expansion.
-
-→ Ty m Ty n = K Ty m ~> K Ty n
-Now when we apply α we get
-→ Ty m Ty n α = K Ty m α ~> K Ty n α
-This is exactly right
-
-Just for the β case, we need some magic
-→ Ty m Ty n α β = K Ty m α β ~> K Ty n α β
-
-We need to switch β here.
-
-→ Ty m Ty n α β = K (K Ty m α α) β ~> K Ty n α β
-
-left hand side:
-
-S (K Ty m) (I Ty m) α = K Ty m α α
-S (M (K Ty m)) (M (I Ty m))
-
-Sot this is for the right side actually.
-
-rhs α β x = α
-
-We can only use always in macro form unfortunately.
-
-→ Ty m Ty n α β = K α ~> K β
-
-This is really simple except for the damn type arguments
-
-We could make a little "dumb" inference method.
-Fill types or something.
-
-Fill types would be very useful in general.
-Fills in placeholders.
-
-→ Ty m Ty n α β = K Ty m α α ~> K Ty n α β
-
-So we just need to copy α into the K's
-
-(K Ty m ~> K Ty n) α = K Ty m α ~> K Ty n α
-
-This is fine for the right hand side.
-
-Rhs = K Ty n
-Lhs needs to copy α.
-
-lhs = S (K Ty m) (I Ty m)
-lhs α = K Ty m α α
-
-
-
--/
 
 macro_rules
   | `(⟪ → $t₁ $t₂ ⟫)    => `(Expr.imp)
