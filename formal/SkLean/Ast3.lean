@@ -108,14 +108,14 @@ macro_rules
       | `(skmexpr| (_ : $t)) => pure t
       | _ => none)
 
-    pure $ ((← (tys.foldrM (λ t_out (e, rem) => do match rem.reverse with
-      | t :: xs => pure (← (`(skmexpr| ((λ (_ : $t) $(⟨xs⟩)* => $t_out) ~> $e))), xs)
-      | _ => pure (body, [])) (body, tys))).fst)
+    `(⟪$((← (tys.foldrM (λ t_out (e, rem) => do match rem.reverse with
+      | t :: xs => pure (← (`(skmexpr| (λ (_:$t) $(⟨← xs.mapM (λ e => `(skmexpr| (_:$e)))⟩)* => $t_out ~> $e))), xs)
+      | _ => pure (body, [])) (body, tys))).fst)⟫)
 
 namespace Expr
 
 #eval SKM[λ (_ : Ty 1) (_ : Ty 2) => M]
-#eval SKM[∀ (_ : Ty 1) (_ : Ty 2), M]
+#eval SKM[∀ (_ : Ty 1), M]
 
 def insert_arrow_arg (in_e e : Ast.Expr) : Ast.Expr :=
   match in_e with
