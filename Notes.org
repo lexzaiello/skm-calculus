@@ -1630,3 +1630,171 @@ So, how do we make implication?
 We can make → a meta-combinator actually.
 
 → a b = K (M a) a a ~> K (M b) a b
+
+We can make the K type now pretty easily. Ideally without S, but that seems impossible.
+
+There is no reason why we ought not make it with S.
+Just complexity.
+
+K : Ty m ~> Ty n ~> → ~> ←
+
+We can duplicate α with →.
+But we don't want to duplicate β.
+
+K α β : Ty m ~> Ty n ~> (α → β) ~> (← α β)
+K α β : Ty m ~> Ty n ~> α → β → α
+
+Also, we would like to remove ~> in the middle.
+
+Remember, → is just a special case of ~>. We still pass in.
+However, this will not type-check for →.
+However, we can use ~> in the middle.
+
+K α β : Ty m ~> Ty n ~> → → →
+K α β : Ty m ~> Ty n ~> → ~> →
+
+K α : Ty m ~> Ty n ~> → α ~> → α
+
+Using combinators for substitution is mildly clunky.
+
+(self Ty m) this doesn't work when we try to pass in β
+(self Ty m) α = Ty m
+We need to double-up self.
+
+(self (self Ty m))
+
+We can make a "discard many"
+
+discard Ty m α β
+
+K : Ty m ~.> Ty n ~> ~> ~> <~#
+
+Tools that would help us with writing types with ~>:
+
+We need some way to "reject" specific types.
+We know Ty m Ty n. We have that polymorphism. We can leverage that.
+
+(e : t)
+(arg₁ : t₂)
+(arg₂ : t₃)
+discard is just chained K.
+
+discard t t₂ = K t t₂
+discard t t₂ t₃ = K ? t₂ (K t t₃)
+
+We can build this pretty easily.
+
+discard t t₂ t₃ = K 
+
+Using discard, we can probably make the type for K.
+Is this even necessary?
+
+We only need to reject Ty m. It will be done then.
+
+α can reject β with
+
+K Ty m Ty n
+
+We want α to reject α. That's it, since we're popping after.
+This is where self comes in.
+
+self α (x : α) = α
+Can we make self'?
+
+| `(⟪ self $e:skmexpr ⟫)              => `(SKM[(K (M $e) $e $e)])
+
+self t = S (K t) (I t)
+self t e = ((K t e) e)
+
+expand types
+
+We run into issues again, though, because we haven't established a working type for S.
+
+self t = S t
+
+∘ would be nice as well.
+
+K : (self Ty m) ~> (self Ty n) ~> 
+
+All of these require S.
+
+And S is hard to define without the rest of these. Can we do K without this stuff?
+
+It's possible that the S type might be easier than the others.
+
+What's the goal with S?
+
+S α ? ? K (I α) K = K K K
+
+S α ? ? K (I α) K : M (K K K)
+
+K K K : K → (K → K)
+
+Start by instantiating the type of (x = K) with (z = K)
+
+The shape of x is
+
+t₁ ~> t₂ ~> t₃
+
+Going with our existing rules,
+
+S α β γ : (α ~> β ~> γ) ~> (α ~> β) ~> α ~> γ
+
+Let's say x has that type.
+
+x doesn't get instantiated with anything.
+What if we build up incrementally?
+
+y probably takes as an input α. That's fine.
+
+The type arguments are fine. It's just, how do we instantiate γ?
+
+γ = M ((x z) (y z))
+
+Can we reconstruct this^?
+
+Our rule for calls says:
+
+say x : (M K) = (self Ty m) ~> (self Ty n) ~> γ
+
+We can reconstruct γ by
+
+M (x z) = (self Ty n) ~> γ z
+M ((x z) (y z)) = γ z (y z)
+
+This is great. But, at the type level,
+
+γ gets x y z, which is not the same
+
+So, really,
+
+S α β γ : (α ~> β ~> γ) ~> (α ~> β) ~> α ~> S (Ty o) γ (α ~> β) γ
+
+This type is ridiculously complicated to produce.
+
+S α β γ (x : α ~> β ~> γ) : 
+
+Back to K type.
+
+K : (self Ty m) ~> (self Ty n) ~> S → 
+
+S → → α = (→ α) (→ α)
+
+Everything is ridiculously complicated to produce bro.
+
+K type should be easier with our meta combinators now.
+
+∘ should be easy to do
+
+(f ∘ g) t x = f (g x)
+
+f ∘ g t = S (K f) g
+
+with types,
+
+f ∘ g t = S t  (K ? ? f) 
+
+K α β : (self Ty m) ~> (K+ Ty n Ty m Ty n Ty n) ~> (self α) ~> (K+ ? α β) ~> (K+ 
+
+∀ x => C = self x ~> always c
+

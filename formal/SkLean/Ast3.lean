@@ -37,6 +37,8 @@ syntax "S" skmexpr skmexpr skmexpr                     : skmexpr
 syntax "K₀"                                            : skmexpr
 syntax "@S" term:max term:max term:max                 : skmexpr
 syntax "K+" skmexpr skmexpr skmexpr*                   : skmexpr
+syntax "(" "_" ":" skmexpr ")"                         : skmexpr
+syntax "λ" skmexpr skmexpr* "=>" skmexpr               : skmexpr
 syntax "I" skmexpr                                     : skmexpr
 syntax "S₀"                                            : skmexpr
 syntax "M"                                             : skmexpr
@@ -57,14 +59,17 @@ syntax "(" skmexpr skmexpr ")"                         : skmexpr
 syntax ident                                           : skmexpr
 syntax "#" term                                        : skmexpr
 syntax "(" skmexpr ")"                                 : skmexpr
+syntax "∀" skmexpr skmexpr* "," skmexpr                : skmexpr
 
 syntax "⟪" skmexpr "⟫"      : term
+syntax "⟨⟪" skmexpr "⟫⟩"    : skmexpr
 syntax "SKM[" skmexpr "]"   : term
 
 macro_rules
   | `(SKM[ $e:skmexpr ])  => `(⟪ $e ⟫)
 
 macro_rules
+  | `(⟪ (_ : $t:skmexpr )⟫) => `(SKM[$t])
   | `(⟪ α ~> always $t:skmexpr ⟫)        => `(SKM[α ~> (K ? α $t)])
   | `(⟪ @K $m:term $n:term ⟫)            => `(Expr.k $m $n)
   | `(⟪ @S $m:term $n:term $o:term ⟫)    => `(Expr.s $m $n $o)
@@ -76,9 +81,8 @@ macro_rules
       let tys' := Array.mk xs.reverse
       `(SKM[((K+ (M (K $t $x)) $next $tys'*) (K $t $x))])
     | _ => `(SKM[(K $t $x)])
+  | `(⟪ (K+ ? $x:skmexpr $tys:skmexpr* $e:skmexpr) ⟫) => `(SKM[((K+ (M $e) $x $tys*) $e)])
   | `(⟪ S $m:skmexpr $n:skmexpr $o:skmexpr ⟫) => `(SKM[((((@S (max_universe ⟪$m⟫) (max_universe ⟪$n⟫) (max_universe ⟪$o⟫)) $m) $n) $o)])
-  | `(⟪ K₀ ⟫)                           => `(Expr.k 0 0)
-  | `(⟪ S₀ ⟫)                           => `(Expr.s 0 0 0)
   | `(⟪ M ⟫)                            => `(Expr.m)
   | `(⟪ ? ⟫)                            => `(Expr.hole)
   | `(⟪ Ty $n:term ⟫)                   => `(Expr.ty $n)
@@ -97,8 +101,21 @@ macro_rules
   | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)    => `(Expr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
   -- Accepts an expression of type e, returning type e
   | `(⟪ self $e:skmexpr ⟫)              => `(SKM[(K (M $e) $e $e)])
+  | `(⟪ λ (_ : $t:skmexpr) $tys:skmexpr* => $body:skmexpr ⟫) => `(SKM[((K+ ? $t $tys*) $body)])
+  | `(⟪ ∀ (_ : $t:skmexpr) $tys:skmexpr*, $body:skmexpr ⟫) => do
+    let tys := [t] ++ tys.toList.filterMap (λ stx =>
+      match stx with
+      | `(skmexpr| (_ : $t)) => pure t
+      | _ => none)
+
+    pure $ ((← (tys.foldrM (λ t_out (e, rem) => do match rem.reverse with
+      | t :: xs => pure (← (`(skmexpr| ((λ (_ : $t) $(⟨xs⟩)* => $t_out) ~> $e))), xs)
+      | _ => pure (body, [])) (body, tys))).fst)
 
 namespace Expr
+
+#eval SKM[λ (_ : Ty 1) (_ : Ty 2) => M]
+#eval SKM[∀ (_ : Ty 1) (_ : Ty 2), M]
 
 def insert_arrow_arg (in_e e : Ast.Expr) : Ast.Expr :=
   match in_e with
