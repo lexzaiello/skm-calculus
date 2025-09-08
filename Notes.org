@@ -1794,7 +1794,272 @@ with types,
 
 f ∘ g t = S t  (K ? ? f) 
 
-K α β : (self Ty m) ~> (K+ Ty n Ty m Ty n Ty n) ~> (self α) ~> (K+ ? α β) ~> (K+ 
+K α β : α → β → α
+K : →
+
+K : (K Ty m Ty n) ~> ←
+
+K α β : (self α) ~> 
+
+| `(⟪ self $e:skmexpr ⟫)              => `(SKM[(K (M $e) $e $e)])
+
+Point-free I with specified type universe:
+
+"higher" I
+
+We already have normal I.
+
+Let's make the type of K.
+
+We get α inside this body.
+
+K : ∀ (_ : Ty m) (_ : Ty n), 
+
+Can we make self point-free?
+
+We know (α : t), so we can duplicate e.
+
+self' (t : t_higher) (e : t) = t
+
+Um. Thsi is literally just I.
+
+self' = S t_higher ? ? (K t_higher) (I t_higher)
+
+self' e = K t_higher e e
+
+We want to make I require only a type universe.
+
+I α x : α
+
+I α : K (M α) α α
+
+This seems like a common pattern.
+
+I : self Ty m ~> K Ty m ? 
+
+I : → Ty m
+
+I α : Ty m → α
+
+Typechecks.
+
+pop I α : α
+
+I α : K (M α) α α
+
+I α : α → α
+I α (x : α) : α
+
+
+
+
+This thing: K (M α) α α
+
+Very important.
+
+We can derive this. Just need to duplicate α
+
+S Ty m (I Ty m) (K ? (K Ty m) (I Ty m)
+
+S Ty m 
+
+Not exactly.
+
+I : Ty m ~> 
+
+K α β : α ~> (← α β)
+
+We need to make sure α preserves (← α β) and doesn't slap α in front of it
+
+K α β x : α x ~> (self β ~> K (M α) β α)
+
+K α β : α → β
 
 ∀ x => C = self x ~> always c
+
+K α β : ∀ (_ : Ty m) (_ : Ty n), (self Ty m) ~> (K+ Ty n Ty m Ty n Ty n) ~> (self α) ~> (K+ ? α β) ~> 
+
+-- We have α and β inside ∀
+K α β : ∀ (_ : Ty m) (_ : Ty n), S
+
+S α β γ : (self (α ~> β ~> γ)) ~> (self (α ~> β)) ~> (self α) ~> S γ
+
+x : (α ~> β ~> γ)
+
+S α β γ x y z : γ z (y z)
+
+S α β γ x y z : M ((x z) (y z))
+
+S α β γ x y z : (β z (y z) ~> γ z (y z))
+
+S α β γ x y z : γ x y z
+
+S α β γ x y z : M ((x z) (y z)) = (α ~> β ~> γ) z
+
+γ z (y z)
+
+The output type of S should be γ z (y z)
+
+We need to align the final γ with this.
+
+computing type at the term level:
+γ z (y z)
+
+computing type at the type level:
+γ x y z
+
+We want S γ x y z
+
+Type of S : ∀ (α : Ty m) (β : Ty n) (γ : Ty o), (α ~> β ~> γ) ~> (α ~> β) ~> (α ~> γ z (y z))
+
+We probably don't have to derive the type of S. In fact, this is error prone. It would suffice to define a macro to do this our selves.
+
+∀ (x : t), x - this is dependent, we need to handle this. This would just be ~> (self t)
+What abbout the case where:
+∀ (x : t), e₁ e₂? We can use the S transformation rule here.
+∀ (x : t), S t ? ? e₁ e₂
+
+We can literally just do ∀ (x : t), S t (M e₁) (M e₂) e₁ e₂
+
+We can do this without the S transformation though.
+
+Most of our types just include ~>.
+
+For example,
+
+K : ∀ (α : Ty m) (β : Ty n), α → (β → α)
+
+For this type, we do need to copy α
+
+We can do this with ~>
+
+α → (β → α) = K Ty m Ty n ~> <~#
+K Ty m Ty n α β = α
+K+ Ty m Ty n α α β x = α
+∀ (_ : Ty m) (_ : Ty n), 
+
+∀ (α : t) (α : x), x
+
+Case of handling a variable in a binder
+
+α is copied in K type. HOWEVER, since we already know α matches, we can use M to derive the final type.
+
+We can probably use the same trick in S?
+
+K : ∀ (α : Ty m) (β : Ty n), K
+We don't need to copy α now.
+
+If we add the I combinator, this would be alright.
+K : ∀ (α : Ty m ) (β : Ty n), K+ Ty m Ty n α α
+
+ Fun fact: y doesn't necessarily have to be well-typed. It doesn't really go anywhere. We just need the type to line up.
+
+α does need to line up though.
+
+K : ∀ (α : Ty m) (β : Ty n), α → M → M
+K : ∀ (α : Ty m) (β : Ty n), ← (M ~> M) α
+
+The thing is, though, we can't use M in that position for β, since we don't know it's well-typed. We don't know it terminates.
+We need to have it all explicit, really.
+K : ∀ (α : Ty m) (β : Ty n), ~>
+α ~> α
+
+Uhhh remember, ~> copies to functions, too
+
+(K ~> K) α = K α ~> K α
+I ~> K
+
+(I ~> K) α = I α ~> K α
+
+K α β : α → β → α
+
+or
+
+K α β : α → K (M β) β β ~> M
+
+K : ∀ (α : Ty m) (β : Ty n), α → β → α
+
+K : ∀ (α : ?) (β : ?), 
+
+I mean, we don't really need to know that y is of type β
+
+We probably don't even need Ty m
+
+K : ∀ (α : Ty m), α → M → α
+
+S ? ? ? → ←
+
+K : S ? ? ? ← ← 
+
+K α : α → (← α)
+
+Note that we can still copy in →, since it's syntax sugar for ~>. We just reject in the input.
+
+K α β : α → (β → α)
+
+α → β meta combinator that evalutes to:
+
+(self α) ~> (λ _ : M α) => β
+
+K : ∀ (α : Ty m) (β : Ty n), α → β → α
+
+Can we translate this?
+
+We can add a "pop" macro.
+
+K : ∀ (α : Ty m) (β : Ty n), S ? ? Ty m → →
+
+We can probably do some kind of type inference in our macros.
+
+S α β γ : ∀ (_ : (α ~> β ~> γ)) (_ : (α ~> β )) (_ : α) ~> S M
+
+S  ? Ty m → ←
+
+What's the type of → α?
+
+Ty n → (max Ty m Ty n).succ
+
+S  Ty m ? (Ty n → Ty (max Ty m Ty n).succ) → ←
+
+What's the type of → α?
+
+subst with α, @I t α 
+
+K in type?
+
+
+
+So we can actually do the S transformation here.
+
+But we kind of can't, because we don't know the type of →.
+We also don't know the type of ~>.
+
+∀ (α : Ty m) (β : Ty n), α → β = @∀ (α : Ty m) (β : Ty n), 
+
+EXCEPT, we can't pop from M e₁
+
+type of K now
+
+K : ∀ (_ : 
+
+∀ (_ : t), body - this is handled already, BUT we need to make the body K whatever.
+Here, it's K ? t body
+
+Let's say
+
+x : α ~> β ~> γ
+y : α ~> β
+z : α
+
+M (x z) (y z)
+
+= γ z (y z)
+
+Fantastic
+
+So, we can change the type of S to align with this.
+
+Also,
+
+(α ~> β ~> γ) gets instantiated with x.
 

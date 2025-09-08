@@ -31,13 +31,15 @@ inductive ExprBox (e : Ast.Expr) where
   | mk : ExprBox e
 
 declare_syntax_cat skmexpr
-syntax "@K" term:max term:max                          : skmexpr
+syntax "@" skmexpr                                     : skmexpr
+syntax "K" skmexpr skmexpr                             : skmexpr
+syntax "S" skmexpr skmexpr skmexpr                     : skmexpr
 syntax "K" skmexpr skmexpr                             : skmexpr
 syntax "S" skmexpr skmexpr skmexpr                     : skmexpr
 syntax "K₀"                                            : skmexpr
-syntax "@S" term:max term:max term:max                 : skmexpr
 syntax "K+" skmexpr skmexpr skmexpr*                   : skmexpr
 syntax "(" "_" ":" skmexpr ")"                         : skmexpr
+syntax "(" skmexpr ":" skmexpr ")"                     : skmexpr
 syntax "λ" skmexpr skmexpr* "=>" skmexpr               : skmexpr
 syntax "I" skmexpr                                     : skmexpr
 syntax "S₀"                                            : skmexpr
@@ -55,7 +57,10 @@ syntax skmexpr "~>" skmexpr                            : skmexpr
 syntax skmexpr "<~" skmexpr                            : skmexpr
 syntax skmexpr "→" skmexpr                             : skmexpr
 syntax skmexpr "←" skmexpr                             : skmexpr
+syntax "codomain" skmexpr                              : skmexpr
+syntax "domain" skmexpr                                : skmexpr
 syntax "(" skmexpr skmexpr ")"                         : skmexpr
+syntax "(" skmexpr skmexpr skmexpr* ")"                : skmexpr
 syntax ident                                           : skmexpr
 syntax "#" term                                        : skmexpr
 syntax "(" skmexpr ")"                                 : skmexpr
@@ -69,11 +74,20 @@ macro_rules
   | `(SKM[ $e:skmexpr ])  => `(⟪ $e ⟫)
 
 macro_rules
+  | `(⟪ domain $t_in ~> $_t_out ⟫) => pure t_in
+  | `(⟪ codomain $_t_in ~> $t_out ⟫) => pure t_out
+  | `(⟪ ((@(→) $t₁ $t₂) : ?) ⟫) => `(SKM[(∀ (_ : $t₁) (_ : $t₂), Ty (max (max_universe m) (max_universe n)).succ)])
+  | `(⟪ (K α β : ?) ⟫) => `(SKM[(K α β : ∀ (_ : α) (_ : β), α)])
+  | `(⟪ (S ? ? ? ($x : $t_x)) ⟫) => `(SKM[(S (codomain (codomain $t_x)) (domain (codomain $t_x)) (domain $t_x) $x)])
+  | `(⟪ ($e₁ $e₂ $rest*) ⟫) => match rest.toList with
+    | x :: xs => `(SKM[(($e₁ $e₂) $x $(⟨xs⟩)*)])
+    | _ => `(SKM[($e₁ $e₂)])
   | `(⟪ (_ : $t:skmexpr )⟫) => `(SKM[$t])
-  | `(⟪ α ~> always $t:skmexpr ⟫)        => `(SKM[α ~> (K ? α $t)])
-  | `(⟪ @K $m:term $n:term ⟫)            => `(Expr.k $m $n)
-  | `(⟪ @S $m:term $n:term $o:term ⟫)    => `(Expr.s $m $n $o)
-  | `(⟪ K $m:skmexpr $n:skmexpr ⟫)       => `(SKM[(((@K (max_universe ⟪$m⟫) (max_universe ⟪$n⟫)) $m) $n)])
+  | `(⟪ α ~> always $t:skmexpr ⟫)          => `(SKM[α ~> (K ? α $t)])
+  | `(⟪ @K #$m #$n ⟫) => `(Expr.k $m $n)
+  | `(⟪ @S #$m #$n #$o ⟫) => `(Expr.s $m $n $o)
+  | `(⟪ K $m:skmexpr $n:skmexpr ⟫)       => `(SKM[(((@K #(max_universe ⟪$m⟫) #(max_universe ⟪$n⟫)) $m) $n)])
+  | `(⟪ (K ? $t_y:skmexpr ($e : $et)) ⟫) => `(SKM[((K $et $t_y) $e)])
   | `(⟪ (K ? $t_y:skmexpr $e) ⟫)         => `(SKM[((K (M $e) $t_y) $e)])
   | `(⟪ K+ $t:skmexpr $x:skmexpr $tys:skmexpr* ⟫) =>
     match tys.toList with
@@ -82,7 +96,7 @@ macro_rules
       `(SKM[((K+ (M (K $t $x)) $next $tys'*) (K $t $x))])
     | _ => `(SKM[(K $t $x)])
   | `(⟪ (K+ ? $x:skmexpr $tys:skmexpr* $e:skmexpr) ⟫) => `(SKM[((K+ (M $e) $x $tys*) $e)])
-  | `(⟪ S $m:skmexpr $n:skmexpr $o:skmexpr ⟫) => `(SKM[((((@S (max_universe ⟪$m⟫) (max_universe ⟪$n⟫) (max_universe ⟪$o⟫)) $m) $n) $o)])
+  | `(⟪ S $m:skmexpr $n:skmexpr $o:skmexpr ⟫) => `(SKM[((((@S #(max_universe ⟪$m⟫) #(max_universe ⟪$n⟫) #(max_universe ⟪$o⟫)) $m) $n) $o)])
   | `(⟪ M ⟫)                            => `(Expr.m)
   | `(⟪ ? ⟫)                            => `(Expr.hole)
   | `(⟪ Ty $n:term ⟫)                   => `(Expr.ty $n)
@@ -93,29 +107,51 @@ macro_rules
   | `(⟪ ← ⟫)                            => `(Expr.imp')
   | `(⟪ $e₁:skmexpr ~> $e₂:skmexpr ⟫)   => `(SKM[(((~>) $e₁) $e₂)])
   | `(⟪ $e₁:skmexpr <~ $e₂:skmexpr ⟫)   => `(SKM[($e₂ ~> $e₁)])
-  | `(⟪ $e₁:skmexpr → $e₂:skmexpr ⟫)    => `(SKM[((→ $e₁) $e₂)])
-  | `(⟪ $e₁:skmexpr ← $e₂:skmexpr ⟫)    => `(SKM[((→ $e₂) $e₁)])
+  | `(⟪ $e₁:skmexpr → $e₂:skmexpr ⟫)    => `(SKM[∀ (_ : $e₁), $e₂])
+  | `(⟪ $e₁:skmexpr ← $e₂:skmexpr ⟫)    => `(SKM[$e₂ → $e₁])
   | `(⟪ $e:ident ⟫)                     => `($e)
   | `(⟪ # $e:term ⟫)                    => `($e)
   | `(⟪ ($e:skmexpr) ⟫)                 => `(⟪$e⟫)
   | `(⟪ ($e₁:skmexpr $e₂:skmexpr) ⟫)    => `(Expr.call ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
   -- Accepts an expression of type e, returning type e
   | `(⟪ self $e:skmexpr ⟫)              => `(SKM[(K (M $e) $e $e)])
-  | `(⟪ λ (_ : $t:skmexpr) $tys:skmexpr* => $body:skmexpr ⟫) => `(SKM[((K+ ? $t $tys*) $body)])
+  | `(⟪ λ (_ : $t:skmexpr) $tys:skmexpr* => $body:skmexpr ⟫) => `(SKM[((K+ (M $body) $t $tys*) $body)])
+  | `(⟪ ∀ (x : $t:skmexpr), x ⟫) => `(SKM[(~> self $t)])
+  | `(⟪ ∀ (x : $t:skmexpr), (f x) ⟫) => `(SKM[self $t ~> f])
   | `(⟪ ∀ (_ : $t:skmexpr) $tys:skmexpr*, $body:skmexpr ⟫) => do
     let tys := [t] ++ tys.toList.filterMap (λ stx =>
       match stx with
       | `(skmexpr| (_ : $t)) => pure t
       | _ => none)
 
+    let e_body ← (`(skmexpr| ((K+ (M $body) $t $(⟨tys⟩)*) $body)))
+
     `(⟪$((← (tys.foldrM (λ t_out (e, rem) => do match rem.reverse with
-      | t :: xs => pure (← (`(skmexpr| (λ (_:$t) $(⟨← xs.mapM (λ e => `(skmexpr| (_:$e)))⟩)* => $t_out ~> $e))), xs)
-      | _ => pure (body, [])) (body, tys))).fst)⟫)
+      | t :: xs => pure (← (`(skmexpr| ((λ (_:$t) $(⟨← xs.mapM (λ e => `(skmexpr| (_:$e)))⟩)* => $t_out) ~> $e))), xs)
+      | _ => pure (← (`(skmexpr| K+ ? $t $(⟨tys⟩)* body)), [])) (e_body, tys))).fst)⟫)
 
 namespace Expr
 
+def toStringImpl (e : Expr) : String :=
+  match e with
+  | SKM[@S #_m #n #o]  => s!"S.{_m},{n},{o}"
+  | SKM[@K #_m #n]    => s!"K.{_m},{n}"
+  | SKM[M]    => "M"
+  | SKM[Ty n] => s!"Type {n}"
+  | SKM[Prp]  => "Prop"
+  | SKM[?]    => "?"
+  | SKM[~>]  => "~>"
+  | SKM[<~]  => "<~"
+  | SKM[→]  => "→"
+  | SKM[←]  => "←"
+  | SKM[(t_in ~> t_out)] => s!"({t_in.toStringImpl} ~> {t_out.toStringImpl})"
+  | SKM[(lhs rhs)] => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
+
+instance : ToString Expr where
+  toString := toStringImpl
+
 #eval SKM[λ (_ : Ty 1) (_ : Ty 2) => M]
-#eval SKM[∀ (_ : Ty 1), M]
+#eval SKM[∀ (_ : Ty 1) (_ : Ty 2), M]
 
 def insert_arrow_arg (in_e e : Ast.Expr) : Ast.Expr :=
   match in_e with
@@ -152,29 +188,6 @@ def mk_k_type (_m n : Universe) : Ast.Expr :=
   SKM[Ty _m ~> Ty n ~> (((((K _m n) Ty _m) Ty n) (~>)) (<~))]
 
 namespace Expr
-
-def toStringImpl (e : Expr) : String :=
-  match e with
-  | SKM[S 0 0 0]   => "S₀"
-  | SKM[K 0 0]   => "K₀"
-  | SKM[S _m n o]  => s!"S.{_m},{n},{o}"
-  | SKM[K _m n]    => s!"K.{_m},{n}"
-  | SKM[M]    => "M"
-  | SKM[Ty n] => s!"Type {n}"
-  | SKM[Prp]  => "Prop"
-  | SKM[?]    => "?"
-  | SKM[~>]  => "~>"
-  | SKM[<~]  => "<~"
-  | SKM[→]  => "→"
-  | SKM[←]  => "←"
-  | SKM[(t_in ~> t_out)] => s!"({t_in.toStringImpl} ~> {t_out.toStringImpl})"
-  | SKM[(t_in <~ t_out)] => s!"({t_in.toStringImpl} <~ {t_out.toStringImpl})"
-  | SKM[(t_in → t_out)] => s!"({t_in.toStringImpl} → {t_out.toStringImpl})"
-  | SKM[(t_in ← t_out)] => s!"({t_in.toStringImpl} ← {t_out.toStringImpl})"
-  | SKM[(lhs rhs)] => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
-
-instance : ToString Expr where
-  toString := toStringImpl
 
 def fromExpr (e : Lean.Expr) : Option Expr :=
   match e with
