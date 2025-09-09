@@ -2007,7 +2007,15 @@ Can we translate this?
 
 We can add a "pop" macro.
 
-K : ∀ (α : Ty m) (β : Ty n), S ? ? Ty m → →
+K : ∀ (α : Ty m) (β : Ty n), S ? ? Ty m → ←
+
+S → ← α = → α (← α)
+
+We can translate λ (x : t) => e₁ e₂ now
+
+
+
+K : ∀ (α : Ty m) (β : Ty n), S ? ? ? → (@(→) 
 
 We can probably do some kind of type inference in our macros.
 
