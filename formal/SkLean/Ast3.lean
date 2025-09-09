@@ -115,7 +115,7 @@ macro_rules
   | `(⟪ ($e₁:skmexpr $e₂:skmexpr $rest:skmexpr*) ⟫) => match rest.toList with
     | x :: xs => `(SKM[(($e₁ $e₂) $x $(⟨xs⟩)*)])
     | _ => `(Expr.call ⟪$e₁⟫ ⟪$e₂⟫)
-  | `(⟪ ∀ ($x:skmexpr : $t:skmexpr), ($f:skmexpr $x) ⟫) => `(SKM[self $t ~> f])
+  | `(⟪ ∀ ($x:skmexpr : $t:skmexpr), ($f:skmexpr $x) ⟫) => `(SKM[self $t ~> $f])
   | `(⟪ ∀ ($x:skmexpr : $t:skmexpr), $x ⟫) =>`(SKM[(~> self $t)])
   | `(⟪ ∀ ($_:skmexpr : $t:skmexpr) $tys:skmexpr*, $body:skmexpr ⟫) => do
     let tys := [t] ++ tys.toList.filterMap (λ stx =>
@@ -125,9 +125,11 @@ macro_rules
 
     let e_body ← (`(skmexpr| ((K+ (M $body) $t $(⟨tys⟩)*) $body)))
 
-    `(⟪$((← (tys.foldrM (λ t_out (e, rem) => do match rem.reverse with
-      | t :: xs => pure (← (`(skmexpr| ((λ (_:$t) $(⟨← xs.mapM (λ e => `(skmexpr| (_:$e)))⟩)* => $t_out) ~> $e))), xs)
-      | _ => pure (← (`(skmexpr| K+ ? $t $(⟨tys⟩)* body)), [])) (e_body, tys))).fst)⟫)
+    pure $ (((← (tys.foldrM (λ t_out ((e, rem) : (Lean.TSyntax `skmexpr) × (List $ Lean.TSyntax `skmexpr)) => do match rem.reverse with
+      | t :: xs =>
+        let tys' ← xs.mapM (λ e => `(skmexpr| (_v:$e)))
+        pure (← (`(skmexpr| ((λ (_v:$t) $(⟨tys'⟩)* => $t_out) ~> $e))), xs)
+      | _ => pure (← (`(skmexpr| ((K+ ? $t $(⟨tys⟩)*) body))), [])) (e_body, tys))).fst))
 
 #eval SKM[(K (Ty 0) (Ty 2))]
 #eval SKM[(λ (_v : Ty 0) (_x : Ty 2) => Ty 0)]
