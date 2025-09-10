@@ -2071,3 +2071,20 @@ Also,
 
 (α ~> β ~> γ) gets instantiated with x.
 
+S+ expansion
+
+S f g x = (f x)(g x)
+
+S (S f g) h
+
+Feeds to multiple.
+
+Feed to multiple or feed multiple in?
+
+S (K S) (S f g) x
+= S ((f x)(g x))
+
+S (K S) (S (K S) S( f g)) x
+
+= S (S (S f g))
+

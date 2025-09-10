@@ -6,7 +6,8 @@ namespace Ast
 
 abbrev Universe := ℕ
 
-inductive Expr where
+inductive Expr {α : Type} where
+  | cnst : α        → Expr
   | k    : Universe → Universe → Expr
   | s    : Universe → Universe → Universe → Expr
   | m    : Expr
@@ -20,14 +21,18 @@ inductive Expr where
   | call : Expr → Expr → Expr
 deriving BEq, Repr, Lean.ToExpr
 
-def max_universe : Expr → Universe
+namespace Expr
+
+def max_universe : @Expr α → Universe
   | .k _m n => max _m n
   | .s _m n o => max (max _m n) o
   | .ty n => n
-  | .call lhs rhs => max (max_universe lhs) (max_universe rhs)
+  | .call lhs rhs => max lhs.max_universe rhs.max_universe
   | _ => 0
 
-inductive ExprBox (e : Ast.Expr) where
+end Expr
+
+inductive ExprBox (e : @Ast.Expr α) where
   | mk : ExprBox e
 
 declare_syntax_cat skmexpr
@@ -61,63 +66,65 @@ syntax "#" term                                        : skmexpr
 syntax "(" skmexpr ")"                                 : skmexpr
 syntax "∀" skmexpr skmexpr* "," skmexpr                : skmexpr
 
-syntax "⟪" skmexpr "⟫"      : term
-syntax "⟨⟪" skmexpr "⟫⟩"    : skmexpr
-syntax "SKM[" skmexpr "]"   : term
+syntax "(" term ")" "⟪" skmexpr "⟫"         : term
+syntax "SKM" "(" term ")" "[" skmexpr "]"   : term
 
 macro_rules
-  | `(SKM[ $e:skmexpr ])  => `(⟪ $e ⟫)
+  | `(SKM ($t:term) [ $e:skmexpr ])  => `((($t) ⟪ $e ⟫ : (@Expr $t)))
 
 macro_rules
-  | `(⟪ (M ($_e:skmexpr : $t:skmexpr)) ⟫) => pure t
-  | `(⟪ domain $t_in:skmexpr ~> $_t_out:skmexpr ⟫) => pure t_in
-  | `(⟪ codomain $_t_in:skmexpr ~> $t_out:skmexpr ⟫) => pure t_out
-  | `(⟪ ((@(→) $t₁:skmexpr $t₂:skmexpr) : ?) ⟫) => `(SKM[(∀ (x : $t₁) (y : $t₂), Ty (max (max_universe m) (max_universe n)).succ)])
-  | `(⟪ (K α β) : ? ⟫) => `(SKM[(K α β) : ∀ (x : α) (y : β), α])
-  | `(⟪ (S ? ? ? ($x:skmexpr : $t_x:skmexpr)) ⟫) => `(SKM[(S (codomain (codomain $t_x)) (domain (codomain $t_x)) (domain $t_x) $x)])
-  | `(⟪ (@S #$m:term #$n:term #$o:term) ⟫) => `(Expr.s $m $n $o)
-  | `(⟪ (@K #$m:term #$n:term) ⟫) => `(Expr.k $m $n)
-  | `(⟪ (S $m:skmexpr $n:skmexpr $o:skmexpr) ⟫) => `(SKM[((((@S #(max_universe ⟪$m⟫) #(max_universe ⟪$n⟫) #(max_universe ⟪$o⟫)) $m) $n) $o)])
-  | `(⟪ (K ? $t_y:skmexpr ($e : $et)) ⟫) => `(SKM[((K $et $t_y) $e)])
-  | `(⟪ (K $m:skmexpr $n:skmexpr) ⟫)       => `(SKM[(((@K #(max_universe ⟪$m⟫) #(max_universe ⟪$n⟫)) $m) $n)])
-  | `(⟪ (K ? $t_y:skmexpr $e) ⟫)         => `(SKM[((K (M $e) $t_y) $e)])
-  | `(⟪ ((K+ ? $x:skmexpr $tys:skmexpr*) $e:skmexpr) ⟫) => `(SKM[((K+ (M $e) $x $tys*) $e)])
-  | `(⟪ (K+ $t:skmexpr $x:skmexpr $tys:skmexpr*) ⟫) =>
+  | `(($t_inner:term)⟪ (M ($_e:skmexpr : $t:skmexpr)) ⟫) => pure t
+  | `(($t_inner:term)⟪ domain $t_in:skmexpr ~> $_t_out:skmexpr ⟫) => pure t_in
+  | `(($t_inner:term)⟪ codomain $_t_in:skmexpr ~> $t_out:skmexpr ⟫) => pure t_out
+  | `(($t_inner:term)⟪ (M (@(→) $t₁:skmexpr $t₂:skmexpr)) ⟫) => `(SKM($t_inner)[(∀ (x : $t₁) (y : $t₂), Ty (max (($t_inner)⟪$t₁⟫.max_universe) (($t_inner)⟪$t₂⟫.max_universe)).succ)])
+  | `(($t_inner:term)⟪ (M ((K $α:skmexpr $β:skmexpr))) ⟫) => `(SKM($t_inner)[(K $α $β) : ∀ (x : $α) (y : $β), $α])
+  | `(($t_inner:term)⟪ (M ($f:skmexpr $arg:skmexpr)) ⟫) => `(SKM($t_inner)[((M $f) $arg)])
+  | `(($t_inner:term)⟪ (S ? ? $t_z:skmexpr $x:skmexpr) ⟫) => do
+    let t_x ← `(skmexpr| (M $x))
+    `(SKM($t_inner)[(S (codomain (codomain $t_x)) (domain (codomain $t_x)) $t_z $x)])
+  | `(($t_inner:term)⟪ (@S #$m:term #$n:term #$o:term) ⟫) => `(@Expr.s $t_inner $m $n $o)
+  | `(($t_inner:term)⟪ (@K #$m:term #$n:term) ⟫) => `(@Expr.k $t_inner $m $n)
+  | `(($t_inner:term)⟪ (S $m:skmexpr $n:skmexpr $o:skmexpr) ⟫) => `(SKM($t_inner)[((((@S #(($t_inner)⟪$m⟫.max_universe) #(($t_inner)⟪$n⟫.max_universe) #(@($t_inner)⟪$o⟫.max_universe _)) $m) $n) $o)])
+  | `(($t_inner:term)⟪ (K ? $t_y:skmexpr ($e : $et)) ⟫) => `(SKM($t_inner)[((K $et $t_y) $e)])
+  | `(($t_inner:term)⟪ (K $m:skmexpr $n:skmexpr) ⟫) => `(SKM($t_inner)[(((@K #(@($t_inner)⟪$m⟫.max_universe _) #(@($t_inner)⟪$n⟫.max_universe _)) $m) $n)])
+  | `(($t_inner:term)⟪ (K ? $t_y:skmexpr $e) ⟫) => `(SKM($t_inner)[((K (M $e) $t_y) $e)])
+  | `(($t_inner:term)⟪ ((K+ ? $x:skmexpr $tys:skmexpr*) $e:skmexpr) ⟫) => `(SKM($t_inner)[((K+ (M $e) $x $tys*) $e)])
+  | `(($t_inner:term)⟪ (K+ $t:skmexpr $x:skmexpr $tys:skmexpr*) ⟫) =>
     match tys.toList with
     | next :: xs =>
       let tys' := Array.mk xs.reverse
-      `(SKM[((K+ (M (K $t $x)) $next $tys'*) (K $t $x))])
-    | _ => `(SKM[(K $t $x)])
-  | `(⟪ M ⟫)                            => `(Expr.m)
-  | `(⟪ ? ⟫)                            => `(Expr.hole)
-  | `(⟪ Ty $n:term ⟫)                   => `(Expr.ty $n)
-  | `(⟪ Prp ⟫)                          => `(Expr.prp)
-  | `(⟪ ~> ⟫)                           => `(Expr.pi)
-  | `(⟪ <~ ⟫)                           => `(Expr.pi')
-  | `(⟪ → ⟫)                            => `(Expr.imp)
-  | `(⟪ ← ⟫)                            => `(Expr.imp')
-  | `(⟪ $e₁:skmexpr ~> $e₂:skmexpr ⟫)   => `(SKM[(((~>) $e₁) $e₂)])
-  | `(⟪ $e₁:skmexpr <~ $e₂:skmexpr ⟫)   => `(SKM[($e₂ ~> $e₁)])
-  | `(⟪ $e₁:skmexpr → $e₂:skmexpr ⟫)    => `(SKM[∀ (x : $e₁), $e₂])
-  | `(⟪ $e₁:skmexpr ← $e₂:skmexpr ⟫)    => `(SKM[$e₂ → $e₁])
-  | `(⟪ $e:ident ⟫)                     => `($e)
-  | `(⟪ # $e:term ⟫)                    => `($e)
-  | `(⟪ ($e:skmexpr) ⟫)                 => `(⟪$e⟫)
+      `(SKM($t_inner)[((K+ (M (K $t $x)) $next $tys'*) (K $t $x))])
+    | _ => `(SKM($t_inner)[(K $t $x)])
+  | `(($t_inner:term)⟪ M ⟫)                            => `(@Expr.m $t_inner)
+  | `(($t_inner:term)⟪ ? ⟫)                            => `(@Expr.hole $t_inner)
+  | `(($t_inner:term)⟪ Ty $n:term ⟫)                   => `(@Expr.ty $t_inner $n)
+  | `(($t_inner:term)⟪ Prp ⟫)                          => `(@Expr.prp $t_inner)
+  | `(($t_inner:term)⟪ ~> ⟫)                           => `(@Expr.pi $t_inner)
+  | `(($t_inner:term)⟪ <~ ⟫)                           => `(@Expr.pi' $t_inner)
+  | `(($t_inner:term)⟪ → ⟫)                            => `(@Expr.imp $t_inner)
+  | `(($t_inner:term)⟪ ← ⟫)                            => `(@Expr.imp' $t_inner)
+  | `(($t_inner:term)⟪ $e₁:skmexpr ~> $e₂:skmexpr ⟫)   => `(SKM($t_inner)[(((~>) $e₁) $e₂)])
+  | `(($t_inner:term)⟪ $e₁:skmexpr <~ $e₂:skmexpr ⟫)   => `(SKM($t_inner)[($e₂ ~> $e₁)])
+  | `(($t_inner:term)⟪ $e₁:skmexpr → $e₂:skmexpr ⟫)    => `(SKM($t_inner)[∀ (x : $e₁), $e₂])
+  | `(($t_inner:term)⟪ $e₁:skmexpr ← $e₂:skmexpr ⟫)    => `(SKM($t_inner)[$e₂ → $e₁])
+  | `(($t_inner:term)⟪ $e:ident ⟫)                     => `($e)
+  | `(($t_inner:term)⟪ # $e:term ⟫)                    => `($e)
+  | `(($t_inner:term)⟪ ($e:skmexpr) ⟫)                 => `(($t_inner)⟪$e⟫)
   -- Accepts an expression of type e, returning type e
-  | `(⟪ self $e:skmexpr ⟫)              => `(SKM[(K (M $e) $e $e)])
-  | `(⟪ λ (_v : $t:skmexpr) $tys:skmexpr* => $body:skmexpr ⟫) => do
-    let tys := [t] ++ tys.toList.filterMap (λ stx =>
-      match stx with
-      | `(skmexpr| (_v : $t)) => pure t
-      | _ => none)
-
-    `(SKM[((K+ (M $body) $t $(⟨tys⟩)*) $body)])
-  | `(⟪ ($e₁:skmexpr $e₂:skmexpr $rest:skmexpr*) ⟫) => match rest.toList with
-    | x :: xs => `(SKM[(($e₁ $e₂) $x $(⟨xs⟩)*)])
-    | _ => `(Expr.call ⟪$e₁⟫ ⟪$e₂⟫)
-  | `(⟪ ∀ ($x:skmexpr : $t:skmexpr), ($f:skmexpr $x) ⟫) => `(SKM[self $t ~> $f])
-  | `(⟪ ∀ ($x:skmexpr : $t:skmexpr), $x ⟫) =>`(SKM[(~> self $t)])
-  | `(⟪ ∀ ($_:skmexpr : $t:skmexpr) $tys:skmexpr*, $body:skmexpr ⟫) => do
+  | `(($t_inner:term)⟪ self $e:skmexpr ⟫)              => `(SKM($t_inner)[(K (M $e) $e $e)])
+  | `(($t_inner:term)⟪ λ ($_v:skmexpr : $t:skmexpr) => ($e₁:skmexpr $e₂:skmexpr) ⟫) =>
+    `(SKM($t_inner)[(S ? ? $t $e₁ $e₂)])
+  | `(($t_inner:term)⟪ λ ($_v:skmexpr : $t:skmexpr) => $body:skmexpr ⟫) => `(SKM($t_inner)[(K ? $t $body)])
+  | `(($t_inner:term)⟪ λ ($_v : $t:skmexpr) $tys:skmexpr* => $body:skmexpr ⟫) =>
+    match tys.toList with
+    | stx::xs => `(SKM($t_inner)[λ ($_v : $t) => (λ $stx $(⟨xs⟩)* => $body)])
+    | _ => `(SKM($t_inner)[λ ($_v : $t) => $body])
+  | `(($t_inner:term)⟪ ($e₁:skmexpr $e₂:skmexpr $rest:skmexpr*) ⟫) => match rest.toList with
+    | x :: xs => `(SKM($t_inner)[(($e₁ $e₂) $x $(⟨xs⟩)*)])
+    | _ => `(@Expr.call $t_inner ($t_inner)⟪$e₁⟫ ($t_inner)⟪$e₂⟫)
+  | `(($t_inner:term)⟪ ∀ ($x:ident : $t:skmexpr), ($f:skmexpr $x:ident) ⟫) => `(SKM($t_inner)[self $t ~> $f])
+  | `(($t_inner:term)⟪ ∀ ($x:skmexpr : $t:skmexpr), $x:skmexpr ⟫) =>`(SKM($t_inner)[(~> self $t)])
+  | `(($t_inner:term)⟪ ∀ ($_:skmexpr : $t:skmexpr) $tys:skmexpr*, $body:skmexpr ⟫) => do
     let tys := [t] ++ tys.toList.filterMap (λ stx =>
       match stx with
       | `(skmexpr| ($_:skmexpr : $t:skmexpr)) => pure t
@@ -131,79 +138,44 @@ macro_rules
         pure (← (`(skmexpr| ((λ (_v:$t) $(⟨tys'⟩)* => $t_out) ~> $e))), xs)
       | _ => pure (← (`(skmexpr| ((K+ ? $t $(⟨tys⟩)*) body))), [])) (e_body, tys))).fst))
 
-#eval SKM[(K (Ty 0) (Ty 2))]
-#eval SKM[(λ (_v : Ty 0) (_x : Ty 2) => Ty 0)]
-
 namespace Expr
 
-def toStringImpl (e : Expr) : String :=
-  match e with
-  | SKM[(@S #_m #n #o)]  => s!"S.{_m},{n},{o}"
-  | SKM[(@K #_m #n)]    => s!"K.{_m},{n}"
-  | SKM[M]    => "M"
-  | SKM[Ty n] => s!"Type {n}"
-  | SKM[Prp]  => "Prop"
-  | SKM[?]    => "?"
-  | SKM[~>]  => "~>"
-  | SKM[<~]  => "<~"
-  | SKM[→]  => "→"
-  | SKM[←]  => "←"
-  | SKM[(t_in ~> t_out)] => s!"({t_in.toStringImpl} ~> {t_out.toStringImpl})"
-  | SKM[(lhs rhs)] => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
+#eval SKM (Unit) [(λ (x : Ty 0) => ((K Ty 0  Ty 0) (K Ty 0 Ty 0)))]
 
-instance : ToString Expr where
+def toStringImpl [ToString α] (e : @Expr α) : String :=
+  match e with
+  | SKM(α)[(@S #_m #n #o)]  => s!"S.{_m},{n},{o}"
+  | SKM(α)[(@K #_m #n)]    => s!"K.{_m},{n}"
+  | SKM(α)[M]    => "M"
+  | SKM(α)[Ty n] => s!"Type {n}"
+  | SKM(α)[Prp]  => "Prop"
+  | SKM(α)[?]    => "?"
+  | SKM(α)[~>]  => "~>"
+  | SKM(α)[<~]  => "<~"
+  | SKM(α)[→]  => "→"
+  | SKM(α)[←]  => "←"
+  | SKM(α)[(t_in ~> t_out)] => s!"({t_in.toStringImpl} ~> {t_out.toStringImpl})"
+  | SKM(α)[(lhs rhs)] => s!"({lhs.toStringImpl} {rhs.toStringImpl})"
+  | .cnst c => s!"{c}"
+
+instance {α : Type} [ToString α] : ToString (@Expr α) where
   toString := toStringImpl
 
-#eval SKM[λ (_ : Ty 1) (_ : Ty 2) => M]
-#eval SKM[∀ (_ : Ty 1) (_ : Ty 2), M]
+#eval SKM (Unit) [λ (_v : Ty 1) (_u : Ty 2) => M]
 
-def insert_arrow_arg (in_e e : Ast.Expr) : Ast.Expr :=
+def insert_arrow_arg {α : Type} (in_e e : @Ast.Expr α) : @Ast.Expr α :=
   match in_e with
-  | SKM[(t_in ~> t_out)] =>
-    SKM[(#(insert_arrow_arg t_in e) ~> #(insert_arrow_arg t_out e))]
-  | x => SKM[(x e)]
+  | SKM(α)[(t_in ~> t_out)] =>
+    SKM(α)[(#(insert_arrow_arg t_in e) ~> #(insert_arrow_arg t_out e))]
+  | x => SKM(α)[(x e)]
 
-def pop_arrow : Ast.Expr → Ast.Expr
-  | SKM[(_t_in ~> t_out)] => t_out
+def pop_arrow {α : Type} : @Ast.Expr α → @Ast.Expr α
+  | SKM(_)[(_t_in ~> t_out)] => t_out
   | e => e
 
 end Expr
 
-def mk_k_type (_m n : Universe) : Ast.Expr :=
-  SKM[Ty _m ~> Ty n ~> (((((K _m n) Ty _m) Ty n) (~>)) (<~))]
-
-namespace Expr
-
-def fromExpr (e : Lean.Expr) : Option Expr :=
-  match e with
-  | .const `Expr.hole [] => pure SKM[?]
-  | (.app
-      (.app (.const `Expr.k []) (.lit (.natVal _m)))
-      (.lit (.natVal n)))    => pure SKM[K _m n]
-  | (.app
-      (.app
-        (.app (.const `Expr.s []) (.lit (.natVal _m)))
-        (.lit (.natVal n))) (.lit (.natVal o)))    => pure SKM[S _m n o]
-  | .const `Expr.m []    => pure SKM[M]
-  | .const `Expr.pi [] => pure SKM[~>]
-  | .const `Expr.pi' [] => pure SKM[<~]
-  | .const `Expr.imp [] => pure SKM[→]
-  | .const `Expr.imp' [] => pure SKM[←]
-  | .sort .zero => pure SKM[Prp]
-  | .sort n => pure SKM[Ty n.depth.pred]
-  | .app (.app (.const `Expr.call []) lhs) rhs => do
-    let lhs' ← fromExpr lhs
-    let rhs' ← fromExpr rhs
-    pure SKM[(lhs' rhs')]
-  | _ => none
-
-/-
-K type with dependent arrow:
-
-K α : (K α) ~> (~> α)
-K : S (K ~>) (S K ~>)
--/
-
-end Expr
+def mk_k_type {α : Type} (_m n : Universe) : @Ast.Expr α :=
+  sorry
 
 end Ast
