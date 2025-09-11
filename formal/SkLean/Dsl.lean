@@ -104,6 +104,8 @@ macro_rules
     match tys.toList with
     | stx::xs => `(SKM($t_inner)[λ ($_v : $t) => (λ $stx $(⟨xs⟩)* => $body)])
     | _ => `(SKM($t_inner)[λ ($_v : $t) => $body])
+  | `(($t_inner:term)⟪ ($e:atom) ⟫) => `(($t_inner)⟪₀ $e⟫)
+  | `(($t_inner:term)⟪ ($e:skmexpr) ⟫)  => `(($t_inner)⟪ $e ⟫)
 
 #eval SKM(Unit)[(Type #0) ⤳ (Type #0)]
 
