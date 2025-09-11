@@ -31,6 +31,7 @@ syntax "S"    : atom
 syntax "Prop" : atom
 syntax "Type" : atom
 syntax ident           : atom
+syntax "i" ident       : atom
 syntax "(" skmexpr ")" : atom
 syntax operator        : atom
 syntax judgment        : atom
@@ -56,27 +57,32 @@ macro_rules
   | `(SKM ($t:term) [ $e:skmexpr ])  => `((($t) ⟪ $e ⟫ : (@Expr $t)))
 
 macro_rules
+  | `(($t_inner:term)⟪ $e₁:skmexpr $e₂:atom ⟫) => `(@Expr.call $t_inner ($t_inner)⟪$e₁⟫ ($t_inner)⟪₀ $e₂⟫)
   | `(($t_inner:term)⟪₀ ($e:skmexpr) ⟫) => `(($t_inner)⟪ $e ⟫)
   | `(($t_inner:term)⟪₀ ⤳ ⟫) => `(@Expr.pi $t_inner)
   | `(($t_inner:term)⟪₀ <~ ⟫) => `(@Expr.pi' $t_inner)
   | `(($t_inner:term)⟪₀ → ⟫) => `(@Expr.imp $t_inner)
   | `(($t_inner:term)⟪₀ ← ⟫) => `(@Expr.imp' $t_inner)
+  | `(($t_inner:term)⟪₀ M ⟫)                           => `(@Expr.m $t_inner)
+  | `(($t_inner:term)⟪₀ Prp ⟫)                         => `(@Expr.prp $t_inner)
+  | `(($t_inner:term)⟪₀ $e:ident ⟫)                    => `($e)
+  | `(($t_inner:term)⟪₀ # $e:term ⟫)                   => `($e)
+
+
+macro_rules
   | `(($t_inner:term)⟪ $e₁:skmexpr ⤳ $e₂:skmexpr ⟫) => `(SKM($t_inner)[(⤳) ($e₁) ($e₂)])
   | `(($t_inner:term)⟪ $e₁:skmexpr <~ $e₂:skmexpr ⟫) => `(SKM($t_inner)[$e₂ ⤳ $e₁])
   | `(($t_inner:term)⟪ $e₁:skmexpr → $e₂:skmexpr ⟫) => `(SKM($t_inner)[∀ (x : $e₁), $e₂])
   | `(($t_inner:term)⟪ $e₁:skmexpr ← $e₂:skmexpr ⟫) => `(SKM($t_inner)[$e₂ → $e₁])
+
+macro_rules
   | `(($t_inner:term)⟪ universe ($e:skmexpr) ⟫) => `(Expr.max_universe ($t_inner)⟪ $e ⟫)
   | `(($t_inner:term)⟪ universe $e:atom ⟫)      => `(Expr.max_universe ($t_inner)⟪₀ $e ⟫)
+
+macro_rules
   | `(($t_inner:term)⟪ M ($_e:skmexpr : $t:skmexpr) ⟫) => pure t
   | `(($t_inner:term)⟪ domain ($t_in:skmexpr ⤳ $t_out:skmexpr) ⟫) => pure t_in
   | `(($t_inner:term)⟪ codomain ($t_in:skmexpr ⤳ $t_out:skmexpr) ⟫) => pure t_out
-  | `(($t_inner:term)⟪ ∀ ($i:ident : $t:skmexpr), $body:skmexpr ⟫) => `(SKM($t_inner)[$t → $body])
-  | `(($t_inner:term)⟪₀ M ⟫)                           => `(@Expr.m $t_inner)
-  | `(($t_inner:term)⟪₀ ? ⟫)                           => `(@Expr.hole $t_inner)
-  | `(($t_inner:term)⟪ Type #$n:term ⟫)                => `(@Expr.ty $t_inner $n)
-  | `(($t_inner:term)⟪₀ Prp ⟫)                         => `(@Expr.prp $t_inner)
-  | `(($t_inner:term)⟪₀ $e:ident ⟫)                    => `($e)
-  | `(($t_inner:term)⟪₀ # $e:term ⟫)                   => `($e)
   | `(($t_inner:term)⟪ M (@→ $t₁:atom $t₂:atom) ⟫)    => `(SKM($t_inner)[a!$t₁ → a!$t₂ → Type (universe (a!$t₁ $t₂))])
   | `(($t_inner:term)⟪ M (K $α:atom $β:atom) ⟫)       => `(SKM($t_inner)[a!$α → a!$β → a!$α])
   | `(($t_inner:term)⟪ M ($f:skmexpr $arg:atom) ⟫) => do
@@ -86,6 +92,9 @@ macro_rules
       Lean.Macro.throwError "application type mismatch"
     else
       `(($t_inner)⟪ (codomain ($f)) $arg⟫)
+
+macro_rules
+  | `(($t_inner:term)⟪ Type #$n:term ⟫)                => `(@Expr.ty $t_inner $n)
   | `(($t_inner:term)⟪ @S $m:atom $n:atom $o:atom ⟫) => `(@Expr.s $t_inner ($t_inner)⟪₀ $m⟫ ($t_inner)⟪₀ $n⟫ ($t_inner)⟪₀ $o⟫)
   | `(($t_inner:term)⟪ @K $m:atom $n:atom ⟫) => `(@Expr.k $t_inner ($t_inner)⟪₀ $m⟫ ($t_inner)⟪₀ $n⟫)
   | `(($t_inner:term)⟪ S $m:atom $n:atom $o:atom ⟫) => `(($t_inner)⟪ @S (universe $m) (universe $n) (universe $o) $m $n $o ⟫)
@@ -93,19 +102,30 @@ macro_rules
     let t_x ← `(skmexpr| M $x)
     `(($t_inner)⟪ S (codomain (codomain ($t_x))) (domain (codomain ($t_x))) $t_z $x⟫)
   | `(($t_inner:term)⟪ K ? $t_y:atom $e:atom ⟫) => `(SKM($t_inner)[K (M $e) $t_y $e])
-  | `(($t_inner:term)⟪ K $m:atom $n:atom ⟫) => `(($t_inner)⟪ @K (universe $m) (universe $n) ⟫)
-  | `(($t_inner:term)⟪ $e₁:skmexpr $e₂:atom ⟫) => `(@Expr.call $t_inner ($t_inner)⟪$e₁⟫ ($t_inner)⟪₀ $e₂⟫)
-  | `(($t_inner:term)⟪ ∀ ($i:ident : $t:skmexpr) $tys:binder*, $body:skmexpr ⟫) => `(SKM($t_inner)[∀ ($i : $t), λ (_x : $t) => $body])
+  | `(($t_inner:term)⟪ K $m:atom $n:atom ⟫) => `(($t_inner)⟪ @K (universe $m) (universe $n) $m $n ⟫)
+
+macro_rules
+  | `(($t_inner:term)⟪ ∀ ($_i:ident : $t:skmexpr), $body:skmexpr ⟫) => `(SKM($t_inner)[$t → $body])
+  | `(($t_inner:term)⟪ ∀ ($_i:ident : $t:skmexpr) $tys:binder*, $body:skmexpr ⟫) => `(SKM($t_inner)[∀ ($_i : $t), λ (_x : $t) => $body])
   | `(($t_inner:term)⟪ λ $_v:ident : $t:skmexpr => $body:skmexpr ⟫) => `(SKM($t_inner)[λ ($_v : $t) => $body])
-  | `(($t_inner:term)⟪ λ ($_v:ident : $t:skmexpr) => $e₁:skmexpr $e₂:atom ⟫)=>
+  | `(($t_inner:term)⟪ λ ($_v:ident : $t:skmexpr) => $e₁:skmexpr $e₂:atom ⟫) => `(($t_inner)⟪ λ ($_v : $t) => ($e₁ $e₂)⟫)
+  | `(($t_inner:term)⟪ λ ($_v:ident : $t:skmexpr) => ($e₁:skmexpr $e₂:atom) ⟫)=>
     `(SKM($t_inner)[(S ? ? ($t) ($e₁) $e₂)])
-  | `(($t_inner:term)⟪ λ ($_v:ident : $t:skmexpr) => $body:skmexpr ⟫)=> `(SKM($t_inner)[(K ? ($t) ($body))])
+  | `(($t_inner:term)⟪ λ ($_v:ident : $t:skmexpr) => $body:ident ⟫)=>
+    if body == _v then
+      `(SKM($t_inner)[S ? ? ($t) (K ($t) (M (K ($t) ($t)))) (K ($t) ($t))])
+    else
+      `(SKM($t_inner)[(K ? ($t) i$body)])
+  | `(($t_inner:term)⟪ λ ($_v:ident : $t:skmexpr) => $body:skmexpr ⟫)=>
+    `(SKM($t_inner)[(K ? ($t) ($body))])
   | `(($t_inner:term)⟪ λ ($_v:ident : $t:skmexpr) $tys:binder* => $body:skmexpr ⟫)=>
     match tys.toList with
     | stx::xs => `(SKM($t_inner)[λ ($_v : $t) => (λ $stx $(⟨xs⟩)* => $body)])
     | _ => `(SKM($t_inner)[λ ($_v : $t) => $body])
+
+macro_rules
   | `(($t_inner:term)⟪ ($e:atom) ⟫) => `(($t_inner)⟪₀ $e⟫)
-  | `(($t_inner:term)⟪ ($e:skmexpr) ⟫)  => `(($t_inner)⟪ $e ⟫)
+  | `(($t_inner:term)⟪ $e:atom ⟫) => `(($t_inner)⟪₀ $e⟫)
 
 #eval SKM(Unit)[(Type #0) ⤳ (Type #0)]
 
@@ -114,7 +134,7 @@ def toStringImpl [ToString α] (e : @Expr α) : String :=
   | SKM(α)[(@S #_m #n #o)]  => s!"S.{_m},{n},{o}"
   | SKM(α)[(@K #_m #n)]    => s!"K.{_m},{n}"
   | SKM(α)[M]    => "M"
-  | SKM(α)[Ty #n] => s!"Type {n}"
+  | SKM(α)[Type #n] => s!"Type {n}"
   | SKM(α)[Prp]  => "Prop"
   | SKM(α)[⤳]  => "⤳"
   | SKM(α)[<~]  => "<~"
@@ -127,12 +147,12 @@ def toStringImpl [ToString α] (e : @Expr α) : String :=
 instance {α : Type} [ToString α] : ToString (@Expr α) where
   toString := toStringImpl
 
-#eval SKM (Unit) [λ (_v : Ty 1) (_u : Ty 2) => M]
+#eval SKM (Unit) [λ (_u : Type #2) => _u]
 
 def insert_arrow_arg {α : Type} (in_e e : @Ast.Expr α) : @Ast.Expr α :=
   match in_e with
-  | SKM(α)[(t_in ⤳ t_out)] =>
-    SKM(α)[(#(insert_arrow_arg t_in e) ⤳ #(insert_arrow_arg t_out e))]
+  | SKM(α)[t_in ⤳ t_out] =>
+    SKM(α)[(#(insert_arrow_arg t_in e)) ⤳ (#(insert_arrow_arg t_out e))]
   | x => SKM(α)[(x e)]
 
 def pop_arrow {α : Type} : @Ast.Expr α → @Ast.Expr α
