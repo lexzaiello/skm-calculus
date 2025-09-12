@@ -42,7 +42,6 @@ syntax arrow "←" arrow : arrow
 syntax arrow:max     : skmexpr
 syntax app           : skmexpr
 
-
 syntax "⟪" skmexpr "⟫" : term
 syntax "⟪₀" atom "⟫"   : term
 syntax "⟪₁" app "⟫"    : term
