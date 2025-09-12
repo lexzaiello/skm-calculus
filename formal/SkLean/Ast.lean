@@ -16,6 +16,7 @@ inductive Expr where
   | imp' : Expr
   | ty   : Universe → Expr
   | prp  : Expr
+  | hole : Expr
   | app : Expr → Expr → Expr
 deriving BEq, Repr, Lean.ToExpr
 

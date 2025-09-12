@@ -2219,3 +2219,20 @@ z : α
 
 S α β γ (x : S (K (~> α)) (S (S (K (K ~>)) β) γ)) (y : S (K (~> α)) β) (z : α) : M (x z (y z))
 
+* Type universes
+
+Might be possible to completely remove sorts.
+In K α, α : Type something
+
+But it's not clear that anything has this type, since all types are just K or S expressions.
+
+We could just say α : (M α). This is fine. We can probably remove sorts, then.
+
+K : S (S (K ~>) M) (S (K (S (S (K ~>) M)) (S (S (K S) (S (K K) ->)) <-)))
+K α : (M α) ~> (S (S (K ~>) M) ((S (S (K S) (S (K K) ->)) <-))) α)
+K α : (M α) ~> (S (S (K ~>) M) (S (K (-> α))) (<- α)
+K α β: (M β) ~> α -> (β -> α)
+K α β x : (β → α)
+K α β x y : α
+
+(α : M α)

@@ -17,10 +17,11 @@ syntax "universe" : operator
 syntax "S"             : atom
 syntax "K"             : atom
 syntax "M"             : atom
-syntax "#~>"            : atom
-syntax "#->"             : atom
-syntax "<-#"             : atom
-syntax "<~#"            : atom
+syntax "#~>"           : atom
+syntax "#->"           : atom
+syntax "?"             : atom
+syntax "<-#"           : atom
+syntax "<~#"           : atom
 syntax "Prop"          : atom
 syntax "Type"          : atom
 syntax "(" skmexpr ")" : atom
@@ -47,6 +48,7 @@ syntax "⟪₁" app "⟫"    : term
 syntax "⟪₂" arrow "⟫"  : term
 
 macro_rules
+  | `(⟪₀ ? ⟫) => `(Expr.hole)
   | `(⟪ $e:arrow ⟫) => `(⟪₂ $e ⟫)
   | `(⟪₂ ($e:skmexpr) ⟫) => `(⟪ $e ⟫)
   | `(⟪₂ $t_in:atom ⤳ $t_out:arrow ⟫) => `(Expr.app ⟪₁ (#~>) $t_in ⟫ ⟪₂ $t_out ⟫)
