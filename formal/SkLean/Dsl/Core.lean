@@ -16,10 +16,10 @@ syntax "universe" : operator
 syntax "S"             : atom
 syntax "K"             : atom
 syntax "M"             : atom
-syntax "⤳"            : atom
-syntax "→"             : atom
-syntax "←"             : atom
-syntax "<~"            : atom
+syntax "#~>"            : atom
+syntax "#->"             : atom
+syntax "<-#"             : atom
+syntax "<~#"            : atom
 syntax "Prop"          : atom
 syntax "Type"          : atom
 syntax "(" skmexpr ")" : atom
@@ -42,10 +42,10 @@ macro_rules
   | `(⟪ $e:atom ⟫) => `(⟪₀ $e ⟫)
   | `(⟪ $e:app ⟫) => `(⟪₁ $e ⟫)
   | `(⟪₁ $e:atom ⟫) => `(⟪₀ $e ⟫)
-  | `(⟪₀ ⤳ ⟫) => `(Expr.pi)
-  | `(⟪₀ <~ ⟫) => `(Expr.pi')
-  | `(⟪₀ → ⟫)  => `(Expr.imp)
-  | `(⟪₀ ← ⟫)  => `(Expr.imp')
+  | `(⟪₀ #~> ⟫) => `(Expr.pi)
+  | `(⟪₀ <~# ⟫) => `(Expr.pi')
+  | `(⟪₀ #-> ⟫)  => `(Expr.imp)
+  | `(⟪₀ <-# ⟫)  => `(Expr.imp')
   | `(⟪₀ M ⟫)  => `(Expr.m)
   | `(⟪₀ Prop ⟫)  => `(Expr.prp)
   | `(⟪₀ #$t:term ⟫) => `($t)
@@ -62,5 +62,5 @@ end Dsl
 #eval ⟪ M M ⟫
 #eval ⟪ Type #0 ⟫
 
-#eval ⟪ M (→ M) ⟫
+
 
