@@ -2088,3 +2088,134 @@ S (K S) (S (K S) S( f g)) x
 
 = S (S (S f g))
 
+
+
+* Hand-derived K type
+
+~> rule: why do we need to always propagate?
+
+K : K (Ty m.succ) (Ty m) (Ty m) ~> K (Ty n → Ty n.succ) (Ty m) (K (Ty n.succ) (Ty n) (Ty n)) ~> thing
+
+S ← → α = ← α (→ α)
+S → → α β = → α (→ α)
+
+S (K (→ α)) (← α) β = α → (β → α)
+S (S (K (S K)) ←) → α = K (← α) (→ α)
+
+Can we modify the rules for ~> at all to make this easier?
+
+(a ~> b) e = e a ~> e b is already intuitively sus
+
+There should be no eval rule for this at all, really.
+
+K : <~# ~>
+
+K : Ty m → Ty n → 
+
+Any other combinators we can make?
+
+What is the combinator with type:
+
+K : <~# ~>
+
+K : ~> Ty m (~> Ty n)
+
+What about this eval rule:
+
+This is dumb though because we're baking in logic into the combinator.
+
+~> e₁ e₂ arg = ~> e₁ (e₂ arg)
+
+K α : α ~> (~>)
+
+e : ~> <~#
+
+What is our typing rule for function calls?
+
+apply argument to type of left-hand side.
+
+All we need is something we can interpret as a typing.
+We want to unify all types under ~>
+most natural approach: function type decides what to do with the argument
+
+~> is really just a marker
+
+It deosn't do anything.
+
+So what is the type of ~>?
+
+but we want ~> to work with any expr, we don't want to have universes
+~> : ~> <~#
+
+~> α : <~# ~> α
+~> α β : 
+
+Is it possible to remove sorts?
+
+K α β : (M α) ~> (M β) ~> α ~> β ~> α
+
+This is stupid.
+
+Theoretically, we can use a search tree for the type of K. This is kind of the same as doing translation though.
+
+* Eta-expanded K type, potential hints towards point-free?
+
+~> doesn't do any logic itself.
+
+We want to discard x and produce α ~> 
+
+K α β : K (α ~> (K β ~> α))
+
+This expression requires copying α
+
+Same eval rule for M of arrow.
+M t_in ~> t_out = M t_out
+
+
+K α β x : α ~> (K (β ~> α))
+K α β x y : β ~> α
+K α β x y : α
+
+There's a lot of filling in to do here.
+
+First off, have to copy α
+
+K : S (K (~> Ty m)) (S ~> <~#))
+
+K : S (K (~> Ty m)) (S (K (S (K ~> Ty n)) (S ~> <~#)))
+
+K α : Ty m ~> (α ~> (<~# α))
+K α : (α ~> (<~# α))
+
+K α β : K (α ~> (K β ~> α))
+
+K : S (K (~> Ty m)) (S (K (S (K ~> Ty n)) (S ~> <~#)))
+K α : Ty m ~> ((S (K ~> Ty n) (α ~> (<~# α)))
+K α β : Ty n ~> ((α ~> (<~# α))) β)
+
+K : S (K (~> Ty m)) (S (K (S (K ~> Ty n)) (S (S (K S) (S (K K) ->)) <-)))
+K α : Ty m ~> (S (K ~> Ty n)) ((S (K S) (S (K K) ->) α)) (<- α)))
+K α : Ty m ~> (S (K ~> Ty n)) ((S (K (-> α)) (<- α)))
+K α β : Ty n ~> (-> α) (<- α β))
+K α β : α -> (β -> α)
+
+K α β x y : α
+
+With M:
+
+We can express the type of arrows by assuming the existence of a "canonical type". Also, beta-equivalent types should be fine.
+
+(α → β → γ) → (α → β) → (α → γ)
+
+(x : S (K (~> α)) (S (S (K (K ~>)) β) γ))
+(x : S (K (~> α)) (S (S (K S) (S (K K) (S (K ~>) β))) γ))
+M (x z) : α ~> (S (K (~> (β z)) (γ z))
+M (x z (y z)) : (~> (β z)) (γ z (y z))
+M (x z (y z)) : (γ z (y z))
+
+(y : S (K (~> α)) β)
+y z : α ~> (β z)
+z : α
+
+S α β γ (x : S (K (~> α)) (S (S (K (K ~>)) β) γ)) (y : S (K (~> α)) β) (z : α) : M (x z (y z))
+

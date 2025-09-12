@@ -10,6 +10,7 @@ declare_syntax_cat atom
 declare_syntax_cat judgment
 declare_syntax_cat operator
 declare_syntax_cat app
+declare_syntax_cat arrow
 
 syntax "universe" : operator
 
@@ -31,13 +32,27 @@ syntax "@" atom        : atom
 syntax app atom : app
 syntax atom     : app
 
+syntax atom "⤳" arrow : arrow
+syntax arrow "<~" atom : arrow
+syntax atom "→" arrow : arrow
+syntax arrow "←" atom : arrow
+syntax atom           : arrow
+
+syntax arrow         : skmexpr
 syntax app           : skmexpr
 
 syntax "⟪" skmexpr "⟫" : term
 syntax "⟪₀" atom "⟫"   : term
 syntax "⟪₁" app "⟫"    : term
+syntax "⟪₂" arrow "⟫"  : term
 
 macro_rules
+  | `(⟪ $e:arrow ⟫) => `(⟪₂ $e ⟫)
+  | `(⟪₂ ($e:skmexpr) ⟫) => `(⟪ $e ⟫)
+  | `(⟪₂ $t_in:atom ⤳ $t_out:arrow ⟫) => `(Expr.app ⟪₁ (#~>) $t_in ⟫ ⟪₂ $t_out ⟫)
+  | `(⟪₂ $t_out:arrow <~ $t_in:atom ⟫) => `(Expr.app ⟪₁ (#~>) $t_in ⟫ ⟪₂ $t_out ⟫)
+  | `(⟪₂ $t_in:atom → ($t_out:skmexpr) ⟫)  => `(⟪ K (M ($t_out)) $t_in ($t_in:atom ⤳ ($t_out)) ⟫)
+  | `(⟪₂ $t_out:arrow ← $t_in:atom ⟫)  => `(⟪ $t_in:atom → $t_out:arrow ⟫)
   | `(⟪₀ ($e:skmexpr)⟫) => `(⟪ $e ⟫)
   | `(⟪ $e:atom ⟫) => `(⟪₀ $e ⟫)
   | `(⟪ $e:app ⟫) => `(⟪₁ $e ⟫)
@@ -61,6 +76,6 @@ end Dsl
 
 #eval ⟪ M M ⟫
 #eval ⟪ Type #0 ⟫
-
+#eval ⟪₂ M → (M) ⟫
 
 

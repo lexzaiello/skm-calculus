@@ -1,5 +1,5 @@
 import Lean
-import SkLean.Ast3
+import SkLean.Ast
 import SkLean.Eval
 import SkLean.Checker
 open Lean
