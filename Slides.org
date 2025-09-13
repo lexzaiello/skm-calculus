@@ -1,0 +1,144 @@
+* Content for explanation slides
+** SK explainer
+
+- Analogy: UW courses
+
+UW courses have course GPA's and S / NS
+
+- Calculating a student's GPA
+
+#+BEGIN_SRC python
+  my_grades = [4.0, 3.0, 3.5, "Satisfactory", "Not Satisfactory"]  
+
+  # Dumb GPA calculation
+  def gpa(grades):
+        return sum(grades) / len(grades)
+
+  # TypeError, since we have strings in our my_grades
+  gpa(my_grades)
+#+END_SRC
+
+- This doesn't account for S / NS grades.
+
+#+BEGIN_SRC python
+  # S/NS grades are strings, need to handle specifically
+  # All satisfactory grades get a 3.0
+  # Not satisfactory gets zero
+  def grade_s_ns(grade):
+    if grade == "Satisfactory":
+      return 3.0
+    else
+      return 0
+
+  # Courses are graded on a curve. 20% bump, let's say.
+  def grade_numeric(grade):
+    return min(4.0, grade * 1.2)
+
+  def gpa_all(grades):
+    # Which GPA calculator to use for which kind of grade
+    calculator_kinds = {
+      str: grade_s_ns,
+      int: grade_numeric
+    }
+
+    # Convert all grades to numeric
+    numeric_grades = [ calculator_kinds(type(grade))(grade) for grade in grades]
+
+    # Compute GPA
+    return sum(numeric_grades) / len(grades)
+        
+#+END_SRC
+
+- There's a lot of redundancy here. We can clean this up in a couple ways using lambda functions.
+
+#+BEGIN_SRC python
+  # All satisfactory grades get 3.0
+  grader_satisfactory = lambda _: 3.0
+
+  # All not satisfactory get 0.0
+  grader_not_satisfactory = lambda _: 0.0
+
+  # Grading on a curve.
+  # All numeric grades get curved up 20%
+  grader_numeric = lambda grade: min(4.0, grade * 1.2)
+
+  def grader_for(grade):
+    if grade == "Satisfactory":
+      return grader_satisfactory
+    elif grade == "Not Satisfactory":
+      return grader_not_satisfactory
+    else
+      return grader_numeric
+
+  def gpa_all(grades):
+    # Convert all grades to numeric
+    numeric_grades = [ grader_for(grade)(grade) for grade in grades]
+
+    # Compute GPA
+    return sum(numeric_grades) / len(grades)
+#+END_SRC
+
+- We can refactor this even further. Both of out "S/NS" grades discard the actual grade value. It's not important.
+- They're "constant" functions. 3.0 is a constant, and so is 0.0
+
+#+BEGIN_SRC python
+  def constant(val):
+    return lambda _: val
+
+  # All satisfactory grades get 3.0
+  grader_satisfactory = constant 3.0
+
+  # All not satisfactory get 0.0
+  grader_not_satisfactory = constant 0.0
+
+  # Grading on a curve.
+  # All numeric grades get curved up 20%
+  grader_numeric = lambda grade: min(4.0, grade * 1.2)
+
+  def grader_for(grade):
+    if grade == "Satisfactory":
+      return grader_satisfactory
+    elif grade == "Not Satisfactory":
+      return grader_not_satisfactory
+    else
+      return grader_numeric
+
+  def gpa_all(grades):
+    # Convert all grades to numeric
+    numeric_grades = [ grader_for(grade)(grade) for grade in grades]
+
+    # Compute GPA
+    return sum(numeric_grades) / len(grades)
+#+END_SRC
+
+In SK, we refer to "constant" as K.
+
+#+BEGIN_SRC python
+  def K(val):
+    return lambda _: val
+
+  # All satisfactory grades get 3.0
+  grader_satisfactory = K 3.0
+
+  # All not satisfactory get 0.0
+  grader_not_satisfactory = K 0.0
+
+  # Grading on a curve.
+  # All numeric grades get curved up 20%
+  grader_numeric = lambda grade: min(4.0, grade * 1.2)
+
+  def grader_for(grade):
+    if grade == "Satisfactory":
+      return grader_satisfactory
+    elif grade == "Not Satisfactory":
+      return grader_not_satisfactory
+    else
+      return grader_numeric
+
+  def gpa_all(grades):
+    # Convert all grades to numeric
+    numeric_grades = [ grader_for(grade)(grade) for grade in grades]
+
+    # Compute GPA
+    return sum(numeric_grades) / len(grades)
+#+END_SRC
