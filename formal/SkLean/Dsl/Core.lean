@@ -16,10 +16,7 @@ syntax "S"             : atom
 syntax "K"             : atom
 syntax "M"             : atom
 syntax "#~>"           : atom
-syntax "#->"           : atom
-syntax "?"             : atom
-syntax "<-#"           : atom
-syntax "<~#"           : atom
+syntax "Type"          : atom
 syntax "(" skmexpr ")" : atom
 syntax operator        : atom
 syntax judgment        : atom
@@ -44,7 +41,7 @@ syntax "⟪₁" app "⟫"    : term
 syntax "⟪₂" arrow "⟫"  : term
 
 macro_rules
-  | `(⟪₀ ? ⟫) => `(Expr.hole)
+  | `(⟪₀ Type ⟫) => `(Expr.ty)
   | `(⟪ $e:arrow ⟫) => `(⟪₂ $e ⟫)
   | `(⟪₂ ($e:skmexpr) ⟫) => `(⟪ $e ⟫)
   | `(⟪₂ $t_in:atom ⤳ $t_out:arrow ⟫) => `(Expr.app ⟪₁ (#~>) $t_in ⟫ ⟪₂ $t_out ⟫)

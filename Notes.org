@@ -2089,7 +2089,6 @@ S (K S) (S (K S) S( f g)) x
 = S (S (S f g))
 
 
-
 * Hand-derived K type
 
 ~> rule: why do we need to always propagate?
@@ -2228,6 +2227,10 @@ But it's not clear that anything has this type, since all types are just K or S 
 
 We could just say α : (M α). This is fine. We can probably remove sorts, then.
 
+What's the type of M?
+
+
+
 K : S (S (K ~>) M) (S (K (S (S (K ~>) M)) (S (S (K S) (S (K K) ->)) <-)))
 K α : (M α) ~> (S (S (K ~>) M) ((S (S (K S) (S (K K) ->)) <-))) α)
 K α : (M α) ~> (S (S (K ~>) M) (S (K (-> α))) (<- α)
@@ -2236,3 +2239,139 @@ K α β x : (β → α)
 K α β x y : α
 
 (α : M α)
+
+* M as quotation
+
+M e is obviously a type.
+M is polymorphic, we don't know the type of e.
+We can potentially treat M as a "quotation" / lift to type operator.
+M marks something as a type.
+
+K : whatever
+
+This is bad, since whatever is some SK expression. We would like to distinguish these.
+
+We can say K : M whatever
+
+But we don't want this to explode.
+Theoretically, we don't need an evaluation rule for M.
+
+M is quotation.
+M has no evaluation rule.
+We don't normalize.
+We don't need reflection.
+
+In the type of K, we still need to know the type of \alpha, though, since we want to copy it.
+for all e, M e : Type.
+
+So we don't even need type universe
+
+M e : Type, but this isn't saying e is necessarily well-typed.
+
+K : 
+
+We can fill in the types for K now.
+
+Type of ~>?
+
+~> : M (~>)
+~> α β : M (α ~> β)
+
+K : M (S (S (K S) (S (K K) →) ←)
+K α : M (S (K (→ α) (← α))
+K α β : M (S (K (→ α) (← α))
+K α β : M (→ α (← α β))
+
+→ : M (Type → Type → Type)
+
+α → β := M (α → β)
+
+Type → Type := M (Type → Type)
+Type → Type : Type
+
+→ α : Type → Type
+
+→ : Type → Type → Type
+
+K : M (S Type ? ? (S Type ? ? (K ? Type (S Type ? ?)) (S Type (Type → Type → Type) Type (K (Type → Type → Type) Type (K (Type → Type) Type)) →) ←)
+
+S type, eta expanded
+
+(x : S (K (~> α)) (S (S (K (K ~>)) β) γ))
+(x : S (K (~> α)) (S (S (K S) (S (K K) (S (K ~>) β))) γ))
+M (x z) : α ~> (S (K (~> (β z)) (γ z))
+M (x z (y z)) : (~> (β z)) (γ z (y z))
+M (x z (y z)) : (γ z (y z))
+
+(y : S (K (~> α)) β)
+y z : α ~> (β z)
+z : α
+
+* Can we avoid using S in K type?
+
+Defering to S in the type of K introduces a lot of complexity.
+
+It may be necessary.
+But in order to use S in the type of K, we need to write out the type for S, which is complicated.
+
+For now, we can only deal with eta-expanded K (for testing purposes).
+
+Even with eta-expanded S, the type is still complex.
+
+Also note that with our rule, type-checking K requires type-checking K.
+The difference is that we're dealing with simple types.
+In theory, this shouldn't explode forever.
+
+Evaluation within quotation should be impossible.
+We shouldn't normalize within M.
+
+We can pattern match from M, but we can't normalize.
+
+So, whatever the type of K is is kind of useless.
+We need to expand it at runtime.
+
+Are ~> and -> the same?
+
+Since 
+
+~> α β : M (α ~> β)
+α → β := M (α → β)
+
+M (α ~> β) arg is undefined.
+
+We don't want to normalize in a type, ever.
+
+So how do we instantiate dependent types?
+
+K α is not well-typed.
+K α β is well-typed.
+
+For function application, it seems like some normalization is necessary.
+
+Let's consider simply-typed for now.
+
+Do we even need →?
+
+Polymorphic S:
+
+S α β γ : (α → β → γ) → (α → β) → α → γ
+
+This is super easy.
+
+Dependent S:
+
+S (α : Type) (β : 0α → Type) (x : α → (β z) → (γ z (y z))) (y : α → (β z) → Type) (z : α) : γ z (y z)
+
+
+* Quotation separation
+
+- No term-level eval rule for quotation. M e is inert
+- We're allowed to "pattern match" on it via definitional equality in type position.
+
+* Full dependent K using quotation
+
+K : S (S (K ~>) M) (S (K (S (S (K ~>) M)) (S (S (K S) (S (K K) ~>)) <~#)))
+
+* Dependent S
+
+S : ∀ (α : Type) β γ (x : M (S α ? ? (K (α ~>)) (S ? ? ? (S (K ~>) β) γ) (y : M (S α ? ? (K (α ~>)) β)) (z : α), ((S α ? ? (K (α ~>)) (S ? ? ? (S (K ~>) β) γ)) z (y z)

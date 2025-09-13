@@ -7,7 +7,7 @@ open Ast.Expr
 
 namespace Expr
 
-def infer_lazy : Expr → Except (@TypeError Ast.Expr) Ast.Expr
+def fill_holes : Expr → Option Expr
   | 
 
 end Expr

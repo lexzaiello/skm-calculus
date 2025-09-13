@@ -10,10 +10,8 @@ inductive Expr where
   | m    : Expr
   | pi   : Expr
   | pi'  : Expr
-  | imp  : Expr
-  | imp' : Expr
-  | hole : Expr
-  | app : Expr → Expr → Expr
+  | app  : Expr → Expr → Expr
+  | ty   : Expr
 deriving BEq, Repr, Lean.ToExpr
 
 end Ast
