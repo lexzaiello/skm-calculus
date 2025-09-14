@@ -15,7 +15,8 @@ declare_syntax_cat arrow
 syntax "S"             : atom
 syntax "K"             : atom
 syntax "M"             : atom
-syntax "#~>"           : atom
+syntax "->"            : atom
+syntax "<-"            : atom
 syntax "Type"          : atom
 syntax "(" skmexpr ")" : atom
 syntax operator        : atom
@@ -26,8 +27,6 @@ syntax "@" atom        : atom
 syntax app atom : app
 syntax atom     : app
 
-syntax atom "⤳" arrow : arrow
-syntax arrow "<~" atom : arrow
 syntax atom "→" arrow : arrow
 syntax arrow "←" atom : arrow
 syntax atom           : arrow
@@ -44,18 +43,15 @@ macro_rules
   | `(⟪₀ Type ⟫) => `(Expr.ty)
   | `(⟪ $e:arrow ⟫) => `(⟪₂ $e ⟫)
   | `(⟪₂ ($e:skmexpr) ⟫) => `(⟪ $e ⟫)
-  | `(⟪₂ $t_in:atom ⤳ $t_out:arrow ⟫) => `(Expr.app ⟪₁ (#~>) $t_in ⟫ ⟪₂ $t_out ⟫)
-  | `(⟪₂ $t_out:arrow <~ $t_in:atom ⟫) => `(Expr.app ⟪₁ (#~>) $t_in ⟫ ⟪₂ $t_out ⟫)
-  | `(⟪₂ $t_in:atom → ($t_out:skmexpr) ⟫)  => `(⟪ K (M ($t_out)) $t_in ($t_in:atom ⤳ ($t_out)) ⟫)
-  | `(⟪₂ $t_out:arrow ← $t_in:atom ⟫)  => `(⟪ $t_in:atom → $t_out:arrow ⟫)
+  | `(⟪₂ $e:atom ⟫) => `(⟪₀ $e ⟫)
+  | `(⟪₂ $t_in:atom → $t_out:arrow ⟫) => `(Expr.app ⟪₁ (->) $t_in ⟫ ⟪₂ $t_out ⟫)
+  | `(⟪₂ $t_out:arrow ← $t_in:atom ⟫) => `(⟪₂ $t_in:atom → $t_out:arrow ⟫)
   | `(⟪₀ ($e:skmexpr)⟫) => `(⟪ $e ⟫)
   | `(⟪ $e:atom ⟫) => `(⟪₀ $e ⟫)
   | `(⟪ $e:app ⟫) => `(⟪₁ $e ⟫)
   | `(⟪₁ $e:atom ⟫) => `(⟪₀ $e ⟫)
-  | `(⟪₀ #~> ⟫) => `(Expr.pi)
-  | `(⟪₀ <~# ⟫) => `(Expr.pi')
-  | `(⟪₀ #-> ⟫)  => `(Expr.imp)
-  | `(⟪₀ <-# ⟫)  => `(Expr.imp')
+  | `(⟪₀ -> ⟫) => `(Expr.imp)
+  | `(⟪₀ <- ⟫) => `(Expr.imp')
   | `(⟪₀ M ⟫)  => `(Expr.m)
   | `(⟪₀ K ⟫)  => `(Expr.k)
   | `(⟪₀ S ⟫)  => `(Expr.s)
@@ -64,7 +60,5 @@ macro_rules
 
 end Dsl
 
-#eval ⟪ M M ⟫
-#eval ⟪₂ M → (M) ⟫
 
-
+#eval ⟪ M → K → M ⟫

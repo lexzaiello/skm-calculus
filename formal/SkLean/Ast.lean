@@ -8,8 +8,8 @@ inductive Expr where
   | k    : Expr
   | s    : Expr
   | m    : Expr
-  | pi   : Expr
-  | pi'  : Expr
+  | imp  : Expr
+  | imp' : Expr
   | app  : Expr → Expr → Expr
   | ty   : Expr
 deriving BEq, Repr, Lean.ToExpr
