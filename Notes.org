@@ -2370,8 +2370,293 @@ S (α : Type) (β : 0α → Type) (x : α → (β z) → (γ z (y z))) (y : α �
 
 * Full dependent K using quotation
 
-K : S (S (K ~>) M) (S (K (S (S (K ~>) M)) (S (S (K S) (S (K K) ~>)) <~#)))
+Since we don't have reflection, we need to know the type of ~>.
+
+M lifts something to being a type, but the argument could just be any expr.
+
+M is just syntactic.
+It has no type.
+
+~> : M (Type ~> Type ~> Type)
+
+~> is actually →, since S or K logic inside a type does dependency.
+
+No need for ~>.
+
+α → β is not of type Type.
+
+α → β : M Type
+
+We shouldn't be able to apply anything to α → β.
+
+M is the only thing we can use to make types.
+
+→ : M (Type → Type → M Type)
+
+K : M (S Type ? ? (S Type ? ? (K Type (M (Type → Type → (M Type)) ~>) M) (S (K (S (S (K ~>) M)) (S (S (K S) (S (K K) ~>)) <~#))))
+
+We can only normalize in quotation at the type-checker level, but not within the program.
+
+K α β : M (α → β → α)
+
+(S ← ←) α = ← α (← α)
+
+S (K (→ α)) (← α) β = α → (β → α)
+
+S (S (K S) (S (K K) →)) (←) α
+= S (K (→ α)) (← α)
+S (K (→ α)) (← α) β
+= α → (β → α)
+
+This isn't that hard to make.
+
+But we need to add the Type → Type stuff.
+
+S (S (K S) (S (K K) →)) (←) α
+
+K : S (K (→ Type)) (S (K (S (K (→ Type)))) (S (S (K S) (S (K K) ->)) <-)))
+K α : Type → (S (K (→ Type)) (S (K (→ α)) (← α))
+S β : Type → (α → (β → α))
+S α β : α → β → α
+
+S Type Type (Type → M Type)
+  (K (Type → M Type) Type
+    (→ Type))
+  (S Type ((Type → Type) → Type) (M Type))
+    (K ((Type → Type) → Type → (M Type)) Type
+      (S Type Type (M Type)
+        (K (Type → M Type) Type
+          (→ Type))))
+     (S Type (Type → (M Type)) (M Type)
+       (S Type (Type → Type → (M Type)) ((Type → (M Type)) → Type → (M Type))
+         (K ((Type → Type → (M Type)) → (Type → (M Type)) → Type → (M Type)) Type
+           (S Type (M Type) (M Type)))
+         (S Type (M (Type → (Type → (M Type)))) (M (Type → (M Type)))
+           (K (M (Type → (Type → (M Type)))) Type
+             (K (M (Type → (M Type))) Type))
+           ->)
+         <-)))
 
 * Dependent S
 
 S : ∀ (α : Type) β γ (x : M (S α ? ? (K (α ~>)) (S ? ? ? (S (K ~>) β) γ) (y : M (S α ? ? (K (α ~>)) β)) (z : α), ((S α ? ? (K (α ~>)) (S ? ? ? (S (K ~>) β) γ)) z (y z)
+
+S α β γ : (M (S α ? ? (K (~> α)) (S ? ? ? (S (K ~>) β) γ)) → (M (S α ? ? (K (α ~>)) β) → (M α) → 
+
+Type of S seems mildly impossible to produce by hand.
+We just sant to restrict x such that was can plug in (z : α) and y z.
+We want to restrict y such that it can accept z.r
+
+HOWEVER, we should be able to plug in → types, as well.
+
+Possible ways to unify → and dependent S types:
+- → is sugar for S
+- Custom → evaluation rules (could be helpful for making S type easier)
+- clever S type.
+
+Our current function application judgment rule says that applying the argument to f should produce an arrow type.
+However, arrow types are sugar for something else?
+
+This shouldn't be the case.
+→ shouldn't be sugar and it shouldn't have eval rules.
+It's just syntax.
+
+We could say that a function application is valid if the left hand side IS an arrow type, or if applying the argument produces an arrow type, but this is ugly.
+
+We don't want special cases.
+
+Dependent and nondependent functions should be unified.
+So → needs an eval rule.
+
+(α → β) arg = (α → β)
+
+But this is tricky again because we can't express the type of →.
+
+Also note that in order to type-check a K call, we have to type-check a bunch of other calls.
+
+Another potential idea: since quotation doesn't normalize, we can literally use untyped combinators in the M call (since M is just quotation).
+
+e.g.,
+
+Two possible routes for quotation (with untyped combinators in quotation):
+- No normalization
+- Normalization, but it's fine?
+
+Is anything stopping us from injecting M(omega) into something then forcing us to evaluate it?
+
+Obviously, here we would be forced to evaluate omega.
+That's bad.
+
+We must restrict what can be run inside M.
+Potentially no normalization at all.
+
+Pattern matching?
+
+We can't handle beta-eq types, then, but we should be able to "transition" between types.
+
+We can insert into M, though, and this doesn't break anything.
+
+We can't copy α and β inside M.
+
+S (K M) α = M α
+
+We really just need to copy α and β into M.
+The structure of M is kind of irrelevant.
+
+Another thought: we allow untyped combinators in M and evaluation in M,
+but interpretation is up to the runtime.
+
+Everything injected into the type of K should be inert. There should be no normalization there.
+
+Since α and β are types, they are also quoted. They are inert.
+
+This doesn't really solve the → question though.
+Well, it does, since the computation is happening outside the type.
+
+K α β : (some ordering of α β α)
+
+K α β : M (α → β → α)
+
+or
+
+K α β : M (k_type_untyped α β)
+
+K : S (K (S (K M))) k_untyped
+
+K α : (S (K M)) (k_untyped α)
+K α β : M (K_untyped α β)
+
+But here we have to know the type of M.
+
+M is untyped.
+
+We can potentially extend M to be typed.
+
+M α (e : α) : Type 
+M α : M (M Type) (α → Type)
+
+K : S (K (S (K M)) k_untyped
+
+M is polymorphic?
+
+M e : Type
+
+M : ∀ (e : ?), Type
+
+We can have
+
+M α : α → Type
+
+Ok problem is though
+
+We can probably change the type of arrow to not include Type as the output.
+Or just not include M type.
+
+M (α → β) : Type
+
+α → β is kinda just garbage
+
+It has no real type, since there's no eval rule.
+It's void?
+
+→ : Type → Type → 
+
+What does → actually signify?
+
+→ doesn't do anything so it's high-key a garbage value.
+
+→ is really only valid in the context of M.
+
+α → β is just syntax. you can't supply any argument to it to get something.
+
+We want to remove Type from the type of → though.
+
+α → β : Syntax.
+
+Syntax = ad-hoc type for α → β?
+
+Or can we say α → β : M (α → β)
+
+M ? Type - this requires knowing the type of Type.
+
+M Type : Type
+
+In this context, Type is just syntax.
+
+M : Syntax -> Type
+
+We don't want to add a new construct, like operators.
+
+But we would like M to be typed.
+
+To get the type of an app, we always apply the argument to the type of the lhs.
+
+M : ← Type
+
+However, this implies that M's type is not actually a type.
+
+M α : α → Type
+
+This is actually probably fine.
+
+M is just saying we are making this inert and of type tyep.
+
+But we probably want:
+
+But then we need to know the type of α → Type
+
+→ doesn't really do anything. It's kinda just "syntax."
+
+M α : M Syntax? (α → Type)
+
+Why can't we say
+
+M : ← Type?
+
+Now we can't plug in (← Type) into K.
+
+Also having an explicit type argument is really annoying.
+
+K (M (← Type))
+
+OR what if M is just like anonymous :?
+
+It's introducing something as a type.
+
+It would be really cool if we could just add arbitrary syntax.
+
+T (x : Syntax) : T (Type)
+
+
+
+But for the quotation function, what is its type?
+
+M : * → Syntax
+
+M 
+
+
+ANOTHER FUCKING BRAIN BLAST.
+
+What if K and S are just Syntax?
+
+And we have to MAKE them into functions?
+
+K : Syntax (α → β → α)
+S : Syntax (...)
+
+This is kinda stupid.
+
+We just need some way to "relate" the K syntax to the actual K.
+
+This is what M does, really.
+
+M : * → Syntax
+
+Is → a type constructor or nah?
+
+No, → is just syntax.
+
+→ : Syntax → Syntax → Syntax
+
+I think this is pretty canonical.
