@@ -10,8 +10,10 @@ inductive Expr where
   | m    : Expr
   | imp  : Expr
   | imp' : Expr
+  | t    : Expr
   | app  : Expr → Expr → Expr
   | ty   : Expr
+  | stx  : Expr
 deriving BEq, Repr, Lean.ToExpr
 
 end Ast

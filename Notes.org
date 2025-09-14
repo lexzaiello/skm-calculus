@@ -2631,7 +2631,7 @@ T (x : Syntax) : T (Type)
 
 But for the quotation function, what is its type?
 
-M : * → Syntax
+M e : Syntax
 
 M 
 
@@ -2659,4 +2659,390 @@ No, → is just syntax.
 
 → : Syntax → Syntax → Syntax
 
-I think this is pretty canonical.
+But we're using → as a type constructor here.
+
+→ : T (Syntax → Syntax → Syntax)
+
+Everything has type syntax?
+
+Everything can be coerced to syntax?
+
+What if we have a thing "maker" that makes it both syntax and a specific type simultaneously?
+
+M e : Syntax
+
+e can be literally anything.
+
+This gets back to the polymorphism problem.
+
+What can't e be?
+
+Wait remember.
+
+M e is not point-free. M e : Syntax, but M does not have a type itself.
+
+We can't quote aribtrary data.
+
+M e : Syntax
+
+T : T (Syntax → Type)
+
+T e : T Type
+
+Can we get around separating M and T?
+
+Only if:
+
+M e : Type
+
+But then we can't do our fancy insertion stuff in the type of K.
+
+K α β : (M (k_type_maker α β))
+
+Since we need to copy α and β into M.
+
+But, like I said M e : Type
+
+e has to be known.
+
+Or we can add the type argument to M, but I don't like that.
+
+M α : α → Type
+
+We don't need to quote, necessarily.
+
+M : ← Type
+
+In fact we probably ought not quote.
+
+I really really really like the syntax idea though.
+
+T : T (Syntax → Type)
+
+This is confusing, because clearly → is a type constructor.
+
+If → is a type constructor, and T is a type constructor, then what is a type constructor?
+
+→ : Syntax
+
+Syntax and type-checking are closely-related, but not the same.
+We can have multiple type contexts for the same syntax, ideally.
+
+T → clearly says that → is a type.
+
+We would like to unify dependent and nondependent types with T.
+
+T is the only type constructor.
+
+But T doesn't say how we "form" the type from syntax.
+
+Dumb solution:
+
+→ is syntax in the context of T, but in other contexts, it might be something different.
+
+So T takes any syntax.
+
+T (e) is a theorem, but we have no way to prove it.
+
+I really like this formation rule idea. It could say how we can turn the K x y syntax into logic.
+
+T : T (Syntax → Type)
+
+K is a formation rule for α → β → α.
+
+S is a formation rule for etc...
+
+We don't want different type formations to override each other in the global context.
+Type formation rules are hypotheses essentially.
+
+K formation rule:
+
+in some context, the syntax K α β applied to some function f produces the type α → β → α
+
+K has a constructor that takes in α and β.
+
+T : Syntax → Type
+
+T K : Type
+
+Our stratification thing makes stuff easier.
+
+This is recursive, bozo.
+
+Everything has type Syntax.
+
+We instantiate K and S from the syntax.
+
+K and S are emergent.
+
+M : ← Type
+
+M α : α → Type
+
+M α x : Type
+
+→ really is just syntax.
+
+We need a concept to represent this, since → doesn't really have a type.
+
+We could say:
+
+→ α β : Syntax
+
+I really like the syntax / type distinction.
+
+T : Syntax → Type
+
+Everything has type syntax.
+
+T : Syntax → Type
+
+M e : Syntax
+
+Type of → now:
+
+→ : Syntax → Syntax → Syntax
+
+This way we can remove → entirely from our AST.
+
+Except now → needs to be an AST element since it has a type formation rule.
+
+I would really like if we could extract out this "formation rule" idea.
+
+T is "type formation rule." It is a term that represents a proof that type t can be formed with the type s.
+
+T : Syntax → Syntax → Type
+T K (α → β → α) : Type
+
+T is the assertion "this is the type of this thing in this context"
+
+T (→) (Type → Type → Type)
+
+T → (Syntax → Syntax → Syntax)
+
+This gives us inductive types, I'm pretty sure.
+
+All expressions start with the context T K ... and T S ....
+
+→ is just syntax now, though, so that's nice.
+
+We can still leave K and S fully typed, though.
+
+K : 
+
+The goal is T K (
+
+Also note that Type is just syntax.
+
+T is our only type constructor.
+
+You give it the syntax, the syntax for its type, and it produces a type.
+
+T (→) (Type → Type → Type)
+
+We can't express the type of K with T, though.
+
+We NEED to be able to do some logic in types.
+
+T K (...) is the assumption that K has that type.
+
+But this isn't saying K : Syntax.
+
+It's saying under that context, K : ...
+
+EVERYTHING is syntax by default.
+
+T T (Syntax → Syntax → Type)
+
+Or we use M to make syntax?
+But then we need to know the type of M...
+
+We certainly need K and S to compute.
+
+So we can't bootstrap those.
+
+So the assumption T K ... is implicit. They're axioms.
+
+Now, the type of K:
+
+T (K α β) (α → β → α)
+
+We can make a K type maker?
+
+Does Type exist either?
+
+α and β just have to be syntax.
+
+(T Me Human : Type)
+
+T (K (T Me Human) (T Me Human)) (...)
+
+arrow_maker = (S (K (-> Type))
+      (S (K (S (K (-> Type))))
+        (S (S (K S) (S (K K) ->))
+              <-)))
+
+arrow_maker α β = α → β → α
+
+T K α β says that 
+
+K : (S (K (-> Type))
+      (S (K (S (K (-> Type))))
+        (S (S (K S) (S (K K) ->))
+              <-)))
+
+K α β : α → β → α
+
+What is our function application judgment rule now?
+
+Function application is application of syntax nodes.
+
+K α β are all syntax.
+
+We need some proof in our context that the left hand side node produces what?
+
+This is where we need specific interpretation.
+We can't just leave it agnostic to the implementation.
+Or can we?
+
+K is the context: well-typed, for any α and β, so long as they are types.
+
+(α : Type)
+
+α = T x α, for example
+
+K (T x Syntax) ? x ?
+
+There is a rule in our context that says x is well-typed.
+
+So we're applying x to α.
+
+But what does applying x to α even do?
+Nothing.
+
+T should have some way to "reject."
+
+Or, rather, (T x Syntax) is just the example.
+
+T must have some way to accept multiple possible values.
+
+Also, we shouldn't have to specify every value.
+We should be able to predicate it.
+
+We can probably build this later using T.
+
+K : (T α Type) → (T β Type) → (T x α) → (T y β) → (T (K α β x y) α)
+
+Technically, our T thing probably doesn't need the first syntax argument.
+
+K : α@(T Type) → β@(T Type) → (T α) → (T β) → (T α)
+
+Even in a context, T with a symbol can override other things. We don't want this.
+
+We want some term to produce (T whatever), so we say that we can construct (T whatever) using that term ("constructor")
+
+→ is just syntax, though, remember.
+
+Maybe we have 2 type constructors?
+→ and T?
+
+We can't really encode → now, since we don't have the syntax #1 parameter.
+
+T : T (Syntax → Type)
+
+M e : Syntax
+
+Clearly, → has some special meaning, just like T.
+
+Since we intend to use → within types, it should work on syntax.
+Or should it work on types?
+
+We normalize inside T, since it's not syntax yet.
+
+→ : T (Type → Type → Syntax)
+
+We can probably derive → here, ngl. But it would be mad complicated.
+
+T : Syntax → Type
+
+K type, eta expanded
+
+K α β : T (T (M α) → T (M β) → T (M α))
+
+T isn't the only type constructor.
+→ is as well. T is like "base type."
+
+We could change → such that:
+
+→ : Type → Type → Type
+
+K α β  : α → β → α
+
+A dependent function is just a function that creates a new type context for the variable.
+
+T is the only type constructor and it creates a type from syntax.
+
+How do we do dependent elimination then?
+
+Pattern matching.
+
+→ is actually just syntax.
+
+We need different kinds of syntax nodes though.
+
+It's not all just syntax.
+
+It's Syntax or Syntax → Syntax → Syntax.
+
+But these are both Syntax?
+
+#+BEGIN_SRC lean
+inductive Syntax where
+  | leaf : Syntax
+  | branch : Syntax → Syntax → Syntax
+#+END_SRC
+
+I don't understand what this T and M stuff was for.
+Just unnecessary abstraction.
+
+Answer: it allows us to remove sorts (supposedly).
+
+Anything is syntax, but → is a type → type → type
+
+→ : Type → Type → Type
+
+T : Syntax → Type
+
+T is like "base type introduction"
+and → is like makine a newtype
+
+Except we don't have a way to introduce dependent types!
+
+Perhaps S is actually the dependent type introducer?
+
+K is the nondependent type introducer?
+
+We either need to have → a syntax or a term.
+Advantages to syntax: very simple.
+
+We have an easy inductive definition of Type.
+
+K α β : (T (M α)) → (T (M β)) → (T (M α))
+
+Except since we need to take in α and β, we can't use the type of K as an actual type.
+
+K : some S expression resolving to →
+
+but then we can't use the type of K anywhere.
+
+We need to be able to construct Type more flexibly than with →.
+
+K : T (M (some S expression))
+
+Type-checking algorithm:
+
+Run "elab", then try plugging in.
+
+Dependent S now.
+
+S α β γ (x : ?) (y : S (K (→ α)) β) (z : α)

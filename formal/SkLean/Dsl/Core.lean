@@ -15,9 +15,11 @@ declare_syntax_cat arrow
 syntax "S"             : atom
 syntax "K"             : atom
 syntax "M"             : atom
+syntax "T"             : atom
 syntax "->"            : atom
 syntax "<-"            : atom
 syntax "Type"          : atom
+syntax "Syntax"        : atom
 syntax "(" skmexpr ")" : atom
 syntax operator        : atom
 syntax judgment        : atom
@@ -40,7 +42,9 @@ syntax "⟪₁" app "⟫"    : term
 syntax "⟪₂" arrow "⟫"  : term
 
 macro_rules
-  | `(⟪₀ Type ⟫) => `(Expr.ty)
+  | `(⟪₀ T ⟫)      => `(Expr.t)
+  | `(⟪₀ Type ⟫)   => `(Expr.ty)
+  | `(⟪₀ Syntax ⟫) => `(Expr.stx)
   | `(⟪ $e:arrow ⟫) => `(⟪₂ $e ⟫)
   | `(⟪₂ ($e:skmexpr) ⟫) => `(⟪ $e ⟫)
   | `(⟪₂ $e:atom ⟫) => `(⟪₀ $e ⟫)
@@ -59,6 +63,5 @@ macro_rules
   | `(⟪₁ $e₁:app $e₂:atom ⟫) => `(Expr.app ⟪₁ $e₁⟫ ⟪₀ $e₂⟫)
 
 end Dsl
-
 
 #eval ⟪ M → K → M ⟫
