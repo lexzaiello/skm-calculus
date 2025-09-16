@@ -3045,4 +3045,118 @@ Run "elab", then try plugging in.
 
 Dependent S now.
 
-S α β γ (x : ?) (y : S (K (→ α)) β) (z : α)
+S α β γ (x : S (K (→ α)) (S (S (K →) β) γ) (y : S (K (→ α)) β) (z : α), γ z (y z)
+
+S : ∀ (α : Type) (β : α → Type) (γ : S (K (→ α)) (S (S (K →) β) Type)), γ z (y z)
+
+S : S (K (→ Type)
+
+New idea with syntax:
+
+Syntax nodes can take in other syntax nodes, transform them in certain ways.
+
+K : Syntax → Syntax → Syntax → Syntax → Syntax
+
+I don't really like this concept of just interpreting syntax inside a type.
+
+T obviously creates a type.
+
+We can have "quoted" versions of K and S.
+
+M K : Syntax → Syntax → Syntax
+
+K x y : Syntax
+
+→ is also syntax.
+
+→ : Syntax → Syntax → Syntax
+
+K α β : T (α → β → α)
+
+α and β have to be quoted.
+But also, α and β are types.
+
+→ : Type → Type → Syntax
+
+Note that T may include an expression that takes in more syntax.
+
+T (M K)
+
+We should be able to do T (M K) α β = T ((M K) α β)
+
+T ((M K) α β) : Type, but
+
+T (M K) : T (Syntax → Syntax → Type)
+
+T (M K) α β : T (Type)
+
+T (M K) α β = T ((M K) α β)
+
+(M K) α β : Syntax
+
+So T must be polymorphic.
+
+Or we can say:
+
+T t (e : t) : t
+
+T (T (Type → Type → Syntax)) (→) : (T (Type → Type → Syntax))
+
+→ α β : T Syntax
+
+Why do we need the e : t parameter?
+
+T (T (Type → Type → Syntax)) : T (T (Type → Type → Syntax) → T (Type → Type → Syntax))
+
+→ : Type → Type → Syntax
+
+K type now
+
+K α β : T (α → β → α)
+
+K : T →
+
+K (α : Type) (β : Type) : T (
+
+bruh.
+
+M K = →
+
+K : T →
+
+We can pattern match on M K.
+
+M K α β is just syntax.
+
+We can "interpret" (M K α β) as (α → β → α) via pattern matching.
+
+K : T (M K)
+
+T with type parameter is recursive. Don't like this.
+
+e.g., T Syntax
+
+Need to know the type of Syntax, which is T Syntax.
+
+This just recurses forever.
+
+Type of Syntax is T Syntax.
+
+is the type argument redundant?
+
+T of anything is a type.
+
+But now we can't feed thigns into T.
+
+T Syntax takes no arguments.
+
+Types are monoids.
+
+T e : Type.
+
+Not everything must be of a type of type type.
+
+T just lifts something to type type.
+
+
+

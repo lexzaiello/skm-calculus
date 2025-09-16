@@ -16,4 +16,23 @@ inductive Expr where
   | stx  : Expr
 deriving BEq, Repr, Lean.ToExpr
 
+namespace Expr
+
+def toStringImpl : Expr → String
+  | .k => "K"
+  | .s => "S"
+  | .m => "M"
+  | .imp => "(→)"
+  | .imp' => "(←)"
+  | .t => "T"
+  | .app (.app .imp t_in) t_out => s!"({toStringImpl t_in} → {toStringImpl t_out})"
+  | .app lhs rhs => s!"({toStringImpl lhs} {toStringImpl rhs})"
+  | .ty => "Type"
+  | .stx => "Syntax"
+
+instance : ToString Expr where
+  toString := toStringImpl
+
+end Expr
+
 end Ast

@@ -4,26 +4,34 @@ import SkLean.Error
 
 open Ast
 open Dsl
-open Ast.Expr
 
 namespace Expr
 
--- M e : Syntax
-def mk_m_type_eta (_ : Expr) : Expr :=
+-- Type : T Syntax
+def mk_type_type : Expr :=
   ⟪ T Syntax ⟫
 
--- T (e : Syntax) : Type
-def mk_t_type : Expr :=
-  ⟪ (T Syntax) → Type ⟫
+-- Syntax : T Syntax
+def mk_type_syntax : Expr :=
+  ⟪ T Syntax ⟫
 
--- → : Type → Type → Syntax
+def mk_m_k_type : Expr :=
+  ⟪ (Type → Type → (T Syntax)) ⟫
+
+def mk_m_s_type : Expr :=
+   ⟪ (Type → Type → (T Syntax)) ⟫
+
+def mk_t_type : Expr :=
+  ⟪ ((T Syntax) → Type) ⟫
+
+-- α → β : Syntax
 def mk_arr_type : Expr :=
-  ⟪ (T Type) → (T Type) → (T Syntax) ⟫
+  ⟪ (Type → (Type → (T Syntax))) ⟫
 
 def mk_k_type : Expr :=
-  ⟪ (T (M (S (K (-> Type))
-      (S (K (S (K (-> Type))))
-        (S (S (K S) (S (K K) ->))
-              <-))))) ⟫
+  ⟪ M K ⟫
+
+def mk_s_type : Expr :=
+  ⟪ M S ⟫
 
 end Expr
