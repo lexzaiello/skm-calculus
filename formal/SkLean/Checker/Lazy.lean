@@ -1,6 +1,5 @@
 import SkLean.Ast
 import SkLean.Dsl.Core
-import SkLean.Checker.TypeDefs
 import SkLean.Error
 
 open Ast
@@ -9,21 +8,16 @@ open Ast.Expr
 namespace Expr
 
 def eval_step : Expr → Option Expr
-  | ⟪ K (#_α) (#_β) (#x) (#y) ⟫ => pure x
-  | ⟪ S (#_α) (#_β) (#_γ) (#x) (#y) (#z) ⟫ => pure ⟪ (#x) (#z) ((#y) (#z)) ⟫
-  | ⟪ M K (T (#α)) (T (#β)) ⟫ => pure ⟪ (#α) → (#β) → (#α) ⟫
-  | ⟪ M S (#α) ⟫ => pure ⟪ ((#α) → Type) → ((#α) → Type) → (T Syntax) ⟫
-  | ⟪ ((#_t_in) → (#t_out)) (#arg) ⟫ => t_out
+  | ⟪ eval (K (#_α) (#_β) (#x) (#y)) #_evidence ⟫ => pure x
+  | ⟪ eval (S (#_α) (#_β) (#_γ) (#x) (#y) (#z)) #_evidence ⟫ => pure ⟪ (#x) (#z) ((#y) (#z)) ⟫
   | ⟪ (#lhs) (#rhs) ⟫ => do
     ⟪ (#← eval_step lhs) (#rhs) ⟫
   | _ => .none
 
 partial def eval_unsafe (e : Expr) : Option Expr := do
   let e' := (match e with
-  | ⟪ K (#_α) (#_β) (#x) (#y) ⟫ => pure x
-  | ⟪ S (#_α) (#_β) (#_γ) (#x) (#y) (#z) ⟫ => pure ⟪ (#x) (#z) ((#y) (#z)) ⟫
-  | ⟪ M K (T (#α)) (T (#β)) ⟫ => pure ⟪ (#α) → (#β) → (#α) ⟫
-  | ⟪ ((#_t_in) → (#t_out)) (#arg) ⟫ => pure t_out
+  | ⟪ eval (K (#_α) (#_β) (#x) (#y)) ⟫ => pure x
+  | ⟪ eval (S (#_α) (#_β) (#_γ) (#x) (#y) (#z)) ⟫ => pure ⟪ (#x) (#z) ((#y) (#z)) ⟫
   | ⟪ (#lhs) (#rhs) ⟫ =>
     pure ⟪ (#(eval_unsafe lhs).getD lhs) (#(eval_unsafe rhs).getD rhs) ⟫
   | _ => Option.none).getD e
@@ -34,29 +28,22 @@ partial def eval_unsafe (e : Expr) : Option Expr := do
     eval_unsafe e'
 
 partial def infer_unsafe : Expr → Except (@TypeError Expr) Expr
-  | ⟪ K ⟫ => pure mk_k_type
-  | ⟪ S ⟫ => pure mk_s_type
-  | ⟪ T ⟫ => pure mk_t_type
-  | ⟪ Type ⟫ => pure mk_type_type
-  | ⟪ Syntax ⟫ => pure mk_type_syntax
-  | ⟪ M K ⟫ => pure mk_m_k_type
-  | ⟪ M S ⟫ => pure mk_m_s_type
-  | ⟪ -> ⟫ => pure mk_arr_type
-  | ⟪ (#f) (#arg) ⟫ => do
-    let t_lhs ← infer_unsafe f
+  | .ident _ => pure ⟪ Syntax ⟫
+  | ⟪ Type ⟫ => pure ⟪ Syntax ⟫
+  | ⟪ M Syntax ⟫ => pure ⟪ Syntax ⟫
+  | ⟪ -> ⟫ => pure ⟪ Syntax ⟫
+  | ⟪ T ⟫ => pure ⟪ (M Syntax) → (M Syntax) → Type ⟫
+  | ⟪ eval ⟫ => pure ⟪ (M Syntax) → (M Syntax) → (◇ (M Syntax)) ⟫
+  | ⟪ (#lhs) (#rhs) ⟫ => do
+    let t_lhs ← infer_unsafe lhs
+    let t_rhs ← infer_unsafe rhs
 
-    match t_lhs with
-    | ⟪ (#t_in) → (#t_out) ⟫ => do
-      let t_arg ← infer_unsafe arg
-
-      if t_in == t_arg then
-        pure $ (eval_unsafe t_out).getD t_out
-      else
-        .error (.argument_mismatch t_in t_arg ⟪ (#t_in) → (#t_out) ⟫ arg)
-    | _  =>
-      let _ ← infer_unsafe ⟪ (#t_lhs) (#arg) ⟫
-      pure $ (eval_unsafe ⟪ (#t_lhs) (#arg) ⟫).getD ⟪ (#t_lhs) (#arg) ⟫
-  | e => .error (.no_type_not_comb e)
+    if t_lhs == ⟪ Syntax ⟫ ∧ t_rhs == ⟪ Syntax ⟫ then
+      pure ⟪ Syntax ⟫
+    else
+      
+      sorry
+  | e => .error $ .no_type_not_comb e
 
 end Expr
 
@@ -370,12 +357,84 @@ axiom_k_call : T (T α) → T (T β) → T α → T β → T (K (T α) (T β) α
 
 axiom_k is the assertion K is well-typed.
 
-K (T K) (T K) K K
+K axiom_k axiom_k K K
 
 axiom_k is a proof of T K.
 
-axiom_k : T K := Syntax
-axiom_s : T S := Syntax
+axiom_k : T K
+axiom_s : T S
 
-axiom_k_call : T (T α) → T (T β) → T α → T α → T (K (T α) (T β))
+K : T K
+
+K is just syntax.
+
+K e is just syntax.
+
+Dynamic eval function requires evidence that the call is well-typed.
+
+eval K axiom_k₀
+
+So T takes in syntax.
+
+K : Syntax
+S : Syntax
+
+app : Syntax → Syntax → Syntax
+
+eval : Syntax → Syntax
+
+T : Syntax → Prop
+
+Forming new syntax is just a special case of eval.
+
+Axioms show how to rearrange syntax.
+
+axiom_k_t : T (T x) → T (T y) → T x → T y → T (
+
+eval (K _ _ _ _) (axiom_k_call
+
+T is how we form propositions with syntax.
+
+We have →, what about ⇒?
+
+We can kinda pattern match against functions too.
+
+No purpose for M, really.
+
+Equivalent of diamond operator?
+It is possibly the case that...
+
+What's the type of Syntax though?
+
+Syntax : (Type : Syntax)
+
+Type : Syntax
+
+We can probably derive eq inductively.
+
+We're using variables again here though.
+
+axiom_eq : ∀ x, T (Eq x x)
+
+axiom_eq has its own eval rule.
+
+eval takes a type formation rule and a reduction rule.
+
+axiom_k_call : T (T α) → T (T β) → T α → T β → T (K (T α) (T β) α β)
+
+We can interpret T however we want, but in most cases, it's the proposition that an expression is well-typed.
+
+We can make another version of T which we can interpret differently.
+
+R : Syntax → Prop
+
+Can we inductively define R?
+
+T doesn't really let us specify what it's typed at.
+
+T : Syntax → Type → Prop
+
+axiom_r : 
+
+eval (stx : Syntax) (h_reduce : R 
 -/

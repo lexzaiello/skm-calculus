@@ -12,19 +12,22 @@ declare_syntax_cat operator
 declare_syntax_cat app
 declare_syntax_cat arrow
 
-syntax "S"             : atom
-syntax "K"             : atom
-syntax "M"             : atom
 syntax "T"             : atom
 syntax "->"            : atom
 syntax "<-"            : atom
 syntax "Type"          : atom
 syntax "Syntax"        : atom
+syntax "eval"          : atom
+syntax "M"             : atom
+syntax "T"             : atom
+syntax "□"             : atom
+syntax "◇"             : atom
 syntax "(" skmexpr ")" : atom
 syntax operator        : atom
 syntax judgment        : atom
 syntax "#" term        : atom
 syntax "@" atom        : atom
+syntax ident           : atom
 
 syntax app atom : app
 syntax atom     : app
@@ -42,7 +45,11 @@ syntax "⟪₁" app "⟫"    : term
 syntax "⟪₂" arrow "⟫"  : term
 
 macro_rules
+  | `(⟪₀ □ ⟫) => `(Expr.box)
+  | `(⟪₀ ◇ ⟫) => `(Expr.diamond)
+  | `(⟪₀ eval ⟫)   => `(Expr.eval)
   | `(⟪₀ T ⟫)      => `(Expr.t)
+  | `(⟪₀ M ⟫)      => `(Expr.m)
   | `(⟪₀ Type ⟫)   => `(Expr.ty)
   | `(⟪₀ Syntax ⟫) => `(Expr.stx)
   | `(⟪ $e:arrow ⟫) => `(⟪₂ $e ⟫)
@@ -56,12 +63,11 @@ macro_rules
   | `(⟪₁ $e:atom ⟫) => `(⟪₀ $e ⟫)
   | `(⟪₀ -> ⟫) => `(Expr.imp)
   | `(⟪₀ <- ⟫) => `(Expr.imp')
-  | `(⟪₀ M ⟫)  => `(Expr.m)
-  | `(⟪₀ K ⟫)  => `(Expr.k)
-  | `(⟪₀ S ⟫)  => `(Expr.s)
   | `(⟪₀ #$t:term ⟫) => `($t)
   | `(⟪₁ $e₁:app $e₂:atom ⟫) => `(Expr.app ⟪₁ $e₁⟫ ⟪₀ $e₂⟫)
+  | `(⟪₀ $e:ident ⟫) =>
+    let name := Lean.Syntax.mkStrLit e.getId.toString
+    `(Expr.ident $name)
 
 end Dsl
 
-#eval ⟪ M → K → M ⟫

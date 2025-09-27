@@ -11,7 +11,7 @@
         pkgs = import nixpkgs { inherit system; };
         booktoml = ''
           [book]
-          title = "The Dependently-Typed SK(M) Calculus"
+          title = "Towards a Dependently-Typed Combinatory Calculus"
           author = "Alexandra Zaldivar Aiello"
 
           [output.html]
