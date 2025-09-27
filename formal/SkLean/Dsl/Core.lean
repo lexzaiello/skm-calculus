@@ -20,8 +20,6 @@ syntax "Syntax"        : atom
 syntax "eval"          : atom
 syntax "M"             : atom
 syntax "T"             : atom
-syntax "□"             : atom
-syntax "◇"             : atom
 syntax "(" skmexpr ")" : atom
 syntax operator        : atom
 syntax judgment        : atom

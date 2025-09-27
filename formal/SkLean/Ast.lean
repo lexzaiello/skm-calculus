@@ -16,7 +16,8 @@ namespace Expr
 def toStringImpl : Expr → String
   | .s => "S"
   | .k => "K"
-  
+  | .ty => "Type"
+  | .app lhs rhs => s!"({toStringImpl lhs} {toStringImpl rhs})"
 
 instance : ToString Expr where
   toString := toStringImpl
