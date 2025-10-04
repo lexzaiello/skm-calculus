@@ -110,11 +110,7 @@ $$
 {M K \alpha \beta : \text{Type}}
 $$
 
-Similarly, \\(M S\\) is defined to capture the dependent nature of \\(S\\) conveniently:
-
-$$
-M S \alpha \beta \gamma \to \Pi 
-$$
+Similarly, \\(M S\\) is defined to capture the dependent nature of \\(S\\) conveniently.
 
 # Next
 
