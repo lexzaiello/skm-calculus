@@ -115,4 +115,8 @@ Similarly, \\(M S\\) is defined to capture the dependent nature of \\(S\\) conve
 $$
 M S \alpha \beta \gamma \to \Pi 
 $$
+
+# Next
+
+In the [next chapter](Ast.lean.md), I define an AST and DSL in Lean to encode our theory in a more formal manner.
 -/
