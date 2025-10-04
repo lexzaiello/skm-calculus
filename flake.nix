@@ -62,15 +62,8 @@
 
             [Introduction](./README.org.md)
 
-            # Background
-            - [Typed and Untyped Lambda Calculus](./Lc.lean.md)
-            - [Strong Normalization](./SnLc.lean.md)
-            - [SK Combinators](./SkRaw.lean.md)
-
-            # Dependent Typing in SK
-            - [AST & Judgment Rules](./Ast3.lean.md)
-
-            # Strong Normalization Proof
+            # Introducing SKΠ
+            - [Ast](./Ast.lean.md)
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";
@@ -97,7 +90,7 @@
           program = "${serve-bin}/bin/serve";
         };
         devShells.default = with pkgs.haskellPackages; pkgs.mkShell {
-          nativeBuildInputs = [ ghc hpack haskell-language-server cabal-install ];
+          nativeBuildInputs = [ ghc hpack haskell-language-server cabal-install pkgs.elan ];
         };
         apps.skm = {
           type = "app";
