@@ -1,6 +1,6 @@
 * Towards a Dependently-Typed Combinator Calculus
 
-In this repository, I define a dependent type theory for the [[https://en.wikipedia.org/wiki/SKI_combinator_calculus][SK-combinator]] calculus. I achieve dependent typing by interpreting Π as a free-standing combinator.
+In this repository, I define a dependent type theory for the [[https://en.wikipedia.org/wiki/SKI_combinator_calculus][SK-combinator]] calculus. I achieve dependent typing by interpreting Π as a free-standing combinator and by introducing a "reflection" construct called M.
 
 See the [[https://lexzaiello.com/skpi-calculus][web book]] for more information.
 

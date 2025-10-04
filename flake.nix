@@ -63,6 +63,7 @@
             [Introduction](./README.org.md)
 
             # Introducing SKΠ
+            - [Intro](./Intro.lean.md)
             - [Ast](./Ast.lean.md)
           '';
         in pkgs.stdenv.mkDerivation {
