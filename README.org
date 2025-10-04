@@ -4,4 +4,6 @@ In this repository, I define a dependent type theory for the [[https://en.wikipe
 
 See the [[https://lexzaiello.com/skpi-calculus][web book]] for more information.
 
+I demonstrate consistency of the theory in Lean. See the [[./formal][formal]] directory for the relevant Lean code.
+
 
