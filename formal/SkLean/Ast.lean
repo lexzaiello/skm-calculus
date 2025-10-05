@@ -59,4 +59,5 @@ macro_rules
 
 /-
 In the [next chapter](./Rules.lean.md), I define rules for typing judgments and evaluation using this DSL.
+
 -/

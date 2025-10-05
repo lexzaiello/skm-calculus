@@ -1,8 +1,9 @@
 window.MathJax = {
+  loader: {load: ['[tex]/mathtools']},
   tex: {
     inlineMath: [['$', '$'], ['\\(', '\\)']],
     displayMath: [['$$', '$$'], ['\\[', '\\]']],
-    packages: ['base', 'ams', 
+    packages: ['base', 'ams', 'mathtools'],
     processEscapes: true,
     processEnvironments: true
   },

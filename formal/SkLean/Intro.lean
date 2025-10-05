@@ -8,7 +8,7 @@ SK \\(\Pi\\) achieves dependent typing by introducing a \\(\Pi\\) combinator.
 The evaluation rules for \\(\Pi\\) are quite simple, and its interpretation as a dependent type formation rule are quite natural:
 
 $$
-(\Pi\ \alpha\ c)\ \text{arg} \to c\ \text{arg} \\\\
+(\Pi\ \alpha\ c)\ \text{arg} := c\ \text{arg} \\\\
 \Pi\ \alpha\ c \cong \Pi(x : \alpha), c\ x
 $$
 
@@ -22,8 +22,8 @@ Here is an example reduction:
 
 $$
 \begin{align}
-\text{Vec}\ \alpha\ n &\to (\Pi\ \mathbb{N}\ (K\ \text{Type}))\ n \\\\
-&\to \text{Type}
+\text{Vec}\ \alpha\ n &= (\Pi\ \mathbb{N}\ (K\ \text{Type}))\ n \\\\
+&= \text{Type}
 \end{align}
 $$
 
@@ -51,8 +51,8 @@ Note that, so far, I have been referring to the untyped varieties of \\(S\\), \\
 I follow the canonical evaluation rules for \\(K\\) and \\(S\\). However, I extend these rules to permit explicit type arguments to \\(K\\) and \\(S\\):
 
 $$
-K \alpha \beta x y\to x \\\\
-S \alpha \beta \gamma x y z \to (x z) (y z)
+K \alpha \beta x y :=  x \\\\
+S \alpha \beta \gamma x y z := (x z) (y z)
 $$
 
 I interpret \\(K\\) and \\(S\\) in their dependently-typed forms as is typically done in the literature:
@@ -64,7 +64,7 @@ $$
 The dependent type of \\(S\\) is slightly more complicated:
 
 $$
-S : \Pi (\alpha : \text{Type}) (\beta : \alpha \rightarrow \text{Type}) (\gamma : \alpha \rightarrow \text{Type}) \\\\ (x : \Pi (x : \alpha), \beta x \rightarrow \gamma x) (y : \Pi (x : \alpha), \beta x) (z : \alpha), \gamma x
+S : \Pi (\alpha : \text{Type}) (\beta : \alpha \rightarrow \text{Type}) (\gamma : \alpha \rightarrow \text{Type}) \\\\ (x : \Pi (x : \alpha), \beta x \rightarrow \gamma x (\beta x)) (y : \Pi (x : \alpha), \beta x) (z : \alpha), \gamma x (\beta x)
 $$
 
 I do not define \\(I\\) as a free-standing object in the theory. As has been demonstrated by [Schönfinkel](https://doi.org/10.1007/BF01448013), \\(I\\) may be derived using only \\(S\\) and \\(K\\).
@@ -87,7 +87,7 @@ $$
 Ideally, the type of \\(K\\) ought to be point-free. Note that since \\(\alpha\\) appears twice in the type of \\(K \alpha \beta\\), surely \\(S\\) must be invoked:
 
 $$
-S\ \Pi\ \Pi\ \alpha \to (\Pi \alpha) (\Pi \alpha)
+S\ \Pi\ \Pi\ \alpha = (\Pi \alpha) (\Pi \alpha)
 $$
 
 This derivation explodes quickly. The point-free type of \\(K\\) becomes very length without some additional construction. For brevity and correctness, I introduce an additional combinator, \\(M\\).
@@ -99,7 +99,7 @@ In order to keep the core of SK \\(\Pi\\) minimal and correct, I introduce \\(M\
 Here are the evaluation rules for \\(M\ K\\):
 
 $$
-M K \alpha \beta \to \Pi \alpha (K (\Pi\ \beta (K \alpha)))
+M K \alpha \beta := \Pi \alpha (K (\Pi\ \beta (K \alpha)))
 $$
 
 In this way, \\(M K\\) captures the dependent type of \\(K\\) in a more concise manner. Since \\(M K\\) is a constructible object, it must also be well-typed. I define the type of \\(M K\\) like such:
