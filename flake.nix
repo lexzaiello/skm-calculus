@@ -65,6 +65,7 @@
             # Introducing SKΠ
             - [Intro](./Intro.lean.md)
             - [Ast](./Ast.lean.md)
+            - [Evaluation & Typing Rules](./Rules.lean.md)
           '';
         in pkgs.stdenv.mkDerivation {
           name = "book-html";

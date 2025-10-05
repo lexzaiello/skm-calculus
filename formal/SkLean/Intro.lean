@@ -19,6 +19,7 @@ $$
 $$
 
 Here is an example reduction:
+
 $$
 \begin{align}
 \text{Vec}\ \alpha\ n &\to (\Pi\ \mathbb{N}\ (K\ \text{Type}))\ n \\\\
@@ -111,8 +112,6 @@ $$
 $$
 
 Similarly, \\(M S\\) is defined to capture the dependent nature of \\(S\\) conveniently.
-
-# Next
 
 In the [next chapter](Ast.lean.md), I define an AST and DSL in Lean to encode our theory in a more formal manner.
 -/

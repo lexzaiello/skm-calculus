@@ -56,3 +56,7 @@ macro_rules
   | `(⟪ M $e:expr ⟫) => `(Expr.m ⟪$e⟫)
   | `(⟪ $e₁:expr $e₂:expr ⟫) => `(Expr.app ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
   | `(⟪ Π ⟫) => `(Expr.pi)
+
+/-
+In the [next chapter](./Rules.lean.md), I define rules for typing judgments and evaluation using this DSL.
+-/
