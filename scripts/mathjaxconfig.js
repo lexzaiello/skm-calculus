@@ -16,3 +16,10 @@ window.MathJax = {
     ignoreHtmlClass: "tex2jax_ignore"
   }
 };
+
+(function() {
+  const script = document.createElement("script");
+  script.src = "https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js";
+  script.async = true;
+  document.head.appendChild(script);
+})();
