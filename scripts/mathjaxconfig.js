@@ -4,8 +4,7 @@ window.MathJax = {
     inlineMath: [["$", "$"], ["\\(", "\\)"]],
     displayMath: [["$$", "$$"], ["\\[", "\\]"]],
     packages: ["base", "ams", "mathtools"],
-    processEscapes: true,
-    processEnvironments: true
+    processEnvironments: true,
     macros: {
       type: ["{\\text{Type}\\ #1}", 1],
       pie: ["\\Pi\\ (#1)\\ (#2)", 2],
