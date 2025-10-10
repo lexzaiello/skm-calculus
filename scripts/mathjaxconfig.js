@@ -7,9 +7,9 @@ window.MathJax = {
     processEscapes: true,
     processEnvironments: true
     macros: {
-      type: ["{{\\text{Type}\ #1}}", 1],
-      pie: ["{{\\Pi\\ (#1)\\ (#2)}}", 2],
-      turnstile: ["{{\\Gamma \\vdash #1 : #2}}", 2]
+      type: ["\\text{Type}\\ #1", 1],
+      pie: ["\\Pi\\ (#1)\\ (#2)", 2],
+      turnstile: ["\\Gamma \\vdash #1 : #2", 2]
     }
   },
   options: {

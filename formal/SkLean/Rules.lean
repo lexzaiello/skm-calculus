@@ -115,7 +115,7 @@ Note to self: we can't have \alpha \rightarrow \beta as the single type argument
 $$
 \frac{
 }{
-\vdash M\ \Pi : \Pi\ (\text{Type}\ m) (\Pi\ (\text{Type}\ n))
+\turnstile{M\ \Pi}{\pie{\type{m}}{\type{n}}}
 }\\\\
 \frac{
 \Gamma \vdash \alpha : \text{Type}\ m,\ x : \alpha
