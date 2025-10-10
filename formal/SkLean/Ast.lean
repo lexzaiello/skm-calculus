@@ -8,9 +8,9 @@ import Mathlib.Data.Nat.Notation
 
 inductive Expr where
   | k   : ℕ → ℕ → Expr
+  | pi  : ℕ → ℕ → Expr
   | s   : ℕ → ℕ → ℕ → Expr
   | m   : Expr → Expr
-  | pi  : Expr
   | app : Expr → Expr → Expr
   | ty  : ℕ → Expr
 
@@ -29,9 +29,11 @@ syntax "S"                 : expr
 syntax "M"                 : expr
 syntax "Type" term         : expr
 syntax "Π"                 : expr
+syntax "@Π"                : expr
 syntax expr expr           : expr
 syntax "(" expr ")"        : expr
 syntax "#" term            : expr
+syntax expr "→" expr       : expr
 
 syntax "SK[" expr "]" : term
 syntax "⟪" expr "⟫"   : term
@@ -45,17 +47,21 @@ def max_universe : Expr → ℕ
   | .m e => max_universe e
   | .app lhs rhs => max (max_universe lhs) (max_universe rhs)
   | .ty n => n
-  | .pi => 0
+  | .pi m n => max m n
 
 macro_rules
+  | `(⟪ #$e:term ⟫) => `($e)
+  | `(⟪ $e₁:expr → $e₂:expr ⟫) => `(⟪ (Π $e₁) ((K $e₁) (Type (max_universe ⟪ $e₂ ⟫)) $e₂) ⟫)
   | `(⟪ Type $n ⟫) => `(Expr.ty $n)
   | `(⟪ (@K #$m:term) #$n:term ⟫) => `(Expr.k $m $n)
   | `(⟪ ((@S #$m:term) #$n:term) #$o:term ⟫) => `(Expr.s $m $n $o)
   | `(⟪ (K $α:expr) $β:expr ⟫) => `(⟪ (((@K #(max_universe ⟪ $α ⟫)) #(max_universe ⟪ $β ⟫)) $α) $β ⟫)
   | `(⟪ ((S $α:expr) $β:expr) $γ:expr ⟫) => `(⟪ (((((@S #(max_universe ⟪ $α ⟫)) #(max_universe ⟪ $β ⟫)) #(max_universe ⟪ $γ ⟫)) $α) $β) $γ ⟫)
   | `(⟪ M $e:expr ⟫) => `(Expr.m ⟪$e⟫)
+  | `(⟪ (@Π #$m:term) #$n:term ⟫) => `(Expr.pi $m $n)
+  | `(⟪ (Π $α:expr) $β:expr ⟫) => `(⟪ (((@Π #(max_universe ⟪ $α ⟫)) #(max_universe ⟪ $β ⟫)) $α) $β ⟫)
   | `(⟪ $e₁:expr $e₂:expr ⟫) => `(Expr.app ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
-  | `(⟪ Π ⟫) => `(Expr.pi)
+  | `(⟪ ($e:expr) ⟫) => `(⟪ $e ⟫)
 
 /-
 In the [next chapter](./Rules.lean.md), I define rules for typing judgments and evaluation using this DSL.

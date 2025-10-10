@@ -12,7 +12,7 @@ $$
 
 Our evaluation rules for \\(M K\\) and \\(M S\\) respectively ought to capture these typing rules.
 
-## \\(M K\\) Evalutaion Rules
+## \\(M K\\) Evaluation Rules
 
 Note that since \\(K\\) requires explicit type arguments, defining a type rule for \\(K\\) without \\(M K\\) would be impossible. The type argument \\(\alpha\\) needs to be duplicated, and this is only possible with \\(S\\), but \\(S\\) also requires explicit type arguments. Thus, \\(M K\\) simplifies matters significantly.
 
@@ -67,4 +67,69 @@ Putting it all together:
 $$
 M S \alpha \beta \gamma := (\Pi\ \alpha\ (S (S (K\ \Pi) \beta) (S (K K) \gamma))) \rightarrow (\Pi \alpha \beta) \rightarrow (\Pi \alpha (S \gamma \beta))
 $$
+
+# Type of \\(\Pi\\)
+
+Note that in the type definition for \\(S\\), I refer to \\(\Pi\\) as a free-standing combinator. Thus, it must also well-typed. \\(\Pi\\) is also universe polymorphic with universe argument \\(m, n\\). Its first argument (\\(\alpha\\)) is of the form \\(\text{Type}\ m\\), while its second argument is a term of type \\(\alpha\\).
+
+In the calculus of constructions, \\(\Pi\\) is typically typed like such:
+
+$$
+\frac{
+\Gamma \vdash \alpha : \text{Type}\ n, y : \beta
+}{
+\Gamma \vdash (\Pi (x : \alpha), y) : \beta
+}
+$$
+
+In our combinatory interpretation, \\(y\\) is further restricted such that it accepts an argument of type \\(\alpha\\). This mimicks variable substitution within \\(\Pi\\) without variables.
+
+At the very least, we can say:
+
+$$
+\frac{
+\Gamma \vdash \alpha : \text{Type}\ m,\ \beta : \text{Type}\ n, x : \alpha \rightarrow \beta
+}{
+\Gamma \vdash (\Pi\ \alpha\ \beta\ x) : (\alpha \rightarrow \beta)
+}
+$$
+
+Clearly, \\(\Pi\\) accepts two \\(\text{Type}\\) arguments as parameters \\(\{\alpha, \beta\}\\) and a body with a type of the form \\(\alpha \rightarrow \beta\\).
+
+I similarly make use of the \\(M\\) "reflection" construct to automate the mechanical formation of the type of \\(\Pi\\):
+
+$$
+M\ \Pi\ (\alpha \rightarrow \beta)\ x := \alpha \rightarrow \beta \\\\
+\therefore \\\\
+\frac{
+\vdash \Pi : M\ \Pi,\ \Gamma \vdash \alpha : \text{Type}\ m,\\ \beta : \text{Type}\ n,\\ x : \alpha
+}{
+\Pi\ \alpha\ \beta\ x : \alpha \rightarrow \beta
+}
+$$
+
+The judgment rules for \\(M\ \Pi\\) are as follows:
+
+$$
+\frac{
+}{
+\vdash M\ \Pi : \text{Type}\ m \rightarrow \text{Type}\ (succ\ 1)
+}\\\\
+\frac{
+\Gamma \vdash \alpha : \text{Type}\ m,\ \beta : \text{Type}\ n,\ x : \alpha \rightarrow \beta
+}{
+\Gamma \vdash M\ \alpha\ \beta\ x : \text{Type}\ (m + n)
+}
+$$
 -/
+
+import SkLean.Ast
+
+def eval_once : Expr → Option Expr
+  | ⟪ (((((@K #_m) #_n) #_α) #_β) #x) #y ⟫ => pure x
+  | ⟪ (((((@S #_m) #_n) #_o) #x) #y) #z ⟫ => pure ⟪ (#x #z) (#y #z) ⟫
+  | ⟪ ((M ((@K #_m) #_n) #α)) #β ⟫ => pure ⟪ (#α) → ((#β) → (#α)) ⟫
+  | ⟪ (((M (((@S #_m) #_n) #_o) #α) #β)) #γ ⟫ => pure ⟪ ((Π #α) (S (S (K ((Type _n) → (@Π #(max (max_universe _n) (max_universe _m)))) #β) (((((S #α) ((#α) → ((Type (max (max_universe γ).succ (max_universe α)).succ) → #α))) #γ) (((K ((#α) → ((Type (max (max_universe γ).succ (max_universe α)).succ) → #α))) #α) ((K (Type (max (max_universe γ).succ (max_universe α)).succ)) #α)) #γ)))) → ((Π (#α) (#β)) → (Π (#α) (S (#γ) (#β)))) ⟫
+  | ⟪ ((Π #t_in) #body) #arg ⟫ => pure ⟪ (#body) (#arg) ⟫
+  | _ => .none
+
