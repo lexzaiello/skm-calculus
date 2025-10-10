@@ -113,6 +113,7 @@ The judgment rules for \\(M\ \Pi\\) are as follows:
 Note to self: we can't have \alpha \rightarrow \beta as the single type argument, because we might want to instantiate the arguments dynamically.
 
 $$
+\type{bruh}\\
 \frac{
 }{
 \turnstile{M\ \Pi}{\pie{\type{m}}{\type{n}}}
