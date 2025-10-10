@@ -102,23 +102,25 @@ $$
 M\ \Pi\ (\alpha \rightarrow \beta)\ x := \alpha \rightarrow \beta \\\\
 \therefore \\\\
 \frac{
-\vdash \Pi : M\ \Pi,\ \Gamma \vdash \alpha : \text{Type}\ m,\\ \beta : \text{Type}\ n,\\ x : \alpha
+\vdash \Pi : M\ \Pi,\ \Gamma \vdash \alpha : \text{Type}\ m, \beta : \text{Type}\ n,\ \ x : \alpha
 }{
-\Pi\ \alpha\ \beta\ x : \alpha \rightarrow \beta
+\Pi\ \alpha\ \beta\ x : (\alpha \rightarrow \beta)
 }
 $$
 
 The judgment rules for \\(M\ \Pi\\) are as follows:
 
+Note to self: we can't have \alpha \rightarrow \beta as the single type argument, because we might want to instantiate the arguments dynamically.
+
 $$
 \frac{
 }{
-\vdash M\ \Pi : \text{Type}\ m \rightarrow \text{Type}\ (succ\ m)
+\vdash M\ \Pi : \Pi\ (\text{Type}\ m) (\Pi\ (\text{Type}\ n))
 }\\\\
 \frac{
-\Gamma \vdash \alpha : \text{Type}\ m,\ \beta : \text{Type}\ n,\ x : \alpha \rightarrow \beta
+\Gamma \vdash \alpha : \text{Type}\ m,\ x : \alpha
 }{
-\Gamma \vdash M\ \alpha\ \beta\ x : \text{Type}\ (m + n)
+\Gamma \vdash M\ \alpha\ x : (\Pi (\text{Type}\ m)\ \alpha\ x = 
 }
 $$
 -/
@@ -128,6 +130,7 @@ import SkLean.Ast
 def eval_once : Expr → Option Expr
   | ⟪ (((((@K #_m) #_n) #_α) #_β) #x) #y ⟫ => pure x
   | ⟪ (((((@S #_m) #_n) #_o) #x) #y) #z ⟫ => pure ⟪ (#x #z) (#y #z) ⟫
+  | ⟪ ((M 
   | ⟪ ((M ((@K #_m) #_n) #α)) #β ⟫ => pure ⟪ (#α) → ((#β) → (#α)) ⟫
   | ⟪ (((M (((@S #_m) #_n) #_o) #α) #β)) #γ ⟫ => pure ⟪ ((Π #α) (S (S (K ((Type _n) → (@Π #(max (max_universe _n) (max_universe _m)))) #β) (((((S #α) ((#α) → ((Type (max (max_universe γ).succ (max_universe α)).succ) → #α))) #γ) (((K ((#α) → ((Type (max (max_universe γ).succ (max_universe α)).succ) → #α))) #α) ((K (Type (max (max_universe γ).succ (max_universe α)).succ)) #α)) #γ)))) → ((Π (#α) (#β)) → (Π (#α) (S (#γ) (#β)))) ⟫
   | ⟪ ((Π #t_in) #body) #arg ⟫ => pure ⟪ (#body) (#arg) ⟫
