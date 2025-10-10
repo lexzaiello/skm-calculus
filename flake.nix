@@ -15,7 +15,7 @@
           author = "Alexandra Zaldivar Aiello"
 
           [output.html]
-          mathjax-support = true
+          mathjax-support = false
           additional-js = ["highlight.js", "mathjaxconfig.js"]
         '';
         md = with pkgs.haskellPackages;
