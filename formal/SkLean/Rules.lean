@@ -113,7 +113,7 @@ The judgment rules for \\(M\ \Pi\\) are as follows:
 $$
 \frac{
 }{
-\vdash M\ \Pi : \text{Type}\ m \rightarrow \text{Type}\ (succ\ 1)
+\vdash M\ \Pi : \text{Type}\ m \rightarrow \text{Type}\ (succ\ m)
 }\\\\
 \frac{
 \Gamma \vdash \alpha : \text{Type}\ m,\ \beta : \text{Type}\ n,\ x : \alpha \rightarrow \beta
