@@ -70,13 +70,13 @@ $$
 
 # Type of \\(\Pi\\)
 
-Note that in the type definition for \\(S\\), I refer to \\(\Pi\\) as a free-standing combinator. Thus, it must also well-typed. \\(\Pi\\) is also universe polymorphic with universe argument \\(m, n\\). Its first argument (\\(\alpha\\)) is of the form \\(\text{Type}\ m\\), while its second argument is a term of type \\(\alpha\\).
+Note that in the type definition for \\(S\\), I refer to \\(\Pi\\) as a free-standing combinator. Thus, it must also be well-typed. \\(\Pi\\) is also universe polymorphic with universe arguments \\(\{m, n\}\\). Its first argument (\\(\alpha\\)) is of the type \\(\text{Type}\ m\\), while its second argument is a term of type \\(\alpha\\).
 
 In the calculus of constructions, \\(\Pi\\) is typically typed like such:
 
 $$
 \frac{
-\Gamma \vdash \alpha : \text{Type}\ n, y : \beta
+\Gamma \turnstilee{\alpha}{\type{n}}{y}{\beta}
 }{
 \Gamma \vdash (\Pi (x : \alpha), y) : \beta
 }
@@ -99,10 +99,10 @@ Clearly, \\(\Pi\\) accepts two \\(\text{Type}\\) arguments as parameters \\(\{\a
 I similarly make use of the \\(M\\) "reflection" construct to automate the mechanical formation of the type of \\(\Pi\\):
 
 $$
-M\ \Pi\ (\alpha \rightarrow \beta)\ x := \alpha \rightarrow \beta \\\\
+M\ \Pi\ \alpha\ \beta\ x := \alpha \rightarrow \beta \\\\
 \therefore \\\\
 \frac{
-\vdash \Pi : M\ \Pi,\ \Gamma \vdash \alpha : \text{Type}\ m, \beta : \text{Type}\ n,\ \ x : \alpha
+\vdash \Pi : M\ \Pi,\ \Gamma \vdash \alpha : \text{Type}\ m, \beta : \text{Type}\ n,\ x : \alpha
 }{
 \Pi\ \alpha\ \beta\ x : (\alpha \rightarrow \beta)
 }
@@ -110,17 +110,15 @@ $$
 
 The judgment rules for \\(M\ \Pi\\) are as follows:
 
-Note to self: we can't have \alpha \rightarrow \beta as the single type argument, because we might want to instantiate the arguments dynamically.
-
 $$
 \frac{
 }{
-\turnstile{M\ \Pi}{\pie{\type{m}}{\type{n}}}
-}\\\\
+\turnstile{M\ \Pi}{\piee{\type{m}}{\type{n}}}
+}\\\\\\\\
 \frac{
 \Gamma \vdash \alpha : \text{Type}\ m,\ x : \alpha
 }{
-\Gamma \vdash M\ \alpha\ x : (\Pi (\text{Type}\ m)\ \alpha\ x = 
+\Gamma \vdash M\ \alpha\ x : (\pieee{\type{m}}{\alpha}{x} = 
 }
 $$
 -/
