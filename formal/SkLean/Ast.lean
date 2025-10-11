@@ -20,23 +20,31 @@ inductive Expr where
 For ergonomics, I define a small DSL. Universe levels can usually be inferred for \\(K\\). Thus, I define \\(K\\) and \\(@K\\) separately, where  \\(@K\\) requires explicit universe arguments and \\(K\\) infers them when type arguments are already provided.
 -/
 
+declare_syntax_cat atom
+declare_syntax_cat app
 declare_syntax_cat expr
 
-syntax "@K"                : expr
-syntax "@S"                : expr
-syntax "K"                 : expr
-syntax "S"                 : expr
-syntax "M"                 : expr
-syntax "Type" term         : expr
-syntax "Π"                 : expr
-syntax "@Π"                : expr
-syntax expr expr           : expr
-syntax "(" expr ")"        : expr
-syntax "#" term            : expr
-syntax expr "→" expr       : expr
+syntax "@K"                : atom
+syntax "@S"                : atom
+syntax "K"                 : atom
+syntax "S"                 : atom
+syntax "M"                 : atom
+syntax "Type" term         : atom
+syntax "Π"                 : atom
+syntax "@Π"                : atom
+syntax "(" app ")"         : atom
+syntax "#" term            : atom
+syntax atom "→" atom       : atom
+
+syntax app atom : app
+syntax atom     : app
+
+syntax app : expr
 
 syntax "SK[" expr "]" : term
 syntax "⟪" expr "⟫"   : term
+syntax "⟪₁" atom "⟫"  : term
+syntax "⟪₂" app "⟫"   : term
 
 macro_rules
   | `(SK[$e:expr]) => `(⟪ $e ⟫)
@@ -50,18 +58,21 @@ def max_universe : Expr → ℕ
   | .pi m n => max m n
 
 macro_rules
-  | `(⟪ #$e:term ⟫) => `($e)
-  | `(⟪ $e₁:expr → $e₂:expr ⟫) => `(⟪ (Π $e₁) ((K $e₁) (Type (max_universe ⟪ $e₂ ⟫)) $e₂) ⟫)
-  | `(⟪ Type $n ⟫) => `(Expr.ty $n)
-  | `(⟪ (@K #$m:term) #$n:term ⟫) => `(Expr.k $m $n)
-  | `(⟪ ((@S #$m:term) #$n:term) #$o:term ⟫) => `(Expr.s $m $n $o)
-  | `(⟪ (K $α:expr) $β:expr ⟫) => `(⟪ (((@K #(max_universe ⟪ $α ⟫)) #(max_universe ⟪ $β ⟫)) $α) $β ⟫)
-  | `(⟪ ((S $α:expr) $β:expr) $γ:expr ⟫) => `(⟪ (((((@S #(max_universe ⟪ $α ⟫)) #(max_universe ⟪ $β ⟫)) #(max_universe ⟪ $γ ⟫)) $α) $β) $γ ⟫)
-  | `(⟪ M $e:expr ⟫) => `(Expr.m ⟪$e⟫)
-  | `(⟪ (@Π #$m:term) #$n:term ⟫) => `(Expr.pi $m $n)
-  | `(⟪ (Π $α:expr) $β:expr ⟫) => `(⟪ (((@Π #(max_universe ⟪ $α ⟫)) #(max_universe ⟪ $β ⟫)) $α) $β ⟫)
-  | `(⟪ $e₁:expr $e₂:expr ⟫) => `(Expr.app ⟪ $e₁ ⟫ ⟪ $e₂ ⟫)
-  | `(⟪ ($e:expr) ⟫) => `(⟪ $e ⟫)
+  | `(⟪₁ $e₁:atom → $e₂:atom ⟫) => `(⟪ (Π $e₁) ((K $e₁) (Type (max_universe ⟪₁ $e₂ ⟫)) $e₂) ⟫)
+  | `(⟪₁ Type $n ⟫) => `(Expr.ty $n)
+  | `(⟪₁ #$e:term ⟫) => `($e)
+  | `(⟪₂ @K #$m:term #$n:term ⟫) => `(Expr.k $m $n)
+  | `(⟪₂ @S #$m:term #$n:term #$o:term ⟫) => `(Expr.s $m $n $o)
+  | `(⟪₂ K $α:atom $β:atom ⟫) => `(⟪ (@K #(max_universe ⟪₁ $α ⟫) #(max_universe ⟪₁ $β ⟫)) $α $β ⟫)
+  | `(⟪₂ S $α:atom $β:atom $γ:atom ⟫) => `(⟪ ((@S #(max_universe ⟪₁ $α ⟫) #(max_universe ⟪₁ $β ⟫) #(max_universe ⟪₁ $γ ⟫))) $α $β $γ ⟫)
+  | `(⟪₂ M $e:atom ⟫) => `(Expr.m ⟪₁ $e⟫)
+  | `(⟪₂ @Π #$m:term #$n:term ⟫) => `(Expr.pi $m $n)
+  | `(⟪₂ Π $α:atom $β:atom ⟫) => `(⟪ (((@Π #(max_universe ⟪₁ $α ⟫)) #(max_universe ⟪₁ $β ⟫)) $α) $β ⟫)
+  | `(⟪ $e:atom ⟫) => `(⟪₁ $e:atom ⟫)
+  | `(⟪ $e:app ⟫) => `(⟪₂ $e:app ⟫)
+  | `(⟪₂ ($e:app) ⟫) => `(⟪₂ $e ⟫)
+  | `(⟪₁ ($e:atom) ⟫) => `(⟪₁ $e ⟫)
+  | `(⟪₂ $e₁:app $e₂:atom ⟫) => `(Expr.app ⟪₂ $e₁ ⟫ ⟪₁ $e₂ ⟫)
 
 /-
 In the [next chapter](./Rules.lean.md), I define rules for typing judgments and evaluation using this DSL.

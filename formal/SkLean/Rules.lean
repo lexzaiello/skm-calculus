@@ -128,7 +128,7 @@ import SkLean.Ast
 def eval_once : Expr → Option Expr
   | ⟪ (((((@K #_m) #_n) #_α) #_β) #x) #y ⟫ => pure x
   | ⟪ (((((@S #_m) #_n) #_o) #x) #y) #z ⟫ => pure ⟪ (#x #z) (#y #z) ⟫
-  | ⟪ ((M 
+  | ⟪ ((M (@Π #m) #n)) ⟫ => pure ⟪ (Type m) → ((Type n) → (Type (m + n).succ)) ⟫
   | ⟪ ((M ((@K #_m) #_n) #α)) #β ⟫ => pure ⟪ (#α) → ((#β) → (#α)) ⟫
   | ⟪ (((M (((@S #_m) #_n) #_o) #α) #β)) #γ ⟫ => pure ⟪ ((Π #α) (S (S (K ((Type _n) → (@Π #(max (max_universe _n) (max_universe _m)))) #β) (((((S #α) ((#α) → ((Type (max (max_universe γ).succ (max_universe α)).succ) → #α))) #γ) (((K ((#α) → ((Type (max (max_universe γ).succ (max_universe α)).succ) → #α))) #α) ((K (Type (max (max_universe γ).succ (max_universe α)).succ)) #α)) #γ)))) → ((Π (#α) (#β)) → (Π (#α) (S (#γ) (#β)))) ⟫
   | ⟪ ((Π #t_in) #body) #arg ⟫ => pure ⟪ (#body) (#arg) ⟫
