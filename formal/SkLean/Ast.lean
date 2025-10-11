@@ -72,6 +72,7 @@ macro_rules
   | `(⟪ $e:app ⟫) => `(⟪₂ $e:app ⟫)
   | `(⟪₂ ($e:app) ⟫) => `(⟪₂ $e ⟫)
   | `(⟪₁ ($e:atom) ⟫) => `(⟪₁ $e ⟫)
+  | `(⟪₂ ($e₁:app) $e₂:atom ⟫) => `(⟪₂ $e₁ $e₂ ⟫)
   | `(⟪₂ $e₁:app $e₂:atom ⟫) => `(Expr.app ⟪₂ $e₁ ⟫ ⟪₁ $e₂ ⟫)
 
 /-
