@@ -88,9 +88,9 @@ At the very least, we can say:
 
 $$
 \frac{
-\Gamma \vdash \alpha : \text{Type}\ m,\ \beta : \text{Type}\ n, x : \alpha \rightarrow \beta
+\Gamma \turnstileee{\alpha}{\type{m}}{\beta}{\type{n}}{x}{\alpha \rightarrow \beta}
 }{
-\Gamma \vdash (\Pi\ \alpha\ \beta\ x) : (\alpha \rightarrow \beta)
+\Gamma \turnstile{\pieee{\alpha}{\beta}{x}}{\alpha \rightarrow \beta}
 }
 $$
 
@@ -102,9 +102,9 @@ $$
 M\ \Pi\ \alpha\ \beta\ x := \alpha \rightarrow \beta \\\\
 \therefore \\\\
 \frac{
-\vdash \Pi : M\ \Pi,\ \Gamma \vdash \alpha : \text{Type}\ m, \beta : \text{Type}\ n,\ x : \alpha
+\turnstile{\Pi}{M\ \Pi},\ \Gamma \turnstileee{\alpha}{\type{m}}{\beta}{\type{n}}{x}{\alpha \rightarrow \beta}
 }{
-\Pi\ \alpha\ \beta\ x : (\alpha \rightarrow \beta)
+\Gamma \turnstile{\pieee{\alpha}{\beta}{x}}{\alpha \rightarrow \beta}
 }
 $$
 
@@ -113,12 +113,12 @@ The judgment rules for \\(M\ \Pi\\) are as follows:
 $$
 \frac{
 }{
-\turnstile{M\ \Pi}{\piee{\type{m}}{\type{n}}}
+\turnstile{M\ \Pi}{\type{m} \rightarrow \type{n} \rightarrow \type{\text{succ}\ (m + n)}}
 }\\\\\\\\
 \frac{
-\Gamma \vdash \alpha : \text{Type}\ m,\ x : \alpha
+\Gamma \turnstileee{\alpha}{\type{m}}{\beta}{\type{n}}{x}{\alpha \rightarrow \beta}
 }{
-\Gamma \vdash M\ \alpha\ x : (\pieee{\type{m}}{\alpha}{x} = 
+\Gamma \vdash M\ \alpha\ \beta\ x : (\pieee{\type{m}}{\alpha}{\beta}{x} = \alpha \rightarrow \beta)
 }
 $$
 -/
